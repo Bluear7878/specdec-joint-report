@@ -1,0 +1,1212 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Bidirectional joint training에서 drafter loss가 pretrained standalone target에 미치는 gradient 간섭을 문헌, 369개 학습 run, downstream task, exact speculative rollout으로 분석한 한국어 종합 보고서.">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="독립 pretrained AR target–drafter 양방향 학습의 gradient 간섭">
+  <meta property="og:description" content="Bidirectional joint training에서 drafter loss가 pretrained standalone target에 미치는 gradient 간섭을 문헌, 369개 학습 run, downstream task, exact speculative rollout으로 분석한 한국어 종합 보고서.">
+  <meta property="og:url" content="https://bluear7878.github.io/specdec-joint-report/">
+  <meta name="twitter:card" content="summary">
+  <link rel="canonical" href="https://bluear7878.github.io/specdec-joint-report/">
+  <title>독립 pretrained AR target–drafter 양방향 학습의 gradient 간섭</title>
+  <script>
+    window.MathJax = {
+      tex: {displayMath: [['\\[', '\\]']]},
+      chtml: {scale: 0.94}
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f6f7fb;
+      --surface: #ffffff;
+      --text: #1c2333;
+      --muted: #5d6678;
+      --line: #dfe3eb;
+      --accent: #2854c5;
+      --accent-soft: #eaf0ff;
+      --code-bg: #f0f2f7;
+      --quote: #54627d;
+      --shadow: 0 14px 36px rgba(31, 45, 80, 0.08);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #10131a;
+        --surface: #171b24;
+        --text: #e8ebf2;
+        --muted: #aeb6c7;
+        --line: #303746;
+        --accent: #94b0ff;
+        --accent-soft: #222e4e;
+        --code-bg: #222733;
+        --quote: #b8c3dd;
+        --shadow: none;
+      }
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Pretendard, "Noto Sans KR", -apple-system, BlinkMacSystemFont,
+        "Segoe UI", sans-serif;
+      font-size: 17px;
+      line-height: 1.78;
+      word-break: keep-all;
+    }
+    main {
+      width: min(1120px, calc(100% - 32px));
+      margin: 36px auto 80px;
+      padding: clamp(24px, 5vw, 68px);
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+    }
+    h1, h2, h3 { line-height: 1.3; letter-spacing: -0.025em; }
+    h1 { margin: 0 0 14px; font-size: clamp(2rem, 5vw, 3.35rem); }
+    h2 {
+      margin-top: 3.3rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--line);
+      font-size: clamp(1.55rem, 3vw, 2.05rem);
+    }
+    h3 { margin-top: 2.2rem; font-size: 1.32rem; }
+    .headerlink { margin-left: .4rem; opacity: 0; text-decoration: none; }
+    h2:hover .headerlink, h3:hover .headerlink { opacity: .65; }
+    a { color: var(--accent); text-underline-offset: 3px; }
+    strong { font-weight: 750; }
+    .publication-note {
+      display: inline-block;
+      margin: 0 0 1.4rem;
+      padding: .35rem .75rem;
+      color: var(--accent);
+      background: var(--accent-soft);
+      border-radius: 999px;
+      font-size: .88rem;
+      font-weight: 700;
+    }
+    .toc {
+      margin: 2rem 0 3rem;
+      padding: 1.25rem 1.5rem;
+      background: var(--accent-soft);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+    }
+    .toc::before { content: "목차"; display: block; margin-bottom: .65rem; font-weight: 800; }
+    .toc ul { margin: .3rem 0; padding-left: 1.4rem; }
+    .toc a { text-decoration: none; }
+    blockquote {
+      margin: 1.4rem 0;
+      padding: .75rem 1.2rem;
+      color: var(--quote);
+      border-left: 4px solid var(--accent);
+      background: var(--accent-soft);
+      border-radius: 0 10px 10px 0;
+    }
+    blockquote p { margin: 0; }
+    table {
+      display: block;
+      width: 100%;
+      margin: 1.35rem 0 1.8rem;
+      overflow-x: auto;
+      border-collapse: collapse;
+      font-size: .91rem;
+    }
+    th, td { padding: .62rem .72rem; border: 1px solid var(--line); vertical-align: top; }
+    th { background: var(--accent-soft); text-align: left; white-space: nowrap; }
+    tr:nth-child(even) td { background: color-mix(in srgb, var(--surface) 92%, var(--accent-soft)); }
+    code {
+      padding: .12rem .32rem;
+      background: var(--code-bg);
+      border-radius: 5px;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: .87em;
+      word-break: break-word;
+    }
+    pre {
+      padding: 1rem 1.1rem;
+      overflow-x: auto;
+      background: var(--code-bg);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      line-height: 1.55;
+    }
+    pre code { padding: 0; background: transparent; }
+    .math-block { margin: 1.3rem 0; overflow-x: auto; text-align: center; }
+    .local-artifact { color: var(--muted); border-bottom: 1px dotted var(--muted); }
+    li { margin: .34rem 0; }
+    footer {
+      width: min(1120px, calc(100% - 32px));
+      margin: -52px auto 42px;
+      color: var(--muted);
+      text-align: center;
+      font-size: .85rem;
+    }
+    @media (max-width: 700px) {
+      body { font-size: 15.5px; word-break: normal; }
+      main { width: 100%; margin: 0; border: 0; border-radius: 0; }
+      table { font-size: .82rem; }
+    }
+    @media print {
+      body { background: white; color: black; font-size: 11pt; }
+      main { width: 100%; margin: 0; padding: 0; border: 0; box-shadow: none; }
+      .toc { break-after: page; }
+      a { color: black; }
+    }
+  </style>
+</head>
+<body>
+  <main><h1 id="pretrained-ar-targetdrafter-gradient">독립 pretrained AR target–drafter 양방향 학습의 gradient 간섭<a class="headerlink" href="#pretrained-ar-targetdrafter-gradient" title="이 절의 고정 링크">&para;</a></h1>
+<div class="publication-note">외부 공개용 HTML · 원 실험 artifact와 checkpoint는 공개되지 않음</div>
+
+<div class="toc">
+<ul>
+<li><a href="#0">0. 한 문장 결론</a></li>
+<li><a href="#1">1. 연구 질문과 정확한 비교</a></li>
+<li><a href="#2">2. 문헌 확인</a></li>
+<li><a href="#3-loss">3. Loss, 모델, 학습 설계</a><ul>
+<li><a href="#31-loss">3.1 최신 loss 선택</a></li>
+<li><a href="#32-matrix">3.2 모델 matrix</a></li>
+<li><a href="#33">3.3 공통 학습·평가 조건</a></li>
+<li><a href="#34">3.4 판정 지표</a></li>
+</ul>
+</li>
+<li><a href="#4">4. 핵심 학습 결과</a><ul>
+<li><a href="#41-confirmatory-3-experimental-target-1-pair">4.1 Confirmatory η=3 + experimental target β=1에서 다섯 pair 모두 재현됐다</a></li>
+<li><a href="#42">4.2 “치명적 붕괴”는 아니었다</a></li>
+<li><a href="#43-overlap-draft">4.3 Overlap 증가는 draft 자체의 언어모델 개선이 아니었다</a></li>
+<li><a href="#44-240-run-panel-scheduleobjective-sensitivity">4.4 이전 240-run panel이 보여준 schedule·objective sensitivity</a></li>
+</ul>
+</li>
+<li><a href="#5-gradient">5. Gradient는 어떻게 나빠졌는가</a></li>
+<li><a href="#6-mitigation">6. Mitigation 비교</a><ul>
+<li><a href="#61-pcgrad">6.1 PCGrad 단독은 부족했다</a></li>
+<li><a href="#62-norm-cap">6.2 Norm cap이 가장 효과적이었다</a></li>
+<li><a href="#63-fixed-pretrained-anchor-weight-1">6.3 Fixed pretrained anchor weight 1은 안전장치가 아니었다</a></li>
+</ul>
+</li>
+<li><a href="#7-domain-downstream">7. Domain과 downstream 결과</a><ul>
+<li><a href="#71-nll-harm-domain-invariant">7.1 NLL harm은 domain invariant하지 않았다</a></li>
+<li><a href="#72-pinned-hellaswag-512-prefix-sanity">7.2 Pinned HellaSwag 512-prefix sanity</a></li>
+</ul>
+</li>
+<li><a href="#8-actual-speculative-rollout">8. Actual speculative rollout</a><ul>
+<li><a href="#81-protocol">8.1 정확성 protocol</a></li>
+<li><a href="#82-small-pair-aal">8.2 Small-pair AAL</a></li>
+<li><a href="#83-cross-swap-acceptance-checkpoint">8.3 Cross-swap으로 acceptance 이득의 checkpoint 민감도를 진단</a></li>
+<li><a href="#84-scalecross-rollout">8.4 Scale/cross rollout</a></li>
+</ul>
+</li>
+<li><a href="#9-bf16-cache-audit">9. BF16 cache audit에서 발견한 별도 수치 문제</a></li>
+<li><a href="#10">10. 최종 해석</a><ul>
+<li><a href="#_1">질문에 대한 직접 답</a></li>
+</ul>
+</li>
+<li><a href="#11">11. 권장 개선안</a><ul>
+<li><a href="#111">11.1 지금 바로 쓸 수 있는 안전 순서</a></li>
+<li><a href="#112-target-priority-capped-update">11.2 제안하는 target-priority capped update</a></li>
+</ul>
+</li>
+<li><a href="#12">12. 한계와 다음 실험</a></li>
+<li><a href="#13">13. 재현성과 산출물</a></li>
+<li><a href="#14">14. 연구 판단</a></li>
+</ul>
+</div>
+<blockquote>
+<p>후속 종합 보고서 · 2026-07-14<br>
+범위: MEDUSA/EAGLE식 shared head가 아니라 embedding, backbone, LM head, adapter,
+optimizer가 완전히 분리된 두 autoregressive language model<br>
+상태: controlled LoRA 실험의 descriptive evidence이며 peer-reviewed 결과가 아님</p>
+</blockquote>
+<h2 id="0">0. 한 문장 결론<a class="headerlink" href="#0" title="이 절의 고정 링크">&para;</a></h2>
+<p><strong>현상은 실재하지만 “drafter loss가 언제나 target gradient를 치명적으로 망친다”는
+설명은 부정확하다.</strong> 최신 acceptance-oriented Hybrid LK loss를 pretrained target과
+독립 pretrained AR drafter 양쪽으로 미분하면, confirmatory LK schedule <code>η=3</code>과
+본 연구의 experimental target coefficient <code>β=1</code> 설정에서 같은
+target CE를 쓰는 detach 대조군보다 WikiText target NLL이 다섯 pair, 21/21 seed에서
+나빠졌다. 그러나 모든 target은 pretrained 초기값보다 여전히 좋아졌고, CE의 일차
+descent 방향이 뒤집힌 step도 없었다. 관찰된 문제는 폭발적 gradient failure보다는
+<strong>target의 in-domain 적응을 약화시키고, 장기 co-adaptation을 통해 target을 draft 쪽으로
+움직이는 negative transfer</strong>에 가깝다.</p>
+<p>가장 실용적인 결론은 다음과 같다.</p>
+<ol>
+<li>Exact speculative decoding이나 standalone drafter 학습 자체는 target-side draft
+   loss를 요구하지 않는다. Target adaptation을 유지한다면 alignment loss에서 detach하고,
+   target adaptation 자체가 불필요할 때만 target을 freeze하는 것이 안전한 기본값이다.</li>
+<li>양방향 target-aware 학습을 반드시 써야 한다면, PCGrad 단독보다
+   <code>||g_aux|| ≤ 0.1 ||g_main||</code> target-priority norm cap이 훨씬 효과적이었다.</li>
+<li>이 cap은 target 손상을 크게 줄였지만 acceptance 이득도 줄였다. 공짜 완화법은
+   아니었다.</li>
+<li>Teacher-forced overlap은 실제 rollout의 충분한 proxy가 아니었다. GPT-2에서는
+   overlap이 <code>+0.035</code> 늘어도 전체 AAL은 사실상 변하지 않았고 WikiText AAL은 줄었다.</li>
+<li>Pythia cross-swap에서는 joint target만 넣을 때 AAL이 <code>+0.158</code>, joint draft만 넣을
+   때 <code>-0.076</code>이었다. 이 conditional point estimate는 겉보기 acceptance 향상의
+   상당 부분이 “draft 개선”보다 “target이 draft 쪽으로 이동”한 현상과 양립했다.</li>
+<li>현상은 architecture와 무관한 정리가 아니다. 특히 Pythia–Mamba에서는 local raw
+   conflict가 21%에 불과하고 CE retention이 1보다 컸는데도 최종 WikiText NLL은
+   나빠졌다. 최종 결과는 instantaneous cosine보다 trajectory와 domain에 더 의존했다.</li>
+</ol>
+<h2 id="1">1. 연구 질문과 정확한 비교<a class="headerlink" href="#1" title="이 절의 고정 링크">&para;</a></h2>
+<p>Target distribution을 <code>p_θ</code>, drafter를 <code>q_φ</code>라 하자. 두 모델은 동일한 token ID
+sequence를 받지만 parameter나 hidden state를 공유하지 않는다. 비교한 target update는
+다음 두 가지다.</p>
+<div class="math-block">\[
+\text{detach:}\quad
+g_T=\nabla_\theta L_{CE},
+\qquad
+g_D=\nabla_\phi L_A(\operatorname{sg}[p_\theta],q_\phi),
+\]</div>
+<div class="math-block">\[
+\text{bidirectional:}\quad
+g_T=\nabla_\theta L_{CE}
+     +\beta\nabla_\theta L_A(p_\theta,\operatorname{sg}[q_\phi]),
+\qquad
+g_D=\nabla_\phi L_A(\operatorname{sg}[p_\theta],q_\phi).
+\]</div>
+<p>Draft gradient coefficient는 모든 arm에서 1로 고정했다. 따라서 intervention은
+“draft도 함께 학습했는가”가 아니라 <strong>동일한 draft loss가 target logit graph까지
+흘렀는가</strong>다. 같은 seed의 arm은 minibatch 순서, optimizer, schedule, token exposure가
+같다.</p>
+<p>여기서 중요한 정정이 하나 있다. Target-side <code>L_A</code>는 speculative decoding 일반의
+필수조건이 아니다. 이는 target까지 co-adapt시키는 특정 joint scheme의 설계 선택이다.
+고정 target에 대해 draft만 distill해도 exact rejection sampling은 성립한다.</p>
+<h2 id="2">2. 문헌 확인<a class="headerlink" href="#2" title="이 절의 고정 링크">&para;</a></h2>
+<p>2026-07-14까지 확인한 1차 문헌의 위치는 다음과 같다.</p>
+<table>
+<thead>
+<tr>
+<th>연구</th>
+<th style="text-align: right;">별도 pretrained AR draft</th>
+<th style="text-align: right;">draft loss가 target을 갱신</th>
+<th>본 연구와의 관계</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://proceedings.mlr.press/v202/leviathan23a.html">Speculative Decoding, ICML 2023</a></td>
+<td style="text-align: right;">예</td>
+<td style="text-align: right;">아니오</td>
+<td>고정 target에 대한 exact rejection sampling</td>
+</tr>
+<tr>
+<td><a href="https://openreview.net/forum?id=rsY6J3ZaTF">DistillSpec, ICLR 2024</a></td>
+<td style="text-align: right;">예</td>
+<td style="text-align: right;">아니오</td>
+<td>Target prediction으로 draft만 distill</td>
+</tr>
+<tr>
+<td><a href="https://proceedings.mlr.press/v235/liu24y.html">Online Speculative Decoding, ICML 2024</a></td>
+<td style="text-align: right;">예</td>
+<td style="text-align: right;">아니오</td>
+<td>관측 query에서 draft만 online update</td>
+</tr>
+<tr>
+<td><a href="https://arxiv.org/html/2403.00858">Direct Alignment/TVD++, 2024</a></td>
+<td style="text-align: right;">예</td>
+<td style="text-align: right;">아니오</td>
+<td>TVD를 직접 최적화하지만 target은 teacher</td>
+</tr>
+<tr>
+<td><a href="https://arxiv.org/html/2510.19779">AdaSPEC, 2025</a></td>
+<td style="text-align: right;">예</td>
+<td style="text-align: right;">아니오</td>
+<td>Task-adapted target에 selective draft distillation</td>
+</tr>
+<tr>
+<td><a href="https://icml.cc/virtual/2024/poster/35153">EAGLE</a>, <a href="https://papers.nips.cc/paper_files/paper/2025/hash/c7b5a35ea98b62512a869c19ea7b03cb-Abstract-Conference.html">EAGLE-3</a></td>
+<td style="text-align: right;">아니오</td>
+<td style="text-align: right;">아니오</td>
+<td>Target feature를 쓰는 native head, target 고정</td>
+</tr>
+<tr>
+<td><a href="https://arxiv.org/html/2602.23881">LK Losses v2, 2026</a></td>
+<td style="text-align: right;">주 실험은 아니오</td>
+<td style="text-align: right;">아니오</td>
+<td>최신 direct-acceptance loss, 고정 target에서 검증</td>
+</tr>
+<tr>
+<td><a href="https://arxiv.org/html/2401.10774">MEDUSA-2</a></td>
+<td style="text-align: right;">아니오</td>
+<td style="text-align: right;">예</td>
+<td>Head loss의 큰 초기 gradient가 backbone을 왜곡할 수 있음을 명시</td>
+</tr>
+<tr>
+<td><a href="https://sergiu-nistor.com/assets/publications/Halfway_Speculative_Decoding.pdf">Halfway Speculative Decoding</a></td>
+<td style="text-align: right;">아니오</td>
+<td style="text-align: right;">예</td>
+<td>Llama target LoRA와 scratch EAGLE-3형 head의 joint LK; 약한 quality 하락 보고</td>
+</tr>
+<tr>
+<td><a href="https://openreview.net/forum?id=HhDSxs7x2R">ReSpec, MLSys 2026</a></td>
+<td style="text-align: right;">예</td>
+<td style="text-align: right;">직접적으로 아니오</td>
+<td>RL rollout feedback 문제이며 shared-loss gradient와 다름</td>
+</tr>
+</tbody>
+</table>
+<p>가장 가까운 동기는 MEDUSA-2와 Halfway다. 두 연구 모두 draft 계열 loss가 target을
+왜곡할 수 있음을 인지하지만, 별도 pretrained AR drafter가 아니다. 반대로 DistillSpec,
+OSD, TVD++, AdaSPEC은 별도 AR pair를 쓰지만 target을 고정한다. 따라서 조사한 문헌에서
+<strong>독립 pretrained AR pair × bidirectional acceptance loss × target-gradient 직접 분석</strong>의
+교차점은 비어 있었다. 이는 검색 범위 안의 gap이지 절대적인 최초성 주장은 아니다.</p>
+<p>일반 multi-objective 완화법으로는 <a href="https://papers.neurips.cc/paper_files/paper/2020/file/3fe78a8acf5fda99de95303940a2420c-Paper.pdf">PCGrad</a>,
+<a href="https://proceedings.mlr.press/v80/chen18a.html">GradNorm</a>,
+<a href="https://proceedings.neurips.cc/paper/2021/hash/9d27fdf2477ffbff837d73ef7ae23db9-Abstract.html">CAGrad</a>,
+<a href="https://papers.neurips.cc/paper_files/paper/2018/hash/432aca3a1e345e339f35a30c8f65edce-Abstract.html">MGDA</a>가 있다.
+다만 이들은 standalone speculative target–draft의 bidirectional LK 조합에서 검증된
+해법이 아니며, 본 실험은 PCGrad와 target-priority norm cap만 직접 비교했다.</p>
+<h2 id="3-loss">3. Loss, 모델, 학습 설계<a class="headerlink" href="#3-loss" title="이 절의 고정 링크">&para;</a></h2>
+<h3 id="31-loss">3.1 최신 loss 선택<a class="headerlink" href="#31-loss" title="이 절의 고정 링크">&para;</a></h3>
+<p>주 objective는 LK Losses v2의 Hybrid LK 형식을 사용했다.</p>
+<div class="math-block">\[
+\alpha=\operatorname{mean}_{i}\sum_v\min(p_i(v),q_i(v)),
+\qquad
+\lambda=\exp[-\eta\,\operatorname{sg}(\alpha)],
+\]</div>
+<div class="math-block">\[
+L_{LK}=\lambda D_{KL}(p\|q)+(1-\lambda)\operatorname{TV}(p,q).
+\]</div>
+<p>Confirmatory panel은 논문/공개 recipe의 대표값인 <code>η=3</code>을 사용했다. 이 식은 고정
+target에서 draft를 학습하도록 제안된 것이므로, target에도 미분한 본 실험은 공식 LK
+recipe의 재현이 아니라 <strong>bidirectional extension의 안전성 시험</strong>이다.</p>
+<p>Target CE와 각 모델의 NLL은 각자의 native LM head 전체에서 계산했다. Target–draft
+alignment만 두 tokenizer에 실제로 배정된 공통 contiguous ID support로 projection했다.
+따라서 Qwen과 Pythia–Mamba처럼 raw output row 수가 달라도, token→ID 의미가 완전히
+같은 pair는 시험할 수 있었다.</p>
+<h3 id="32-matrix">3.2 모델 matrix<a class="headerlink" href="#32-matrix" title="이 절의 고정 링크">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Pair</th>
+<th>Target/draft revision</th>
+<th style="text-align: right;">assigned support</th>
+<th style="text-align: right;">raw target/draft head</th>
+<th style="text-align: right;">target/draft trainable LoRA</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPT-2 ← DistilGPT-2</td>
+<td><code>607a30d…</code> / <code>2290a62…</code></td>
+<td style="text-align: right;">50,257</td>
+<td style="text-align: right;">50,257 / 50,257</td>
+<td style="text-align: right;">1.18M / 0.59M</td>
+</tr>
+<tr>
+<td>OPT-350M ← OPT-125M</td>
+<td><code>08ab08c…</code> / <code>27dcfa7…</code></td>
+<td style="text-align: right;">50,265</td>
+<td style="text-align: right;">50,272 / 50,272</td>
+<td style="text-align: right;">3.54M / 1.33M</td>
+</tr>
+<tr>
+<td>Pythia-410M ← Pythia-70M</td>
+<td><code>9879c9b…</code> / <code>a39f36b…</code></td>
+<td style="text-align: right;">50,277</td>
+<td style="text-align: right;">50,304 / 50,304</td>
+<td style="text-align: right;">3.15M / 0.39M</td>
+</tr>
+<tr>
+<td>Qwen2.5-7B ← Qwen2.5-0.5B</td>
+<td><code>d149729…</code> / <code>060db64…</code></td>
+<td style="text-align: right;">151,665</td>
+<td style="text-align: right;">152,064 / 151,936</td>
+<td style="text-align: right;">20.19M / 4.40M</td>
+</tr>
+<tr>
+<td>Pythia-410M ← Mamba-130M</td>
+<td><code>9879c9b…</code> / <code>1e76775…</code></td>
+<td style="text-align: right;">50,277</td>
+<td style="text-align: right;">50,304 / 50,280</td>
+<td style="text-align: right;">3.15M / 1.79M</td>
+</tr>
+</tbody>
+</table>
+<p>마지막 pair는 Transformer target과 state-space drafter의 교차 architecture 대조군이다.
+모든 모델은 pretrained checkpoint를 불러오고 base weight는 고정한 채 LoRA만 학습했다.</p>
+<h3 id="33">3.3 공통 학습·평가 조건<a class="headerlink" href="#33" title="이 절의 고정 링크">&para;</a></h3>
+<ul>
+<li>Train: WikiText-103, 100 steps, batch 4, sequence 64, 25,600 input tokens/run</li>
+<li>Eval: WikiText-2, TinyStories, GSM8K text에서 각각 8,064 next-token labels</li>
+<li>Optimizer: target/draft 별도 AdamW, LR <code>2e-4</code>, cosine, warmup 10, clip <code>0.5</code></li>
+<li>LoRA: rank 8, alpha 16, dropout 0</li>
+<li>Precision/hardware: bfloat16 training, NVIDIA H100</li>
+<li>Confirmatory small panel: 3 pair × 7 cells × 5 seeds = 105 runs</li>
+<li>Scale/cross panel: 2 pair × 4 cells × 3 seeds = 24 runs</li>
+<li>후속 학습 합계: 129 runs, 12,900 optimizer steps, 모든 checkpoint 저장</li>
+</ul>
+<p>이전 dose/objective/vocab/mitigation panel 240개까지 포함하면 전체 standalone 연구는
+369 training runs, 36,900 optimizer steps다. 후속 연구는 이전 결론을 그대로 재사용하지
+않고, confirmatory LK schedule과 experimental target coefficient, 새 checkpoint 저장,
+unequal output-head projection,
+7B scale, cross architecture, actual rollout, external task를 새로 확인한 단계다.</p>
+<p>Small 7-cell panel은 다음으로 구성했다.</p>
+<ol>
+<li><code>detach</code></li>
+<li>naive bidirectional <code>β=1</code></li>
+<li>PCGrad + <code>β=1</code></li>
+<li>pure norm cap <code>β=1</code>, <code>||g_aux||/||g_main|| ≤ 0.1</code></li>
+<li>PCGrad + 같은 cap</li>
+<li>detach + pretrained-target KL anchor weight 1</li>
+<li>bidirectional + 같은 anchor</li>
+</ol>
+<p>Scale/cross panel은 anchor와 uncapped PCGrad를 제외한 4개 핵심 cell을 사용했다.</p>
+<h3 id="34">3.4 판정 지표<a class="headerlink" href="#34" title="이 절의 고정 링크">&para;</a></h3>
+<p>Target main gradient를 <code>g_C</code>, target-side alignment gradient를 <code>g_A</code>라 하면</p>
+<div class="math-block">\[
+R=\frac{g_C^T(g_C+\beta g_A)}{||g_C||^2}
+\]</div>
+<p>를 CE descent retention으로 기록했다. <code>cos(g_C,g_A)&lt;0</code>은 conflict이지만, 실제 일차
+방향 역전은 <code>R&lt;0</code>일 때뿐이다. 또한 AdamW step의 실제 parameter delta <code>Δθ</code>에 대해
+<code>g_C^TΔθ&gt;0</code>인지 별도로 측정했다.</p>
+<p>최종 endpoint는 다음을 분리했다.</p>
+<ul>
+<li>Target quality: native-head NLL, pretrained-base KL/top-1 agreement</li>
+<li>Draft quality: native-head NLL</li>
+<li>Alignment: teacher-forced overlap와 top-1 agreement</li>
+<li>외부 task sanity: pinned HellaSwag validation prefix 512문항</li>
+<li>Actual decoding: temperature 1, top-p 1, full assigned support의 exact rejection sampling</li>
+<li>Cross-swap: detach/joint target와 detach/joint draft의 2×2 checkpoint 교환</li>
+</ul>
+<h2 id="4">4. 핵심 학습 결과<a class="headerlink" href="#4" title="이 절의 고정 링크">&para;</a></h2>
+<h3 id="41-confirmatory-3-experimental-target-1-pair">4.1 Confirmatory <code>η=3</code> + experimental target <code>β=1</code>에서 다섯 pair 모두 재현됐다<a class="headerlink" href="#41-confirmatory-3-experimental-target-1-pair" title="이 절의 고정 링크">&para;</a></h3>
+<p>아래 값은 같은 seed의 <code>condition − detach</code>다. Target/draft NLL은 양수가 나쁨,
+overlap은 양수가 좋음이다.</p>
+<table>
+<thead>
+<tr>
+<th>Pair</th>
+<th style="text-align: right;">naive target NLL</th>
+<th style="text-align: right;">PCGrad</th>
+<th style="text-align: right;">pure cap .1</th>
+<th style="text-align: right;">PCGrad+cap .1</th>
+<th style="text-align: right;">naive overlap</th>
+<th style="text-align: right;">naive draft NLL</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPT-2 ← Distil</td>
+<td style="text-align: right;">+0.03444</td>
+<td style="text-align: right;">+0.03073</td>
+<td style="text-align: right;">+0.00827</td>
+<td style="text-align: right;">+0.00877</td>
+<td style="text-align: right;">+0.03512</td>
+<td style="text-align: right;">+0.00635</td>
+</tr>
+<tr>
+<td>OPT-350M ← 125M</td>
+<td style="text-align: right;">+0.01968</td>
+<td style="text-align: right;">+0.01833</td>
+<td style="text-align: right;">+0.00300</td>
+<td style="text-align: right;">+0.00148</td>
+<td style="text-align: right;">+0.03462</td>
+<td style="text-align: right;">+0.01640</td>
+</tr>
+<tr>
+<td>Pythia-410M ← 70M</td>
+<td style="text-align: right;">+0.09055</td>
+<td style="text-align: right;">+0.07099</td>
+<td style="text-align: right;">−0.00132</td>
+<td style="text-align: right;">−0.00506</td>
+<td style="text-align: right;">+0.04608</td>
+<td style="text-align: right;">+0.07836</td>
+</tr>
+<tr>
+<td>Qwen2.5-7B ← 0.5B</td>
+<td style="text-align: right;">+0.02696</td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;">+0.00312</td>
+<td style="text-align: right;">+0.00304</td>
+<td style="text-align: right;">+0.03974</td>
+<td style="text-align: right;">+0.02885</td>
+</tr>
+<tr>
+<td>Pythia-410M ← Mamba-130M</td>
+<td style="text-align: right;">+0.02066</td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;">−0.00770</td>
+<td style="text-align: right;">+0.01024</td>
+<td style="text-align: right;">+0.03414</td>
+<td style="text-align: right;">+0.02538</td>
+</tr>
+</tbody>
+</table>
+<p>Naive contrast의 descriptive 95% Student-t interval은 다음과 같다.</p>
+<table>
+<thead>
+<tr>
+<th>Pair</th>
+<th style="text-align: right;">n</th>
+<th style="text-align: right;">mean ± SD</th>
+<th style="text-align: right;">95% t interval</th>
+<th style="text-align: right;">positive seeds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPT-2 ← Distil</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">+0.03444 ± 0.00195</td>
+<td style="text-align: right;">[0.03201, 0.03686]</td>
+<td style="text-align: right;">5/5</td>
+</tr>
+<tr>
+<td>OPT-350M ← 125M</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">+0.01968 ± 0.00511</td>
+<td style="text-align: right;">[0.01334, 0.02602]</td>
+<td style="text-align: right;">5/5</td>
+</tr>
+<tr>
+<td>Pythia-410M ← 70M</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">+0.09055 ± 0.02476</td>
+<td style="text-align: right;">[0.05980, 0.12129]</td>
+<td style="text-align: right;">5/5</td>
+</tr>
+<tr>
+<td>Qwen2.5-7B ← 0.5B</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">+0.02696 ± 0.00481</td>
+<td style="text-align: right;">[0.01500, 0.03891]</td>
+<td style="text-align: right;">3/3</td>
+</tr>
+<tr>
+<td>Pythia-410M ← Mamba-130M</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">+0.02066 ± 0.01545</td>
+<td style="text-align: right;">[−0.01774, 0.05905]</td>
+<td style="text-align: right;">3/3</td>
+</tr>
+</tbody>
+</table>
+<p>즉 sign은 21/21 seed에서 일관됐다. 다만 마지막 pair는 n=3 interval이 0을 포함한다.
+NLL 차이를 perplexity ratio로 바꾸면 naive joint는 detach 대비 약 2.0–9.5% 높다.</p>
+<h3 id="42">4.2 “치명적 붕괴”는 아니었다<a class="headerlink" href="#42" title="이 절의 고정 링크">&para;</a></h3>
+<p>Naive joint target의 <code>final NLL − pretrained initial NLL</code> 평균은 다음과 같이 모두
+음수였다.</p>
+<table>
+<thead>
+<tr>
+<th>Pair</th>
+<th style="text-align: right;">joint target NLL change from initial</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPT-2 ← Distil</td>
+<td style="text-align: right;">−0.4144</td>
+</tr>
+<tr>
+<td>OPT-350M ← 125M</td>
+<td style="text-align: right;">−0.5596</td>
+</tr>
+<tr>
+<td>Pythia-410M ← 70M</td>
+<td style="text-align: right;">−0.4565</td>
+</tr>
+<tr>
+<td>Qwen2.5-7B ← 0.5B</td>
+<td style="text-align: right;">−0.5193</td>
+</tr>
+<tr>
+<td>Pythia-410M ← Mamba-130M</td>
+<td style="text-align: right;">−0.5313</td>
+</tr>
+</tbody>
+</table>
+<p>따라서 “pretrained target이 망가졌다”보다 <strong>detach라면 얻었을 추가 CE adaptation을
+일부 잃었다</strong>가 정확하다. 실제로 naive target의 pretrained-base KL은 detach보다
+각 pair에서 <code>−0.056/−0.097/−0.126/−0.081/−0.168</code> 낮았다. Alignment가 target을
+원래 base에서 더 멀리 폭주시킨 것이 아니라, 대체로 base/draft 근처에 붙잡아
+in-domain specialization을 약화시켰다.</p>
+<h3 id="43-overlap-draft">4.3 Overlap 증가는 draft 자체의 언어모델 개선이 아니었다<a class="headerlink" href="#43-overlap-draft" title="이 절의 고정 링크">&para;</a></h3>
+<p>Naive joint는 overlap을 모든 pair에서 <code>+0.034~+0.046</code> 높였지만, draft NLL도 모든
+pair에서 detach보다 나빴다. 각 draft는 pretrained initial보다는 좋아졌지만 개선 폭이
+줄었다. 즉 alignment gain의 상당 부분은 “draft가 더 좋은 LM이 됨”이 아니라 target과
+draft가 서로 가까워진 결과다.</p>
+<h3 id="44-240-run-panel-scheduleobjective-sensitivity">4.4 이전 240-run panel이 보여준 schedule·objective sensitivity<a class="headerlink" href="#44-240-run-panel-scheduleobjective-sensitivity" title="이 절의 고정 링크">&para;</a></h3>
+<p>이번 confirmatory 결과만 보면 harm이 항상 발생하는 것처럼 보일 수 있다. 그러나 같은
+v2 functional form에 <code>η=10</code>을 둔 이전 fixed-<code>β=1</code> panel에서 WikiText NLL harm은
+GPT <code>+0.0256±0.0021</code>, OPT <code>+0.0115±0.0050</code>, Pythia <code>+0.0012±0.0204</code>였고 Pythia는
+3/5 seed만 양수였다. Fixed norm ratio <code>ρ=0.1</code>도 9개 seed 중 7개만 양수였다. 따라서
+“어떤 schedule과 dose에서도 필수적으로 나타난다”는 가설은 전체 자료가 반박한다.</p>
+<p>Forward KL과 total variation objective도 별도로 비교했다. Fixed <code>β=1</code>에서
+forward-KL harm은 GPT/OPT/Pythia <code>+0.0975/+0.0817/+0.3892</code>, TV는
+<code>+0.0284/+0.0133/+0.0078</code>이었다. 세 objective의 33개 seed contrast 중 30개가
+양수였지만, Pythia Hybrid와 TV의 interval은 0을 포함했다. 현상은 Hybrid LK 한
+implementation만의 버그는 아니지만 objective에 따라 크기와 일관성이 크게 달랐다.</p>
+<p>또한 fixed <code>β</code>와 fixed gradient ratio <code>ρ</code>를 혼동하면 안 된다. 매 step
+<code>||β_tg_A||/||g_C||=3</code>을 강제한 stress test에서는 alignment가 진행돼 <code>g_A</code>가
+작아질수록 <code>β_t</code>가 폭증했다. <code>η=10, ρ=3</code>의 NLL harm은
+GPT/OPT/Pythia <code>+1.0005/+2.3707/+14.2277</code>이었고, Pythia 유효 <code>β</code>는 평균 약
+<code>1.18×10^4</code>였다. 이는 natural <code>loss_weight=1</code> failure가 아니라 aggressive closed-loop
+intervention이다. PCGrad 뒤 ratio를 0.3으로 cap하면 같은 값이
+<code>+0.0390/+0.0276/+0.0549</code>로 줄었다. 이 stress panel도 magnitude control이 projection
+단독보다 중요하다는 후속 결과와 일치한다.</p>
+<h2 id="5-gradient">5. Gradient는 어떻게 나빠졌는가<a class="headerlink" href="#5-gradient" title="이 절의 고정 링크">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Pair</th>
+<th style="text-align: right;">raw conflict rate</th>
+<th style="text-align: right;"><code>||βg_A||/||g_main||</code></th>
+<th style="text-align: right;">CE retention <code>R</code></th>
+<th style="text-align: right;">first-order reversal</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPT-2 ← Distil</td>
+<td style="text-align: right;">0.909</td>
+<td style="text-align: right;">0.264</td>
+<td style="text-align: right;">0.943</td>
+<td style="text-align: right;">0/55 diagnostics</td>
+</tr>
+<tr>
+<td>OPT-350M ← 125M</td>
+<td style="text-align: right;">0.909</td>
+<td style="text-align: right;">0.232</td>
+<td style="text-align: right;">0.970</td>
+<td style="text-align: right;">0/55</td>
+</tr>
+<tr>
+<td>Pythia-410M ← 70M</td>
+<td style="text-align: right;">0.891</td>
+<td style="text-align: right;">0.429</td>
+<td style="text-align: right;">0.942</td>
+<td style="text-align: right;">0/55</td>
+</tr>
+<tr>
+<td>Qwen2.5-7B ← 0.5B</td>
+<td style="text-align: right;">0.818</td>
+<td style="text-align: right;">0.287</td>
+<td style="text-align: right;">0.955</td>
+<td style="text-align: right;">0/33</td>
+</tr>
+<tr>
+<td>Pythia-410M ← Mamba-130M</td>
+<td style="text-align: right;">0.212</td>
+<td style="text-align: right;">0.212</td>
+<td style="text-align: right;">1.032</td>
+<td style="text-align: right;">0/33</td>
+</tr>
+</tbody>
+</table>
+<p>실제 AdamW parameter delta에 대한 linearized CE harm도 231개 diagnostic 모두 0이었다.
+따라서 세 가지를 구분해야 한다.</p>
+<ol>
+<li>Small same-family pair에서는 <code>g_A</code>가 대개 <code>g_C</code>와 음의 dot을 가져 CE descent를
+   약화시켰다.</li>
+<li>그러나 <code>g_C + g_A</code>가 CE ascent로 뒤집힐 정도는 아니었다.</li>
+<li>Cross-architecture pair에서는 local auxiliary가 오히려 CE 방향을 조금 도왔는데도
+   최종 held-out WikiText NLL이 나빠졌다.</li>
+</ol>
+<p>결론적으로 instantaneous cosine은 위험 신호지만 충분조건도, 최종 harm의 완전한
+설명도 아니다. Teacher distribution 자체가 매 step 바뀌는 co-adaptation, AdamW와
+clipping, finite-step curvature, minibatch-to-validation 일반화가 누적 효과를 만든다.</p>
+<h2 id="6-mitigation">6. Mitigation 비교<a class="headerlink" href="#6-mitigation" title="이 절의 고정 링크">&para;</a></h2>
+<h3 id="61-pcgrad">6.1 PCGrad 단독은 부족했다<a class="headerlink" href="#61-pcgrad" title="이 절의 고정 링크">&para;</a></h3>
+<p>PCGrad는 negative dot component를 제거해 local CE retention을 거의 1로 만들었다.
+그런데 target NLL harm은 GPT <code>0.0344→0.0307</code>, OPT <code>0.0197→0.0183</code>, Pythia
+<code>0.0905→0.0710</code>으로만 줄었다. 장기 target↔draft feedback과 magnitude 문제를
+해결하지 못했기 때문이다.</p>
+<h3 id="62-norm-cap">6.2 Norm cap이 가장 효과적이었다<a class="headerlink" href="#62-norm-cap" title="이 절의 고정 링크">&para;</a></h3>
+<p><code>||g_aux,applied|| ≤ 0.1||g_main||</code> cap은 small/Qwen cell에서 100%, Mamba cell에서
+99.67% step에 binding됐다. Pure cap의 target NLL harm은 GPT에서 76%, OPT에서 85%,
+Qwen에서 88% 줄었고 Pythia 두 pair에서는 평균이 0 부근으로 갔다. 같은 cap 아래
+PCGrad를 더한 추가 효과는 거의 없었다.</p>
+<p>대가는 분명했다. Small-pair teacher-forced overlap gain은 naive의 약
+<code>+0.035/+0.035/+0.046</code>에서 cap의 <code>+0.014/+0.015/+0.012</code>로 줄었다. Actual rollout에서도
+대체로 같은 trade-off가 나타났다.</p>
+<h3 id="63-fixed-pretrained-anchor-weight-1">6.3 Fixed pretrained anchor weight 1은 안전장치가 아니었다<a class="headerlink" href="#63-fixed-pretrained-anchor-weight-1" title="이 절의 고정 링크">&para;</a></h3>
+<p>Anchor gradient 자체가 CE와 충돌했다.</p>
+<table>
+<thead>
+<tr>
+<th>Pair</th>
+<th style="text-align: right;"><code>cos(g_C,g_anchor)</code></th>
+<th style="text-align: right;"><code>||g_anchor||/||g_C||</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPT-2 ← Distil</td>
+<td style="text-align: right;">−0.352</td>
+<td style="text-align: right;">0.401</td>
+</tr>
+<tr>
+<td>OPT-350M ← 125M</td>
+<td style="text-align: right;">−0.312</td>
+<td style="text-align: right;">0.415</td>
+</tr>
+<tr>
+<td>Pythia-410M ← 70M</td>
+<td style="text-align: right;">−0.162</td>
+<td style="text-align: right;">0.308</td>
+</tr>
+</tbody>
+</table>
+<p>Anchor-matched 대조에서는 joint auxiliary harm이 <code>+0.018/+0.022/+0.058</code>로 일부
+작아졌지만, anchor control 자체의 WikiText adaptation cost가
+<code>+0.078/+0.093/+0.088</code>이었다. 결과적으로 joint+anchor를 plain detach와 비교한
+operational cost는 <code>+0.096/+0.114/+0.147</code>이었다. Fixed weight 1 anchor는 base drift를
+줄이는 대신 원하는 domain 적응까지 막았다.</p>
+<h2 id="7-domain-downstream">7. Domain과 downstream 결과<a class="headerlink" href="#7-domain-downstream" title="이 절의 고정 링크">&para;</a></h2>
+<h3 id="71-nll-harm-domain-invariant">7.1 NLL harm은 domain invariant하지 않았다<a class="headerlink" href="#71-nll-harm-domain-invariant" title="이 절의 고정 링크">&para;</a></h3>
+<p>Naive <code>condition − detach</code> target NLL은 다음과 같다.</p>
+<table>
+<thead>
+<tr>
+<th>Pair</th>
+<th style="text-align: right;">WikiText-2</th>
+<th style="text-align: right;">TinyStories</th>
+<th style="text-align: right;">GSM8K text</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPT-2 ← Distil</td>
+<td style="text-align: right;">+0.0343</td>
+<td style="text-align: right;">+0.0233</td>
+<td style="text-align: right;">−0.0169</td>
+</tr>
+<tr>
+<td>OPT-350M ← 125M</td>
+<td style="text-align: right;">+0.0197</td>
+<td style="text-align: right;">−0.0258</td>
+<td style="text-align: right;">−0.1020</td>
+</tr>
+<tr>
+<td>Pythia-410M ← 70M</td>
+<td style="text-align: right;">+0.0905</td>
+<td style="text-align: right;">−0.0591</td>
+<td style="text-align: right;">−0.1289</td>
+</tr>
+<tr>
+<td>Qwen2.5-7B ← 0.5B</td>
+<td style="text-align: right;">+0.0270</td>
+<td style="text-align: right;">−0.0631</td>
+<td style="text-align: right;">−0.1162</td>
+</tr>
+<tr>
+<td>Pythia-410M ← Mamba-130M</td>
+<td style="text-align: right;">+0.0207</td>
+<td style="text-align: right;">−0.1274</td>
+<td style="text-align: right;">−0.1859</td>
+</tr>
+</tbody>
+</table>
+<p>WikiText 계열 in-domain transfer는 consistently 약해졌지만, 더 멀리 떨어진 text
+domain에서는 joint가 regularizer처럼 작동한 경우가 많다. “Target quality”를 하나의
+corpus NLL로만 정의하면 상반된 결론을 낼 수 있다.</p>
+<h3 id="72-pinned-hellaswag-512-prefix-sanity">7.2 Pinned HellaSwag 512-prefix sanity<a class="headerlink" href="#72-pinned-hellaswag-512-prefix-sanity" title="이 절의 고정 링크">&para;</a></h3>
+<p>각 checkpoint의 target adapter만 로드하고 draft는 로드하지 않았다. Native target
+LM-head 전체에서 네 choice의 conditional likelihood를 batch-4로 계산했다. 전처리와
+문자 길이 <code>acc_norm</code>은 pinned lm-eval HellaSwag 구현을 따르지만,
+<code>add_special_tokens=False</code>이고 full wrapper parity는 아니므로 공식 leaderboard score가
+아닌 동일-prefix paired sanity check다.</p>
+<table>
+<thead>
+<tr>
+<th>Pair</th>
+<th style="text-align: right;">naive raw accuracy Δ</th>
+<th style="text-align: right;">naive <code>acc_norm</code> Δ</th>
+<th style="text-align: right;">gold LL/token Δ</th>
+<th style="text-align: right;">training seeds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPT-2 ← Distil</td>
+<td style="text-align: right;">−0.27 pp</td>
+<td style="text-align: right;">−0.31 pp</td>
+<td style="text-align: right;">+0.0002</td>
+<td style="text-align: right;">5</td>
+</tr>
+<tr>
+<td>OPT-350M ← 125M</td>
+<td style="text-align: right;">+0.31 pp</td>
+<td style="text-align: right;">+0.20 pp</td>
+<td style="text-align: right;">+0.0283</td>
+<td style="text-align: right;">5</td>
+</tr>
+<tr>
+<td>Pythia-410M ← 70M</td>
+<td style="text-align: right;">−0.39 pp</td>
+<td style="text-align: right;">−0.90 pp</td>
+<td style="text-align: right;">+0.0256</td>
+<td style="text-align: right;">5</td>
+</tr>
+<tr>
+<td>Qwen2.5-7B ← 0.5B</td>
+<td style="text-align: right;"><strong>−1.30 pp</strong></td>
+<td style="text-align: right;"><strong>−2.15 pp</strong></td>
+<td style="text-align: right;">+0.0283</td>
+<td style="text-align: right;">3</td>
+</tr>
+<tr>
+<td>Pythia-410M ← Mamba-130M</td>
+<td style="text-align: right;">+0.65 pp</td>
+<td style="text-align: right;">+0.13 pp</td>
+<td style="text-align: right;">+0.0772</td>
+<td style="text-align: right;">3</td>
+</tr>
+</tbody>
+</table>
+<p>Qwen raw accuracy의 95% seed-level t interval은 <code>[−2.04, −0.56]</code> pp, <code>acc_norm</code>은
+<code>[−2.63, −1.66]</code> pp였다. Cap을 쓰면 Qwen raw/<code>acc_norm</code> 손상은 약
+<code>−0.52/−0.46</code> pp로 줄고 interval은 대부분 0을 포함했다. 반면 다른 pair의 표준
+accuracy 변화는 작고 일관되지 않았다.</p>
+<p>Cache audit에서 발견한 BF16 문제와 분리하기 위해 Qwen seed 0의 네 핵심 cell은
+HellaSwag을 FP32로도 다시 계산했다. FP32 detach→naive raw/<code>acc_norm</code>은
+<code>53.52→51.95%</code>, <code>66.60→64.45%</code>였고, cap은 <code>52.34/66.60%</code>였다. BF16의
+<code>53.32→51.76%</code>, <code>66.80→64.84%</code>와 질적으로 같았다. 따라서 Qwen task 결론은
+reduced-precision cache-shape artifact가 아니다.</p>
+<p>Gold continuation likelihood가 좋아지면서 accuracy가 나빠질 수 있다는 점도 중요하다.
+WikiText CE adaptation 자체가 HellaSwag gold LL을 pretrained보다 악화시켰고, joint나
+anchor가 그 adaptation을 줄여 LL을 회복한 경우가 있었다. 따라서 likelihood 하나도
+task accuracy의 대체 지표가 아니다.</p>
+<p>Seed 0 detach adapter를 adapter-disabled pretrained target과 같은 512문항에서 비교하면
+raw accuracy 차이는 GPT <code>+0.59</code>, OPT <code>+0.78</code>, Pythia <code>+0.59</code>, Qwen <code>−0.39</code> pp였다.
+이는 실험 전체가 scratch foundation training이 아니라 <strong>pretrained model 위의 짧은
+LoRA adaptation regime</strong>임을 재확인한다. Scratch 대조군을 실행하지 않았으므로 두
+regime 사이의 현상 발생률이나 크기는 비교할 수 없다.</p>
+<h2 id="8-actual-speculative-rollout">8. Actual speculative rollout<a class="headerlink" href="#8-actual-speculative-rollout" title="이 절의 고정 링크">&para;</a></h2>
+<h3 id="81-protocol">8.1 정확성 protocol<a class="headerlink" href="#81-protocol" title="이 절의 고정 링크">&para;</a></h3>
+<ul>
+<li>Temperature 1, top-p 1, tokenizer-assigned full support</li>
+<li>Chain length <code>K=3</code>, context 64, 32 generated tokens</li>
+<li>WikiText-2/TinyStories/GSM8K text 각각 4 prompts</li>
+<li>Prompt당 stochastic seed 2개, training seed 3개</li>
+<li>모든 prompt에서 speculative greedy output과 같은 trained target의 target-only greedy
+  output이 정확히 같아야 함</li>
+<li>Sampling seed와 round는 prompt 안에서 먼저 평균하고, condition contrast는 같은
+  prompt에서 만든 뒤 training seed를 inferential unit으로 사용</li>
+</ul>
+<h3 id="82-small-pair-aal">8.2 Small-pair AAL<a class="headerlink" href="#82-small-pair-aal" title="이 절의 고정 링크">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Pair</th>
+<th style="text-align: right;">detach AAL</th>
+<th style="text-align: right;">naive Δ</th>
+<th style="text-align: right;">PCGrad Δ</th>
+<th style="text-align: right;">cap Δ</th>
+<th style="text-align: right;">PCGrad+cap Δ</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPT-2 ← Distil</td>
+<td style="text-align: right;">2.693</td>
+<td style="text-align: right;">−0.000</td>
+<td style="text-align: right;">−0.011</td>
+<td style="text-align: right;">−0.075</td>
+<td style="text-align: right;">−0.046</td>
+</tr>
+<tr>
+<td>OPT-350M ← 125M</td>
+<td style="text-align: right;">2.413</td>
+<td style="text-align: right;">+0.110</td>
+<td style="text-align: right;">+0.130</td>
+<td style="text-align: right;">+0.005</td>
+<td style="text-align: right;">+0.096</td>
+</tr>
+<tr>
+<td>Pythia-410M ← 70M</td>
+<td style="text-align: right;">1.849</td>
+<td style="text-align: right;">+0.154</td>
+<td style="text-align: right;">+0.139</td>
+<td style="text-align: right;">+0.015</td>
+<td style="text-align: right;">+0.079</td>
+</tr>
+</tbody>
+</table>
+<p>OPT naive AAL interval은 <code>[+0.018,+0.201]</code>; Pythia는 n=3이라 평균은 양수지만
+<code>[−0.004,+0.313]</code>이었다. GPT는 teacher-forced overlap이 <code>+0.035</code>였음에도 전체
+AAL은 0이었다. Corpus별로는 GPT WikiText AAL이 <code>−0.140</code>, TinyStories/GSM8K가
+각각 <code>+0.066/+0.074</code>였다. Offline ground-truth context alignment만으로 on-policy
+acceptance를 판단하면 안 된다.</p>
+<p>Transparent FP32 reference implementation의 prompt-cluster wall-clock speedup을
+training seed 사이에서 평균하면 detach 기준
+GPT <code>0.62×</code>, OPT <code>0.57×</code>, Pythia <code>0.56×</code>로 모두 1보다 작았다. 이는 serving engine이나
+fused kernel benchmark가 아니므로 production throughput 주장이 아니다. AAL 증가와
+실제 speedup도 별개라는 안전장치로만 해석한다.</p>
+<h3 id="83-cross-swap-acceptance-checkpoint">8.3 Cross-swap으로 acceptance 이득의 checkpoint 민감도를 진단<a class="headerlink" href="#83-cross-swap-acceptance-checkpoint" title="이 절의 고정 링크">&para;</a></h3>
+<p><code>DD</code>는 detach target+draft, <code>JJ</code>는 joint target+draft, <code>JD</code>는 joint target+detach
+draft, <code>DJ</code>는 detach target+joint draft다.</p>
+<table>
+<thead>
+<tr>
+<th>Pair</th>
+<th style="text-align: right;"><code>JJ−DD</code> AAL</th>
+<th style="text-align: right;">conditional target effect <code>JD−DD</code></th>
+<th style="text-align: right;">conditional draft effect <code>DJ−DD</code></th>
+<th style="text-align: right;">interaction</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPT-2 ← Distil</td>
+<td style="text-align: right;">−0.000</td>
+<td style="text-align: right;">−0.020</td>
+<td style="text-align: right;">−0.077</td>
+<td style="text-align: right;">+0.097</td>
+</tr>
+<tr>
+<td>OPT-350M ← 125M</td>
+<td style="text-align: right;">+0.110</td>
+<td style="text-align: right;">+0.031</td>
+<td style="text-align: right;">+0.079</td>
+<td style="text-align: right;">+0.000</td>
+</tr>
+<tr>
+<td>Pythia-410M ← 70M</td>
+<td style="text-align: right;">+0.154</td>
+<td style="text-align: right;"><strong>+0.158</strong></td>
+<td style="text-align: right;"><strong>−0.076</strong></td>
+<td style="text-align: right;">+0.072</td>
+</tr>
+</tbody>
+</table>
+<p>Pythia target-only conditional swap interval은 <code>[+0.091,+0.226]</code>이고, off-diagonal
+<code>JD−DJ=+0.234 [0.127,0.341]</code>였다. 이 pair의 acceptance 향상은 draft checkpoint의
+standalone 개선보다 target 이동이 더 큰 역할을 했다는 해석을 강하게 지지한다. 이는
+target quality와 acceptance를 같은 숫자로 최적화하면 “target을 draft 쪽으로 움직여
+acceptance를 높이는” shortcut이 생길 수 있다는 진단 근거다.</p>
+<p>단, <code>JD−DD</code>와 <code>DJ−DD</code>는 다른 쪽 checkpoint를 detach 상태에 고정한 conditional/simple
+effect다. Off-diagonal pair는 서로 공동학습되지 않은 mismatched checkpoint이므로,
+cross-swap은 <code>JJ−DD</code>를 유일한 additive causal contribution으로 분해하지 않는다.</p>
+<h3 id="84-scalecross-rollout">8.4 Scale/cross rollout<a class="headerlink" href="#84-scalecross-rollout" title="이 절의 고정 링크">&para;</a></h3>
+<p>같은 FP32 protocol을 Qwen2.5-7B와 Pythia–Mamba에도 적용했다. 아래 AAL은 prompt를
+먼저 동일 가중으로 묶은 뒤 training seed 사이에서 비교한 값이다.</p>
+<table>
+<thead>
+<tr>
+<th>Pair</th>
+<th style="text-align: right;">detach AAL</th>
+<th style="text-align: right;">naive Δ [95% t interval]</th>
+<th style="text-align: right;">cap Δ</th>
+<th style="text-align: right;">PCGrad+cap Δ</th>
+<th style="text-align: right;">target effect</th>
+<th style="text-align: right;">draft effect</th>
+<th style="text-align: right;">interaction</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Qwen2.5-7B ← 0.5B</td>
+<td style="text-align: right;">2.474</td>
+<td style="text-align: right;">+0.090 [−0.034,+0.214]</td>
+<td style="text-align: right;">+0.053</td>
+<td style="text-align: right;">+0.052</td>
+<td style="text-align: right;"><strong>+0.116</strong></td>
+<td style="text-align: right;">+0.082</td>
+<td style="text-align: right;">−0.108</td>
+</tr>
+<tr>
+<td>Pythia-410M ← Mamba-130M</td>
+<td style="text-align: right;">2.181</td>
+<td style="text-align: right;"><strong>+0.171 [+0.161,+0.180]</strong></td>
+<td style="text-align: right;">+0.006</td>
+<td style="text-align: right;">+0.066</td>
+<td style="text-align: right;"><strong>+0.091</strong></td>
+<td style="text-align: right;">−0.003</td>
+<td style="text-align: right;">+0.083</td>
+</tr>
+</tbody>
+</table>
+<p>Qwen naive acceptance rate는 detach <code>0.491</code>에서 <code>0.521</code>로, Pythia–Mamba는
+<code>0.394→0.451</code>로 올랐다. Qwen의 target/draft conditional-effect interval은 각각
+<code>[+0.026,+0.207]</code>/<code>[+0.018,+0.145]</code>였고 negative interaction interval은 0을
+포함했다. 즉 두 checkpoint가 각각 alignment를 높였지만 단순 가산되지는 않았다.
+Pythia–Mamba에서는 target-only effect interval이 <code>[+0.004,+0.178]</code>인 반면 draft-only
+effect는 <code>−0.003 [−0.406,+0.401]</code>로 불안정했다. Pythia–Mamba의 point estimate에서
+target-only conditional effect는 full joint gain의 약 53%였지만, 위 이유로 이를
+가산적 인과 기여율로 해석하지 않는다.</p>
+<p>Cap은 Pythia–Mamba의 naive AAL gain을 <code>+0.171→+0.006</code>으로 거의 제거하면서 앞 절의
+target NLL 손상도 <code>+0.0207→−0.0077</code>로 줄였다. Qwen에서도 NLL 손상은
+<code>+0.0270→+0.0031</code>로 줄었지만 AAL gain은 <code>+0.090→+0.053</code>으로 작아졌다. 이 역시
+quality protection과 acceptance 사이의 Pareto trade-off다.</p>
+<p>Transparent implementation의 prompt-cluster speedup을 training seed 사이에서 평균하면
+Qwen detach/naive
+<code>0.435×/0.465×</code>, Pythia–Mamba <code>0.119×/0.124×</code>였다. Mamba는 rollback KV를
+지원하지 않아 full recompute reference인 만큼 이 수치는 deployment benchmark가
+아니다. 36개 scale/cross rollout run의 greedy exactness와 AAL/acceptance bookkeeping은
+모두 fail-loud audit를 통과했다.</p>
+<h2 id="9-bf16-cache-audit">9. BF16 cache audit에서 발견한 별도 수치 문제<a class="headerlink" href="#9-bf16-cache-audit" title="이 절의 고정 링크">&para;</a></h2>
+<p>처음 rollout을 BF16 KV cache로 실행했을 때 fail-loud audit가 batched verifier와 full
+recompute 사이의 큰 차이를 잡았다. Cache/crop 논리 버그와 분리해 보니 BF16에서
+sequence/batch shape에 따른 numerical divergence가 관찰됐고 FP32 eager에서는
+사라졌다. 정확히 어느 attention/GEMM kernel이 원인인지는 격리하지 않았다.</p>
+<p>GPT-2 WikiText 16 prompts × 4 positions에서:</p>
+<table>
+<thead>
+<tr>
+<th>precision/backend</th>
+<th style="text-align: right;">target batched verifier ↔ serial-KV max TV</th>
+<th style="text-align: right;">draft max TV</th>
+<th style="text-align: right;">target top-1</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BF16 eager</td>
+<td style="text-align: right;">0.121394</td>
+<td style="text-align: right;">0.059455</td>
+<td style="text-align: right;">63/64</td>
+</tr>
+<tr>
+<td>FP32 eager</td>
+<td style="text-align: right;">0.00000603</td>
+<td style="text-align: right;">0.00000408</td>
+<td style="text-align: right;">64/64</td>
+</tr>
+</tbody>
+</table>
+<p>따라서 scientific rollout은 FP32 eager로 다시 실행했다. Cached benchmark의 operational
+oracle은 ordinary one-token serial KV로 정의하고, batched verification과 rollback
+probability TV가 <code>1e-3</code>을 넘으면 실패하도록 했다. Full recompute 차이는 non-blocking
+diagnostic으로 별도 저장했다. 첫 FP32 smoke의 target/draft verifier TV는
+<code>3.11e-6/2.35e-6</code>, greedy exactness는 1.0이었다.</p>
+<p>이 발견은 학습 현상의 증거와 별개지만, reduced-precision cache path를 확인하지 않고
+acceptance/AAL을 비교하면 inference numerics를 학습 효과로 오인할 수 있음을 보여준다.</p>
+<h2 id="10">10. 최종 해석<a class="headerlink" href="#10" title="이 절의 고정 링크">&para;</a></h2>
+<h3 id="_1">질문에 대한 직접 답<a class="headerlink" href="#_1" title="이 절의 고정 링크">&para;</a></h3>
+<ul>
+<li><strong>실재하는가?</strong> 예. Confirmatory Hybrid LK <code>η=3</code>과 experimental target <code>β=1</code>의
+  pretrained standalone AR
+  설정에서 matched WikiText NLL harm은 5 pair, 21/21 seed로 재현됐다.</li>
+<li><strong>Architecture와 무관한가?</strong> 현상의 최종 sign은 이번 다섯 pair에서 같았지만,
+  mechanism과 크기는 같지 않았다. 이를 architecture-independent law로 일반화할 수 없다.</li>
+<li><strong>항상 나타나는가?</strong> 아니다. 이전 <code>η=10</code> variant와 다른 dose, TinyStories/GSM8K,
+  HellaSwag accuracy에서는 sign이 달라졌다.</li>
+<li><strong>치명적인가?</strong> 이 실험에서는 아니다. Pretrained initial보다 모든 target NLL이
+  개선됐고 gradient reversal도 없었다. 그러나 detach 대비 adaptation loss와 Qwen
+  task accuracy 하락은 실용적으로 무시할 수 없다.</li>
+<li><strong>Gradient conflict가 원인인가?</strong> 일부다. Same-family pair의 high conflict는
+  CE progress를 약화시켰지만, low-conflict Pythia–Mamba도 최종 harm을 보였다.</li>
+<li><strong>Acceptance가 좋아지면 정당화되는가?</strong> 아니다. 실제 AAL gain이 없을 수도 있고,
+  Pythia처럼 target 이동과 양립하는 conditional effect가 gain의 큰 부분일 수도 있다.</li>
+</ul>
+<h2 id="11">11. 권장 개선안<a class="headerlink" href="#11" title="이 절의 고정 링크">&para;</a></h2>
+<h3 id="111">11.1 지금 바로 쓸 수 있는 안전 순서<a class="headerlink" href="#111" title="이 절의 고정 링크">&para;</a></h3>
+<ol>
+<li><strong>기본값은 alignment에서 target detach.</strong> Target CE adaptation은 그대로 유지한다.
+   Target adaptation 자체도 불필요한 배포 조건에서만 완전히 freeze한다.</li>
+<li><strong>Draft-only warm-up.</strong> MEDUSA-2의 동기처럼 초기 약한 draft가 target을 끌지 않도록
+   draft를 먼저 맞춘다. 이 항목은 문헌 기반 제안이며 본 후속 panel에서 아직 직접
+   검증하지 않았다.</li>
+<li><strong>Target auxiliary norm cap.</strong> 본 실험에서 직접 검증한 <code>ρ=0.1</code>이 가장 강한
+   empirical support를 보였다. <code>0.05</code>는 다음 sweep의 미검증 시작 후보로만 둔다.</li>
+<li><strong>PCGrad는 cap의 보조 수단.</strong> 단독 안전장치로 사용하지 않는다.</li>
+<li><strong>Target LR/update frequency를 draft보다 낮게.</strong> Target update를 매 <code>m</code> step에만
+   적용하는 것도 후보지만 추가 실험이 필요하다.</li>
+<li><strong>Quality와 acceptance를 별도 gate.</strong> Same-domain held-out NLL, multi-domain task,
+   exact rollout AAL을 Pareto frontier로 관리한다.</li>
+<li><strong>Cross-swap audit를 필수화.</strong> Acceptance gain이 draft에서 왔는지 target drift에서
+   왔는지에 대한 checkpoint 민감도를 진단한다.</li>
+</ol>
+<h3 id="112-target-priority-capped-update">11.2 제안하는 target-priority capped update<a class="headerlink" href="#112-target-priority-capped-update" title="이 절의 고정 링크">&para;</a></h3>
+<div class="math-block">\[
+\tilde g_A=P_{PCGrad}(g_A;g_C),
+\qquad
+s=\min\left(\beta,
+\rho\frac{||g_C||}{||\tilde g_A||+\epsilon}\right),
+\qquad
+g_T=g_C+s\tilde g_A,
+\]</div>
+<p>여기서 검증된 시작값은 <code>ρ=0.1</code>이고, 더 보수적인 <code>0.05</code>는 후속 후보로 둔다.
+<code>P_{PCGrad}</code>는 optional이며 pure cap에서는 identity다. Draft update는 기존처럼
+<code>∇_φL_A(sg[p],q)</code>를 유지한다. 추가로 validation target constraint</p>
+<div class="math-block">\[
+L_{CE}^{val}(\theta) \le L_{CE}^{val}(\theta_{detach})+\delta
+\]</div>
+<p>를 넘으면 target-side coefficient를 줄이거나 update를 거부하는 dual/trust-region
+controller를 제안한다. Fixed anchor weight 1은 본 실험에서 실패했으므로, base KL은
+상수 penalty보다 budget/constraint로 다루는 편이 타당하다. 이 controller 부분은
+후속 제안이지 아직 검증된 결과가 아니다.</p>
+<h2 id="12">12. 한계와 다음 실험<a class="headerlink" href="#12" title="이 절의 고정 링크">&para;</a></h2>
+<ul>
+<li>LoRA 100-step, 25.6K-token adaptation이며 foundation pretraining 전체를 대체하지 않는다.</li>
+<li>Training seed는 small n=5, scale/cross n=3이다. t interval은 descriptive다.</li>
+<li>HellaSwag은 validation prefix 512개이고 full lm-eval wrapper parity가 아니다.</li>
+<li>Rollout은 pair당 12 prompt cluster, <code>K=3</code>, 32 token으로 작다.</li>
+<li>Mamba는 rollback cache를 지원하지 않아 full recompute reference이며 fast kernel도 없다.</li>
+<li>FP32 transparent benchmark의 latency는 serving performance를 대표하지 않는다.</li>
+<li>Full fine-tuning, instruction tuning, longer adaptation, multilingual/code domain은 미검증이다.</li>
+</ul>
+<p>우선순위가 높은 다음 실험은 다음과 같다.</p>
+<ol>
+<li>Draft-only warm-up 길이와 target/draft differential LR의 2×3 factorial</li>
+<li><code>ρ∈{0.025,0.05,0.1,0.2}</code> Pareto sweep</li>
+<li>Fixed anchor 대신 constrained base-KL dual controller</li>
+<li>Layerwise cosine/norm과 Hessian-vector trajectory 분석</li>
+<li>CAGrad/MGDA/GradNorm 대조군</li>
+<li>Full HellaSwag 및 ARC/PIQA/WinoGrande와 domain-matched perplexity</li>
+<li>더 긴 <code>K</code>, 더 긴 generation, serving engine에서 lossless audit 후 latency 측정</li>
+<li>7B 이상 target 두 family와 MoE/SSM target까지 확장</li>
+</ol>
+<h2 id="13">13. 재현성과 산출물<a class="headerlink" href="#13" title="이 절의 고정 링크">&para;</a></h2>
+<p>주요 코드:</p>
+<ul>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물"><code>train_standalone.py</code></span> <code>src/specdec_joint/train_standalone.py</code>: independent AR joint training</li>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물"><code>analyze_followup.py</code></span> <code>src/specdec_joint/analyze_followup.py</code>: 7-cell factorial/anchor 분석</li>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물"><code>benchmark_standalone.py</code></span> <code>src/specdec_joint/benchmark_standalone.py</code>: exact rollout과 cache audit</li>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물"><code>analyze_rollouts.py</code></span> <code>src/specdec_joint/analyze_rollouts.py</code>: prompt/seed paired rollout 분석</li>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물"><code>evaluate_target_tasks.py</code></span> <code>src/specdec_joint/evaluate_target_tasks.py</code>: pinned target-only task 평가</li>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물"><code>analyze_target_tasks.py</code></span> <code>src/specdec_joint/analyze_target_tasks.py</code>: task artifact 감사와 seed contrast</li>
+</ul>
+<p>주요 artifact:</p>
+<ul>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물"><code>η=3</code> 7-cell 학습 분석</span> <code>artifacts/standalone_lketa3_followup_v2/followup_analysis_manifest.json</code></li>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물">7B/교차 architecture 학습 분석</span> <code>artifacts/standalone_scale_cross_eta3_v1/standalone_analysis_manifest.json</code></li>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물">Small exact-rollout 분석</span> <code>artifacts/rollouts_lketa3_followup_fp32_v2_analysis/rollout_analysis_manifest.json</code></li>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물">Scale/cross exact-rollout 분석</span> <code>artifacts/rollouts_scale_cross_eta3_fp32_v1_analysis/rollout_analysis_manifest.json</code></li>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물">Small HellaSwag 분석</span> <code>artifacts/target_tasks_followup_v2_analysis/target_task_analysis_manifest.json</code></li>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물">Scale/cross HellaSwag 분석</span> <code>artifacts/target_tasks_scale_cross_eta3_v1_analysis/target_task_analysis_manifest.json</code></li>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물">FP32 cache smoke</span> <code>runs/cache_audit_fp32_eager_gpt2_20260714/rollout_summary.json</code></li>
+</ul>
+<p>대표 재현 명령:</p>
+<pre><code class="language-bash"># 7-cell target-task matrix
+RUN_ROOT=runs/standalone_lketa3_followup_v2 \
+OUTPUT_ROOT=artifacts/target_tasks_followup_v2 \
+MAX_EXAMPLES=512 GPU_LIST=1,2,3,4,5,6 \
+bash scripts/run_target_task_matrix.sh
+
+# FP32 eager exact rollout
+RUN_ROOT=runs/standalone_lketa3_followup_v2 \
+BENCH_ROOT=runs/rollouts_lketa3_followup_fp32_v2 \
+DTYPE=float32 ATTENTION_IMPLEMENTATION=eager \
+bash scripts/run_standalone_rollouts.sh
+
+# Target/draft cross-swap
+RUN_ROOT=runs/standalone_lketa3_followup_v2 \
+BENCH_ROOT=runs/rollouts_lketa3_followup_fp32_v2 \
+bash scripts/run_standalone_cross_swap_rollouts.sh
+</code></pre>
+<p>모델 revision, dataset fingerprint, tokenizer vocabulary hash, raw head dimension, adapter
+hash, source config/metrics hash는 각 manifest와 run artifact에 저장했다. 불완전 panel,
+혼합 dataset prefix, metric 재계산 불일치, greedy mismatch, cache TV 초과는 분석 전에
+fail-loud한다.</p>
+<h2 id="14">14. 연구 판단<a class="headerlink" href="#14" title="이 절의 고정 링크">&para;</a></h2>
+<p>이 현상은 충분히 연구할 가치가 있다. 다만 좋은 논문 질문은 “gradient cosine이 음수인가”
+하나가 아니다. 더 강한 질문은 다음과 같다.</p>
+<blockquote>
+<p><strong>고정 target 품질 constraint 아래에서, 실제 draft 개선이 만든 on-policy acceptance
+gain만 최대화할 수 있는가?</strong></p>
+</blockquote>
+<p>본 결과는 naive bidirectional objective가 이 constraint를 자동으로 만족하지 않으며,
+teacher-forced overlap만 최적화하면 target-chasing shortcut이 생길 수 있음을 보여준다.
+Target detach, norm cap, cross-swap, exact rollout을 함께 놓는 것이 후속 연구의 최소
+실험 단위다.</p></main>
+  <footer>Generated from the audited report · 2026-07-14</footer>
+</body>
+</html>
