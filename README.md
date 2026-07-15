@@ -1,18 +1,18 @@
-# Speculative-decoding joint-training report
+# Independent target–drafter interference report
 
-Public HTML version of the audited Korean research report on gradient
-interference in bidirectional joint training of independent pretrained AR
-target and drafter models.
+Public HTML version of the Korean research report on target-update interference
+when a draft-aware loss is applied to an independent pretrained AR target.
 
-The HTML report includes seven audited experiment figures generated from the
-versioned analysis CSVs: target-NLL mitigation, gradient diagnostics,
-exploratory HellaSwag, quality-versus-acceptance, cross-swap sensitivity, the
-full five-task downstream macro, and task/pretrained-reference heterogeneity.
-Detailed numeric tables remain available in collapsible sections beneath the
-figures.
+The streamlined report centers on three audited visuals:
 
-In the locked full five-task panel, naive bidirectional target updates reduced
-the same-seed downstream macro in 19/21 training seeds and all five pair means;
-the norm cap recovered part, but not all, of that loss.
+- the new same-state AdamW `CE+aux` versus `CE-only` shadow experiment;
+- the full five-task target-only downstream contrast;
+- the target-quality versus exact-acceptance trade-off.
+
+The central result is that the auxiliary term directly changes the applied
+target update and Adam moments, while matched endpoint experiments show worse
+target NLL in 21/21 seeds and lower downstream macro accuracy in 19/21 seeds.
+The report distinguishes this repeated negative transfer from a universal or
+catastrophic gradient-failure law.
 
 Read the report at <https://bluear7878.github.io/specdec-joint-report/>.
