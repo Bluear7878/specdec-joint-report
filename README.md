@@ -3,8 +3,9 @@
 Public HTML version of the Korean research report on target-update interference
 when a draft-aware loss is applied to an independent pretrained AR target.
 
-The streamlined report centers on three audited visuals:
+The streamlined report centers on four audited visuals:
 
+- the intervention-to-outcome motivation chain with all 21 endpoint seeds;
 - the new same-state AdamW `CE+aux` versus `CE-only` shadow experiment;
 - the full five-task target-only downstream contrast;
 - the target-quality versus exact-acceptance trade-off.

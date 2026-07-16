@@ -3,19 +3,19 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="독립 pretrained AR target과 drafter의 bidirectional joint training에서 draft-aware loss가 target update와 AdamW state를 deflect하는 현상을 총 384개 training run(그중 same-state shadow 15개), 63개 target checkpoint의 full downstream panel로 분석한 한국어 보고서.">
+  <meta name="description" content="독립 pretrained AR target과 drafter의 bidirectional acceptance-loss 공동학습에서 AdamW state deflection과 matched target NLL 21/21, full downstream macro 19/21 seed의 negative transfer를 분석한 한국어 보고서.">
   <meta property="og:type" content="article">
-  <meta property="og:title" content="독립 pretrained target–drafter 공동학습의 target-update interference">
-  <meta property="og:description" content="독립 pretrained AR target과 drafter의 bidirectional joint training에서 draft-aware loss가 target update와 AdamW state를 deflect하는 현상을 총 384개 training run(그중 same-state shadow 15개), 63개 target checkpoint의 full downstream panel로 분석한 한국어 보고서.">
+  <meta property="og:title" content="독립 target–drafter 공동학습의 target 품질 비용">
+  <meta property="og:description" content="독립 pretrained AR target과 drafter의 bidirectional acceptance-loss 공동학습에서 AdamW state deflection과 matched target NLL 21/21, full downstream macro 19/21 seed의 negative transfer를 분석한 한국어 보고서.">
   <meta property="og:url" content="https://bluear7878.github.io/specdec-joint-report/">
-  <meta property="og:image" content="https://bluear7878.github.io/specdec-joint-report/figures/figure_08_target_gradient_shadow.png">
-  <meta property="og:image:alt" content="동일 AdamW state의 target CE+aux 대 CE-only 반사실과 최종 성능 비교">
-  <meta property="og:image:width" content="2974">
-  <meta property="og:image:height" content="1227">
+  <meta property="og:image" content="https://bluear7878.github.io/specdec-joint-report/figures/figure_09_motivation_evidence_chain.png">
+  <meta property="og:image:alt" content="독립 target-drafter 공동학습의 optimizer-state deflection과 전체 21-seed target 품질 비교">
+  <meta property="og:image:width" content="3422">
+  <meta property="og:image:height" content="2057">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:image" content="https://bluear7878.github.io/specdec-joint-report/figures/figure_08_target_gradient_shadow.png">
+  <meta name="twitter:image" content="https://bluear7878.github.io/specdec-joint-report/figures/figure_09_motivation_evidence_chain.png">
   <link rel="canonical" href="https://bluear7878.github.io/specdec-joint-report/">
-  <title>독립 pretrained target–drafter 공동학습의 target-update interference</title>
+  <title>독립 target–drafter 공동학습의 target 품질 비용</title>
   <script>
     window.MathJax = {
       tex: {displayMath: [['\\[', '\\]']]},
@@ -207,19 +207,61 @@
   </style>
 </head>
 <body>
-  <main><h1 id="pretrained-targetdrafter-target-update-interference">독립 pretrained target–drafter 공동학습의 target-update interference<a class="headerlink" href="#pretrained-targetdrafter-target-update-interference" title="이 절의 고정 링크">&para;</a></h1>
+  <main><h1 id="targetdrafter-target">독립 target–drafter 공동학습의 target 품질 비용<a class="headerlink" href="#targetdrafter-target" title="이 절의 고정 링크">&para;</a></h1>
 <div class="publication-note">외부 공개용 HTML · 원 실험 artifact와 checkpoint는 공개되지 않음</div>
 
 <blockquote>
-<p>축약 종합 보고서 · 2026-07-15</p>
+<p>Target-update interference under bidirectional acceptance loss · 2026-07-16</p>
 <p>범위: parameter, embedding, hidden state, LM head, adapter, optimizer를 전혀
 공유하지 않는 두 pretrained autoregressive language model</p>
 <p>상태: 짧은 LoRA adaptation에서 얻은 controlled evidence이며 peer-reviewed
 결과가 아님</p>
 </blockquote>
+<h2 id="0">0. 연구 질문과 결론<a class="headerlink" href="#0" title="이 절의 고정 링크">&para;</a></h2>
+<blockquote>
+<p><strong>Acceptance loss의 target-side gradient path를 켜면, CE-only였다면 적용될
+AdamW update와 target 품질이 희생되는가?</strong></p>
+</blockquote>
+<p><strong>시험한 regime에서는 그렇다.</strong> 같은 pretrained checkpoint, seed, minibatch 순서,
+schedule에서 target-side path만 켠 bidirectional arm은 detach arm보다 target NLL이
+<strong>21/21 training seed</strong>, full five-task macro가 <strong>19/21 seed</strong>에서 나빴다. 동시에 같은
+target parameter와 AdamW state를 복제한 current-step fork에서 auxiliary loss가 실제
+update와 optimizer moment를 직접 바꾸는 것도 확인했다.</p>
+<p>이를 편의상 <em>target-gradient contamination</em>이라 부르되, <code>g_CE</code> 자체가 수치적으로
+변조된다는 뜻은 아니다. 코드에서는 <code>g_CE</code>와 <code>g_aux</code>를 별도 <code>autograd.grad</code>로
+계산한다. 오염되는 것은 실제 적용 방향</p>
+<div class="math-block">\[
+g_T=g_{CE}+\beta g_{aux}
+\]</div>
+<p>및 그 방향을 누적하는 optimizer state다.</p>
+<p>핵심 증거는 서로 다른 두 반사실에서 온다.</p>
+<ol>
+<li><strong>누적 결과:</strong> 100-step matched <code>bidirectional − detach</code> 비교에서 NLL은 21/21 seed,
+   downstream macro는 19/21 seed와 5/5 pair 평균에서 악화했다.</li>
+<li><strong>직접 메커니즘:</strong> joint trajectory의 같은 pre-step state에서 <code>CE+aux</code>와 <code>CE-only</code>
+   AdamW step을 fork했다. LR이 0인 첫 step부터 <code>exp_avg</code>가 15/15 run에서 달랐다.
+   Held-out 일차 harm sign은 139/150 active diagnostics, exact one-step harm sign은
+   85/150이었다. Exact contrast를 seed 안에서 평균하면 11/15 seed와 5/5 pair 평균이
+   양수였다. 150 step은 반복 측정이지 독립 표본이 아니다.</li>
+<li><strong>경계:</strong> foundation-model collapse는 아니었다. 모든 naive target은 pretrained
+   initial보다 WikiText NLL이 좋아졌고, 기존 231 diagnostic에서 target CE의 일차
+   descent 방향이 완전히 뒤집힌 경우는 0회였다. 결론은 universal law가 아니라
+   <strong>시험한 regime의 반복적인 target-update interference와 negative transfer</strong>다.</li>
+</ol>
+<p><img alt="독립 target과 drafter의 target-side gradient intervention부터 optimizer-state deflection과 전체 21-seed target 품질 저하까지 연결한 motivation evidence chain" src="figures/figure_09_motivation_evidence_chain.png"></p>
+<p><em>그림 1. 상단은 두 독립 모델과 직접 조작한 target-side gradient path다. A–B는 joint
+optimizer history에 조건부인 current-step probe이고, C–D는 별도의 100-step matched-arm
+endpoint다. 두 가지는 같은 현상을 보완적으로 측정하지만 mediation chain은 아니다.
+모든 endpoint 점은 training seed이며, diamond와 선은 pair별 평균과 descriptive 95%
+Student-t interval이다. 두 endpoint 축은 모두 오른쪽이 target harm이다.</em></p>
+<p>단순히 loss 항을 더하면 합성 gradient가 달라지는 것은 자명하다. 연구 모티베이션은
+그 사실 자체가 아니라, 그 경로가 <strong>독립 모델·여러 architecture pair에서 same-seed
+target 품질을 반복적으로 낮췄고</strong>, 현재의 norm cap도 detach 수준을 완전히 복구하지
+못했다는 데 있다. 즉 개선 목표는 “gradient를 다르게 만들기”가 아니라
+<strong>acceptance gain을 유지하면서 target non-inferiority를 보장하는 update rule</strong>이다.</p>
 <div class="toc">
 <ul>
-<li><a href="#0">0. 결론</a></li>
+<li><a href="#0">0. 연구 질문과 결론</a></li>
 <li><a href="#1-gap">1. 연구 범위와 문헌 gap</a><ul>
 <li><a href="#11">1.1 포함하는 설정</a></li>
 <li><a href="#12">1.2 제외하는 설정</a></li>
@@ -252,42 +294,6 @@
 <li><a href="#8">8. 재현성과 산출물</a></li>
 </ul>
 </div>
-<h2 id="0">0. 결론<a class="headerlink" href="#0" title="이 절의 고정 링크">&para;</a></h2>
-<p>본 연구의 모티베이션은 다음 한 문장이다.</p>
-<blockquote>
-<p><strong>독립 draft model의 acceptance-oriented loss를 target CE와 함께 target에
-미분하면, 별도로 계산된 target CE gradient에 auxiliary gradient가 더해져 실제
-target update와 AdamW state를 deflect하고 target 품질을 낮출 수 있다.</strong></p>
-</blockquote>
-<p>이를 편의상 <em>target-gradient contamination</em>이라 부르되, <code>g_CE</code> 자체가 수치적으로
-변조된다는 뜻은 아니다. 코드에서는 <code>g_CE</code>와 <code>g_aux</code>를 별도 <code>autograd.grad</code>로
-계산한다. 오염되는 것은 실제 적용 방향</p>
-<div class="math-block">\[
-g_T=g_{CE}+\beta g_{aux}
-\]</div>
-<p>및 그 방향을 누적하는 optimizer state다.</p>
-<p>핵심 결과는 세 층으로 나뉜다.</p>
-<ol>
-<li><strong>직접 동일-state AdamW 반사실:</strong> 5 pair × 3 seed의 새 15-run panel에서
-   실제 <code>CE+aux</code> step과 같은 pre-step parameter·AdamW state의 <code>CE-only</code> shadow
-   step을 비교했다. Auxiliary의 held-out CE 일차 효과는 active diagnostic
-   139/150회 불리했다. 실제 one-step held-out CE 차이는 85/150회 불리했고, seed
-   안에서 평균하면 11/15 seed와 5/5 pair 평균이 양수였다. 일차 근사와 exact
-   contrast의 차이를 만드는 곡률·clipping·AdamW 등의 상대 기여는 분해하지 않았다.</li>
-<li><strong>최종 target 품질:</strong> 기존 matched <code>naive − detach</code> target NLL은 5/5 pair,
-   21/21 training seed에서 악화했다. 사전 고정 full five-task macro는 19/21 seed와
-   5/5 pair 평균에서 하락했다.</li>
-<li><strong>경계:</strong> foundation-model collapse는 아니었다. 모든 naive target은 pretrained
-   initial보다 WikiText NLL이 좋아졌고 기존 231 diagnostic에서 target CE의 일차
-   descent 방향이 완전히 뒤집힌 경우는 0회였다. 현상은 항상 같은 크기로 나타나는
-   법칙이 아니라 <strong>반복적인 target-update interference와 broader negative transfer</strong>다.</li>
-</ol>
-<p><img alt="동일 AdamW state의 CE+aux 대 CE-only 반사실과 최종 target NLL 및 downstream macro를 연결한 그림" src="figures/figure_08_target_gradient_shadow.png"></p>
-<p><em>그림 1. 왼쪽은 joint trajectory의 같은 pre-step LoRA parameter와 AdamW state에서
-실제 <code>CE+aux</code> update와 <code>CE-only</code> shadow update를 fork한 뒤 측정한 held-out CE 차이다.
-가운데와 오른쪽은 같은 세 seed의 기존 matched endpoint다. 연한 점은 training seed,
-진한 점과 선은 seed 평균과 descriptive 95% Student-t interval이다. Diagnostic step은
-replicate가 아니며, inference unit은 training seed뿐이다.</em></p>
 <h2 id="1-gap">1. 연구 범위와 문헌 gap<a class="headerlink" href="#1-gap" title="이 절의 고정 링크">&para;</a></h2>
 <h3 id="11">1.1 포함하는 설정<a class="headerlink" href="#11" title="이 절의 고정 링크">&para;</a></h3>
 <p>Target distribution을 <code>p_θ</code>, 독립 drafter를 <code>q_φ</code>라 한다. 둘은 tokenizer-compatible
@@ -316,6 +322,12 @@ endpoint total effect에 포함된다.</p>
 <h3 id="12">1.2 제외하는 설정<a class="headerlink" href="#12" title="이 절의 고정 링크">&para;</a></h3>
 <p>MEDUSA/EAGLE형 shared/native-head 모델은 이 보고서의 실험 범위 밖이다. 해당
 historical 실험은 저장소에 provenance로만 남아 있으며 본 결론의 근거로 섞지 않는다.</p>
+<p>인접 연구인 <a href="https://sergiu-nistor.com/assets/publications/Halfway_Speculative_Decoding.pdf">Halfway Speculative Decoding</a>은
+strong target을 weaker drafter 쪽으로 이동시키면 생성 품질이 저하될 위험을 명시하고,
+target CE regularization과 제한된 training budget을 사용한다. 다만 drafter가 target의
+embedding과 중간 hidden state를 입력으로 받는 EAGLE-3-style head이므로, 이 보고서의
+<strong>두 independent pretrained AR model</strong> 설정에 대한 증거로 세지 않는다. 문제의식은
+인접하지만 실험적 gap은 남아 있다.</p>
 <p>또한 target-side acceptance loss는 exact speculative decoding의 요건이 아니다.
 <a href="https://proceedings.mlr.press/v202/leviathan23a.html">Speculative Decoding</a>은 고정 target의
 분포를 보존하고, <a href="https://openreview.net/forum?id=rsY6J3ZaTF">DistillSpec</a>,
@@ -486,6 +498,11 @@ same-batch CE는 87/150이었다. 이 step 수는 repeated measurement이므로 
 step의 exact CE sign은 자주 달랐다. 곡률, clipping, adaptive moments는 가능한
 contributor이지만 본 panel은 각각을 분리 추정하지 않았다. “negative cosine이면 매
 step loss가 반드시 오른다”는 설명은 자료가 지지하지 않는다.</p>
+<p><img alt="동일 AdamW state의 current-step shadow와 공통 seed endpoint를 pair별로 비교한 상세 그림" src="figures/figure_08_target_gradient_shadow.png"></p>
+<p><em>그림 2. 왼쪽은 seed별 10개 active diagnostic의 평균 <code>H_val</code>, 가운데와 오른쪽은
+shadow panel과 공통인 seed 0–2의 matched endpoint다. 모든 축은 오른쪽이 target
+harm이다. 이 상세 그림은 local probe와 endpoint가 함께 관찰됨을 보이지만 누적
+mediation decomposition은 아니다.</em></p>
 <p>더 직접적인 optimizer-state 증거도 있다. Step 1은 warmup 때문에 target LR이 0이고
 두 branch 모두 parameter update norm이 0이다. 그런데 <code>CE+aux</code>와 <code>CE-only</code>의 Adam
 <code>exp_avg</code>는 <strong>15/15 run에서 이미 달라졌다</strong>. 차이 norm은 actual moment norm의
@@ -549,7 +566,7 @@ M=\frac{HS_{char}+PIQA_{char}
 +(ARC\text{-}E_{char}+ARC\text{-}C_{char})/2+Wino_{raw}}{4}.
 \]</div>
 <p><img alt="다섯 independent target-drafter pair의 full downstream macro contrast" src="figures/figure_06_target_downstream_macro.png"></p>
-<p><em>그림 2. Full target-only macro의 condition−detach contrast. 연한 점은 training seed,
+<p><em>그림 3. Full target-only macro의 condition−detach contrast. 연한 점은 training seed,
 진한 점과 whisker는 pair별 평균과 descriptive 95% t interval이다. Pair를 하나의
 architecture population처럼 pooling하지 않았다.</em></p>
 <table>
@@ -639,7 +656,7 @@ Qwen/Pythia–Mamba에서 실행하지 않았다.</p>
 </ol>
 <h2 id="6-acceptance-trade-off">6. Acceptance와의 trade-off<a class="headerlink" href="#6-acceptance-trade-off" title="이 절의 고정 링크">&para;</a></h2>
 <p><img alt="target NLL과 exact rollout AAL의 condition별 Pareto 비교" src="figures/figure_04_quality_acceptance_pareto.png"></p>
-<p><em>그림 3. Target WikiText NLL과 FP32 exact rollout AAL. Cap은 target 손상을 줄이는 대신
+<p><em>그림 4. Target WikiText NLL과 FP32 exact rollout AAL. Cap은 target 손상을 줄이는 대신
 acceptance gain도 대체로 줄였다. 이 그림은 condition endpoint 요약이며 seed-level
 상관이나 production throughput 추정이 아니다.</em></p>
 <p>Naive는 OPT/Pythia/Qwen/Pythia–Mamba에서 AAL point estimate를 높였지만 GPT에서는
@@ -739,6 +756,6 @@ python scripts/build_public_report.py \
 <code>LD_PRELOAD</code>를 적용해야 한다. Completed root는 덮어쓰지 않으며, 새 분석은 새 versioned
 output에만 쓴다. Model adapter weights는 Git에 저장하지 않고 raw histories, metrics,
 analysis rows, manifests만 version한다.</p></main>
-  <footer>Generated from the audited report · 2026-07-15</footer>
+  <footer>Generated from the audited report · 2026-07-16</footer>
 </body>
 </html>
