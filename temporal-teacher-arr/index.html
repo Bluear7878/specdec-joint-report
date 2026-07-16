@@ -876,9 +876,9 @@ FP32 eager rollout row에서 다시 계산했고 greedy row는 lossless identity
 Cross-swap은 conditional checkpoint effect이며 고유한 additive causal decomposition이
 아니다.</p>
 <h2 id="10-v04-online-same-state-draft-update-selectorconsensus">10. v0.4 제안: online same-state draft-update selector/consensus<a class="headerlink" href="#10-v04-online-same-state-draft-update-selectorconsensus" title="이 절의 고정 링크">&para;</a></h2>
-<p>다음 가설은 고정 EMA decay를 하나 더 시험하는 것이 아니다. <strong>Target 역할은 보호가 확인된
-coordinate-live trajectory에 두고, draft update만 현재 verifier evidence에 따라
-same-state에서 선택</strong>하는 것이다.</p>
+<p>다음 가설은 고정 EMA decay를 하나 더 시험하는 것이 아니다. <strong>Target 쪽은 보호가 확인된
+coordinate-live objective와 update rule을 유지하고, draft update만 현재 verifier
+evidence에 따라 same-state에서 선택</strong>하는 것이다.</p>
 <div class="mermaid" role="img" aria-label="Temporal-Teacher ARR 학습 흐름도">flowchart LR
     A[&quot;same pre-step draft + Adam state&quot;] --&gt; B[&quot;live-teacher candidate&quot;]
     A --&gt; C[&quot;EMA candidate&quot;]
@@ -903,7 +903,10 @@ same-state에서 선택</strong>하는 것이다.</p>
 <p>이는 위 oracle composition을 실제 online rule로 근사하려는 <strong>future work</strong>다. 아직 구현,
 비용 측정, GO/KILL manifest나 효능 근거는 없다. 다음 패널은 먼저 seed 99에서 selector의
 same-state identity, no-update fallback, optimizer-state atomicity와 exact AAL gate를 통과한
-뒤에만 새 selection seed를 논의해야 한다.</p>
+뒤에만 새 selection seed를 논의해야 한다.
+Selector가 draft proposal과 responsibility route를 바꾸면 이후 target trajectory도
+달라지므로, historical <code>T_coordinate-live + D_EMA.9</code> target checkpoint가 online rule에서
+그대로 재현된다는 보장은 없다.</p>
 <h2 id="11-artifact-provenance">11. 추론 한계와 artifact provenance<a class="headerlink" href="#11-artifact-provenance" title="이 절의 고정 링크">&para;</a></h2>
 <p>이번 패널은 노출된 engineering seed <code>99</code> 하나다. Training seed가 inferential unit이며,
 세 model pair, diagnostic step, token, prompt, corpus, sampling seed와 decoding round를 IID
