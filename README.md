@@ -19,6 +19,10 @@ catastrophic gradient-failure law.
 Public pages:
 
 - Completed evidence report: <https://bluear7878.github.io/specdec-joint-report/>
+- Optimizer-state controller validation:
+  <https://bluear7878.github.io/specdec-joint-report/methods/>
+- SafeMove-SD v0.2 Stage 0/1 engineering result:
+  <https://bluear7878.github.io/specdec-joint-report/safemove/>
 - Visually structured follow-up method proposal:
   <https://bluear7878.github.io/specdec-joint-report/ideas/>
 
@@ -26,3 +30,7 @@ The ideas page clearly separates completed observations from untested proposals.
 Its central visual maps the observed optimizer-state and endpoint evidence to
 design requirements, ranked method candidates, falsifiable hypotheses, and
 stage-gated experiments.
+
+SafeMove-SD v0.2 passed its implementation identities but was killed at the
+frozen engineering gate: its emergency radius bound was active on 92–99% of
+steps and exact FP32 AAL fell for all three independent target–drafter pairs.

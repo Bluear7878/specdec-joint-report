@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="독립 pretrained AR target-drafter 세 pair에서 SafeMove-SD v0.2의 항등성, target NLL, FP32 exact AAL, optimizer firewall과 CE-twin rollback을 검증한 seed-99 engineering 보고서. 사전 radius/AAL gate에 따라 Stage 1에서 KILL했다.">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="SafeMove-SD v0.2 engineering 검증: KILL">
+  <meta property="og:description" content="독립 pretrained AR target-drafter 세 pair에서 SafeMove-SD v0.2의 항등성, target NLL, FP32 exact AAL, optimizer firewall과 CE-twin rollback을 검증한 seed-99 engineering 보고서. 사전 radius/AAL gate에 따라 Stage 1에서 KILL했다.">
+  <meta property="og:url" content="https://bluear7878.github.io/specdec-joint-report/safemove/">
+  <meta property="og:image" content="https://bluear7878.github.io/specdec-joint-report/artifacts/safemove_sd_v0_2_stage1_analysis_v1/safemove_pareto.png">
+  <meta property="og:image:alt" content="SafeMove-SD v0.2가 target NLL을 방어하지만 exact AAL을 잃어 engineering KILL된 Pareto dashboard">
+  <meta property="og:image:width" content="3078">
+  <meta property="og:image:height" content="1227">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://bluear7878.github.io/specdec-joint-report/artifacts/safemove_sd_v0_2_stage1_analysis_v1/safemove_pareto.png">
+  <link rel="canonical" href="https://bluear7878.github.io/specdec-joint-report/safemove/">
+  <title>SafeMove-SD v0.2 engineering 검증: KILL</title>
+  <script>
+    window.MathJax = {
+      tex: {inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']]},
+      chtml: {scale: 0.94}
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f4f6fa; --surface: #fff; --text: #172033; --muted: #657087;
+      --line: #dce3ed; --blue: #315fa8; --blue-soft: #eaf1fb;
+      --green: #16815d; --green-soft: #e8f6ef; --red: #b93845;
+      --red-soft: #fff0f1; --amber: #b66a16; --code: #f2f4f8;
+      --shadow: 0 18px 50px rgba(28,42,76,.09);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0d1118; --surface: #151a23; --text: #e8edf5; --muted: #aab5c7;
+        --line: #303846; --blue: #9db8f4; --blue-soft: #202c43;
+        --green: #76d7b4; --green-soft: #17352d; --red: #ff9aa4;
+        --red-soft: #3f242a; --amber: #f3b56c; --code: #222936; --shadow: none;
+      }
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; background: var(--bg); color: var(--text); font-family:
+      Pretendard,"Noto Sans KR",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      font-size: 16.5px; line-height: 1.72; word-break: keep-all; }
+    .site-nav { position: sticky; top: 0; z-index: 20; display: flex;
+      justify-content: space-between; align-items: center; min-height: 58px;
+      padding: 0 max(22px,calc((100vw - 1220px)/2)); background:
+      color-mix(in srgb,var(--bg) 87%,transparent); border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(16px); }
+    .brand { font-weight: 850; }
+    .site-nav div { display: flex; gap: .45rem; }
+    .site-nav a { padding: .36rem .66rem; color: var(--muted); border-radius: 999px;
+      text-decoration: none; font-size: .87rem; font-weight: 750; }
+    .site-nav a:hover,.site-nav a[aria-current="page"] { color: var(--blue);
+      background: var(--blue-soft); }
+    main { width: min(1220px,calc(100% - 32px)); margin: 30px auto 80px;
+      padding: clamp(26px,5vw,72px); background: var(--surface); border: 1px solid var(--line);
+      border-radius: 24px; box-shadow: var(--shadow); overflow: hidden; }
+    h1,h2,h3 { line-height: 1.28; letter-spacing: -.028em; }
+    h1 { max-width: 1050px; margin: .2rem 0 1rem; font-size: clamp(2.2rem,5.5vw,4.3rem); }
+    h2 { margin: 4rem 0 1.1rem; padding-top: 1.1rem; border-top: 1px solid var(--line);
+      font-size: clamp(1.65rem,3vw,2.3rem); }
+    h3 { margin: 1.6rem 0 .65rem; font-size: 1.28rem; }
+    .headerlink { margin-left: .35rem; opacity: 0; text-decoration: none; }
+    h2:hover .headerlink,h3:hover .headerlink { opacity: .65; }
+    p { max-width: 940px; }
+    a { color: var(--blue); text-underline-offset: 3px; }
+    blockquote { max-width: 1000px; margin: 1.6rem 0; padding: 1.15rem 1.35rem;
+      background: linear-gradient(125deg,var(--green-soft),var(--blue-soft));
+      border-left: 5px solid var(--green); border-radius: 0 14px 14px 0; }
+    blockquote p { margin: 0; }
+    .toc { margin: 2rem 0 3rem; padding: 1.2rem 1.4rem; background: var(--blue-soft);
+      border: 1px solid var(--line); border-radius: 14px; }
+    .toc::before { content: "검증 지도"; display: block; margin-bottom: .55rem;
+      color: var(--blue); font-weight: 850; }
+    .toc ul { margin: .25rem 0; padding-left: 1.3rem; columns: 2; column-gap: 2rem; }
+    .toc li { break-inside: avoid; margin: .22rem 0; }
+    .toc a { text-decoration: none; }
+    table { display: block; width: 100%; margin: 1.25rem 0 2rem; overflow-x: auto;
+      border-collapse: collapse; font-size: .91rem; }
+    th,td { min-width: 115px; padding: .72rem .78rem; border: 1px solid var(--line);
+      text-align: left; vertical-align: top; }
+    th { color: var(--blue); background: var(--blue-soft); font-weight: 800; }
+    tr:nth-child(even) td { background: color-mix(in srgb,var(--blue-soft) 32%,transparent); }
+    main > p:has(> img) { width: min(1500px,calc(100vw - 30px)); margin: 1.8rem 50% .75rem;
+      transform: translateX(-50%); }
+    main > p:has(> img) img { display: block; width: 100%; height: auto; padding: .35rem;
+      background: #fff; border: 1px solid var(--line); border-radius: 16px; }
+    main > p:has(> img) + p > em { display: block; color: var(--muted); font-size: .86rem; }
+    .math-block { margin: 1.35rem 0; overflow-x: auto; text-align: center; }
+    code { padding: .12rem .3rem; background: var(--code); border-radius: 5px;
+      font-family: "SFMono-Regular",Consolas,monospace; font-size: .88em; }
+    pre { padding: 1rem; overflow-x: auto; background: var(--code); border: 1px solid var(--line);
+      border-radius: 12px; }
+    pre code { padding: 0; }
+    .local-artifact { color: var(--muted); border-bottom: 1px dotted var(--muted); }
+    footer { width: min(1220px,calc(100% - 32px)); margin: -50px auto 38px;
+      color: var(--muted); text-align: center; font-size: .8rem; }
+    @media (max-width: 700px) {
+      body { font-size: 15px; word-break: normal; }
+      .site-nav { position: static; padding: .5rem .7rem; } .brand { display: none; }
+      .site-nav div { width: 100%; justify-content: center; }
+      main { width: 100%; margin: 0; padding: 24px 18px 70px; border: 0; border-radius: 0; }
+      h1 { font-size: 2.25rem; } .toc ul { columns: 1; }
+      main > p:has(> img) { width: 100vw; padding: 0 10px; overflow-x: auto; }
+      main > p:has(> img) img { min-width: 900px; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="site-nav" aria-label="공개 연구 문서">
+    <span class="brand">Independent-AR SpecDec</span>
+    <div>
+      <a href="../">모티베이션</a>
+      <a href="../methods/">이전 방법 검증</a>
+      <a href="./" aria-current="page">SafeMove v0.2</a>
+      <a href="../ideas/">아이디어</a>
+    </div>
+  </nav>
+  <main><h1 id="safemove-sd-v02-stage-01">SafeMove-SD v0.2 Stage 0/1 실험 보고서<a class="headerlink" href="#safemove-sd-v02-stage-01" title="이 절의 고정 링크">&para;</a></h1>
+<blockquote>
+<p><strong>판정:</strong> Stage 0 identity <strong>PASS</strong> · Stage 1 engineering <strong>KILL</strong><br>
+<strong>범위:</strong> seed 99, 세 independent pretrained AR target/drafter pair, 100-step LoRA adaptation<br>
+<strong>다음 단계:</strong> selection seeds <code>6–8</code>은 열지 않았으며 계속 sealed</p>
+</blockquote>
+<div class="toc">
+<ul>
+<li><a href="#0">0. 결론</a></li>
+<li><a href="#1">1. 무엇을 시험했는가</a></li>
+<li><a href="#2-stage-0-identity-pass">2. Stage 0: 구현 identity PASS</a></li>
+<li><a href="#3-stage-1-six-arm-postmortem">3. Stage 1과 six-arm postmortem</a><ul>
+<li><a href="#31-motivation-proxy">3.1 Motivation은 재현됐지만 proxy만으로는 부족하다</a></li>
+<li><a href="#32-safemove-v02">3.2 SafeMove v0.2가 실패한 지점</a></li>
+</ul>
+</li>
+<li><a href="#4">4. 판정과 다음 연구 방향</a></li>
+<li><a href="#5">5. 해석 한계</a></li>
+<li><a href="#6">6. 원본과 분석 산출물</a></li>
+</ul>
+</div>
+<h2 id="0">0. 결론<a class="headerlink" href="#0" title="이 절의 고정 링크">&para;</a></h2>
+<p>SafeMove-SD v0.2는 의도한 계산을 구현했지만, main method 가설은 engineering
+단계에서 반증됐다.</p>
+<ul>
+<li><code>path_naive</code>는 <code>path_detach</code>보다 teacher-forced overlap을 세 pair 모두
+  <code>+.021–+.027</code> 높였지만 target NLL도 모두 <code>+.036–+.099</code> 악화시켰다. 즉 실제
+  proposal path를 학습해도 이 연구의 motivation인 <strong>acceptance objective의 target-side
+  negative transfer</strong>가 seed 99에서 다시 나타났다.</li>
+<li><code>move_full</code>은 target NLL 차이를 <code>+.001/−.002/−.007</code>로 줄였지만, primary utility인
+  FP32 exact AAL은 GPT/OPT/Pythia에서 각각 <code>−.017/−.009/−.161</code> 낮았다.</li>
+<li>비용은 detach 대비 <code>1.95–2.18×</code>, 같은 host의 historical exact-controller 대비
+  <code>.167–.214×</code>였고 participation(<code>.35–.70</code>)과 rollback block 비율(<code>0–.40</code>)도
+  engineering 범위 안이었다. 그러나 emergency radius가 residual의 <code>.92–.99</code>에서 bind했다.
+  사전 protocol은 이 비율이 <code>.50</code>을 넘으면 router가 아니라 global cap이 실질적인
+  selector가 된 것으로 보고 재설계하도록 정했다.</li>
+</ul>
+<p>따라서 이 결과를 성공으로 해석하지 않는다. <strong>Target 품질 방어는 일부 작동했지만
+acceptance utility를 만들지 못했고, 핵심 proposal-conditioned routing도 cap에 거의
+항상 잘렸다.</strong> v0.2를 고정한 채 selection panel로 진행할 근거가 없으므로 Stage 2는
+시작하지 않았다.</p>
+<p><img alt="SafeMove v0.2의 target NLL과 exact AAL trade-off" src="../artifacts/safemove_sd_v0_2_stage1_analysis_v1/safemove_pareto.png"></p>
+<h2 id="1">1. 무엇을 시험했는가<a class="headerlink" href="#1" title="이 절의 고정 링크">&para;</a></h2>
+<p>Target <code>p_θ</code>와 drafter <code>q_φ</code>는 tokenizer-compatible token ID만 공유한다. Backbone,
+embedding, hidden representation, LM head, LoRA parameter와 optimizer는 모두 분리돼
+있다. MEDUSA/EAGLE/native-head는 이 보고서의 실험이나 결론에 포함하지 않는다.</p>
+<p>고정된 <span class="local-artifact" title="로컬 연구 workspace 산출물">proposal</span> <code>SAFEMOVE_MAIN_METHOD_PROPOSAL_KO.md</code>과
+<span class="local-artifact" title="로컬 연구 workspace 산출물">v0.2 protocol</span> <code>SAFEMOVE_VALIDATION_PROTOCOL_KO.md</code>에 따라 WikiText-103에서 100 step,
+batch 4, sequence 64, rank-8 LoRA, BF16, target/draft AdamW LR <code>2e-4</code>로 학습했다.
+Drafter가 on-policy <code>K=3</code> proposal을 만들고, 모든 arm은 같은 pathwise Hybrid LK
+(<code>η=3</code>, <code>γ=1</code>, <code>sum(survival·LK)/(B·K)</code>)를 draft에 적용했다. Target native CE에는
+sampled proposal token을 label로 넣지 않았다.</p>
+<p>Prospective Stage-1 primary comparison은 <code>path_detach</code>와 <code>move_full</code>이다. 아래 네 arm은
+KILL 원인을 분리하기 위한 <strong>사후 postmortem</strong>이며 method selection evidence로
+재해석하지 않는다.</p>
+<ul>
+<li><code>path_naive</code>: raw path loss를 target CE와 같은 AdamW update/state에 더함</li>
+<li><code>global_firewall</code>: raw path residual을 CE-only Adam state 밖에서 적용</li>
+<li><code>move_shared</code>: routed transport gradient를 CE와 shared Adam state에 적용</li>
+<li><code>move_no_audit</code>: routed transport + firewall, CE twin rollback 없음</li>
+<li><code>move_full</code>: routed transport + firewall + CE-twin audit/rollback</li>
+</ul>
+<h2 id="2-stage-0-identity-pass">2. Stage 0: 구현 identity PASS<a class="headerlink" href="#2-stage-0-identity-pass" title="이 절의 고정 링크">&para;</a></h2>
+<p>고정 protocol의 prospective identity checks가 먼저 통과했다.</p>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>관찰</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Centered transport</td>
+<td>forced <code>τ=0</code> loss와 gradient가 exact zero; FP64 gradient가 두 KL-gradient 차이와 일치</td>
+</tr>
+<tr>
+<td>Stateless firewall</td>
+<td>CE Adam <code>m,v</code>를 바꾸지 않고 CE-metric radius를 준수; LR 0 residual은 zero; weight decay는 한 번만 적용</td>
+</tr>
+<tr>
+<td>실제 model path</td>
+<td>GPT/OPT/Pythia의 10-step forced-<code>τ=0</code> arm이 <code>path_detach</code>와 target/draft state hash 및 endpoint에서 3/3 exact match</td>
+</tr>
+<tr>
+<td>Audit rollback</td>
+<td>forced reject 뒤 live target parameter/state가 current CE twin과 exact match</td>
+</tr>
+<tr>
+<td>Exact rollout</td>
+<td>FP32 eager speculative output과 target-only greedy output이 exact match</td>
+</tr>
+</tbody>
+</table>
+<p>이 PASS는 <strong>구현이 설계된 연산을 수행한다</strong>는 뜻이다. SafeMove가 유용하거나 target
+quality를 형식적으로 보장한다는 뜻은 아니다.</p>
+<h2 id="3-stage-1-six-arm-postmortem">3. Stage 1과 six-arm postmortem<a class="headerlink" href="#3-stage-1-six-arm-postmortem" title="이 절의 고정 링크">&para;</a></h2>
+<p>아래 값은 모두 같은 pair의 <code>path_detach</code> 대비 차이다. 각 cell의 순서는
+<code>GPT-2/DistilGPT-2 · OPT-350M/OPT-125M · Pythia-410M/Pythia-70M</code>이다. Target NLL은
+낮을수록, exact AAL과 overlap은 높을수록 좋다.</p>
+<table>
+<thead>
+<tr>
+<th>Arm</th>
+<th style="text-align: right;">Δ target NLL</th>
+<th style="text-align: right;">Δ TF overlap</th>
+<th style="text-align: right;">Δ FP32 exact AAL</th>
+<th style="text-align: right;">Training cost ×</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>path_detach</code></td>
+<td style="text-align: right;"><code>.000 / .000 / .000</code></td>
+<td style="text-align: right;"><code>.000 / .000 / .000</code></td>
+<td style="text-align: right;"><code>.000 / .000 / .000</code></td>
+<td style="text-align: right;"><code>1.00 / 1.00 / 1.00</code></td>
+</tr>
+<tr>
+<td><code>path_naive</code></td>
+<td style="text-align: right;"><code>+.043 / +.036 / +.099</code></td>
+<td style="text-align: right;"><code>+.027 / +.025 / +.021</code></td>
+<td style="text-align: right;"><code>+.056 / −.040 / +.122</code></td>
+<td style="text-align: right;"><code>1.21 / 1.22 / 1.26</code></td>
+</tr>
+<tr>
+<td><code>global_firewall</code></td>
+<td style="text-align: right;"><code>+.000 / −.002 / −.019</code></td>
+<td style="text-align: right;"><code>+.001 / +.000 / −.002</code></td>
+<td style="text-align: right;"><code>−.054 / −.061 / −.087</code></td>
+<td style="text-align: right;"><code>1.30 / 1.37 / 1.43</code></td>
+</tr>
+<tr>
+<td><code>move_shared</code></td>
+<td style="text-align: right;"><code>+.003 / −.002 / −.013</code></td>
+<td style="text-align: right;"><code>+.001 / −.000 / −.001</code></td>
+<td style="text-align: right;"><code>−.087 / −.087 / −.055</code></td>
+<td style="text-align: right;"><code>1.62 / 1.71 / 2.08</code></td>
+</tr>
+<tr>
+<td><code>move_no_audit</code></td>
+<td style="text-align: right;"><code>+.002 / −.002 / −.006</code></td>
+<td style="text-align: right;"><code>+.001 / +.000 / −.002</code></td>
+<td style="text-align: right;"><code>−.026 / −.009 / −.004</code></td>
+<td style="text-align: right;"><code>1.87 / 1.84 / 2.10</code></td>
+</tr>
+<tr>
+<td><code>move_full</code></td>
+<td style="text-align: right;"><code>+.001 / −.002 / −.007</code></td>
+<td style="text-align: right;"><code>−.002 / +.000 / +.000</code></td>
+<td style="text-align: right;"><code>−.017 / −.009 / −.161</code></td>
+<td style="text-align: right;"><code>1.97 / 1.95 / 2.18</code></td>
+</tr>
+</tbody>
+</table>
+<p>FP32 eager exact rollout은 WikiText-2, TinyStories, GSM8K text에서 <code>K=3</code>, 32 generated
+tokens로 실행했다. 모든 18 pair×arm endpoint에서 speculative output과 대응하는
+target-only greedy output의 exact-match rate는 <code>1.0</code>이었다. 이 AAL을 rejected BF16
+cache benchmark나 production serving throughput과 섞지 않는다.</p>
+<h3 id="31-motivation-proxy">3.1 Motivation은 재현됐지만 proxy만으로는 부족하다<a class="headerlink" href="#31-motivation-proxy" title="이 절의 고정 링크">&para;</a></h3>
+<p><code>path_naive</code>의 target NLL harm는 세 pair 모두 양수였다. 반면 teacher-forced overlap은
+모두 좋아졌고 exact AAL은 두 pair에서 증가, 한 pair에서 감소했다. 따라서 이 pilot은
+두 가지를 동시에 보여준다.</p>
+<ol>
+<li>독립 pretrained AR에서도 target이 draft path loss를 직접 받으면 target 품질 비용이
+   생길 수 있다는 motivation은 on-policy <code>K=3</code> 설정에서도 남는다.</li>
+<li>Teacher-forced overlap 개선을 actual acceptance-length 개선으로 부를 수 없고, AAL이
+   좋아져도 target NLL 비용과 함께 Pareto 판단해야 한다.</li>
+</ol>
+<h3 id="32-safemove-v02">3.2 SafeMove v0.2가 실패한 지점<a class="headerlink" href="#32-safemove-v02" title="이 절의 고정 링크">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Pair</th>
+<th style="text-align: right;">Participation</th>
+<th style="text-align: right;">Radius bind</th>
+<th style="text-align: right;">Rollback blocks</th>
+<th style="text-align: right;">move/detach cost</th>
+<th style="text-align: right;">move/exact cost</th>
+<th style="text-align: right;">Δ exact AAL</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPT</td>
+<td style="text-align: right;"><code>.695</code></td>
+<td style="text-align: right;"><code>.99</code></td>
+<td style="text-align: right;"><code>.40</code></td>
+<td style="text-align: right;"><code>1.97×</code></td>
+<td style="text-align: right;"><code>.214×</code></td>
+<td style="text-align: right;"><code>−.017</code></td>
+</tr>
+<tr>
+<td>OPT</td>
+<td style="text-align: right;"><code>.641</code></td>
+<td style="text-align: right;"><code>.99</code></td>
+<td style="text-align: right;"><code>.00</code></td>
+<td style="text-align: right;"><code>1.95×</code></td>
+<td style="text-align: right;"><code>.167×</code></td>
+<td style="text-align: right;"><code>−.009</code></td>
+</tr>
+<tr>
+<td>Pythia</td>
+<td style="text-align: right;"><code>.352</code></td>
+<td style="text-align: right;"><code>.92</code></td>
+<td style="text-align: right;"><code>.20</code></td>
+<td style="text-align: right;"><code>2.18×</code></td>
+<td style="text-align: right;"><code>.173×</code></td>
+<td style="text-align: right;"><code>−.161</code></td>
+</tr>
+</tbody>
+</table>
+<p>Router는 <code>τ=0</code>과 <code>τ&gt;0</code>을 모두 선택했고 cost와 rollback gate도 넘지 않았다. 그러나
+active movement 대부분이 emergency norm radius에 잘렸다. 결과적으로 token/position별
+transport가 제안한 크기가 실제 update에 보존되지 않았고, 세 pair 모두 exact AAL이
+<code>path_detach</code>보다 낮았다. Raw residual에 firewall만 붙인 <code>global_firewall</code>도 AAL이
+세 pair 모두 낮아, optimizer-state 격리만으로 utility 방향을 만들 수 없다는 기존
+관찰도 재확인했다.</p>
+<p>또한 v0.2 구현은 Stage-1 conditional mini-AAL과 cheap score의 block-level Spearman
+diagnostic을 구현하지 않았다. Endpoint FP32 exact AAL은 완료했지만, 이 누락된
+prospective diagnostic을 PASS로 간주하지 않는다.</p>
+<p><img alt="SafeMove v0.2 engineering gate scorecard" src="../artifacts/safemove_sd_v0_2_stage1_analysis_v1/safemove_engineering_gates.png"></p>
+<p><img alt="SafeMove v0.2의 100-step target participation, radius binding과 audit trajectory" src="../artifacts/safemove_sd_v0_2_stage1_analysis_v1/safemove_training_trajectory.png"></p>
+<h2 id="4">4. 판정과 다음 연구 방향<a class="headerlink" href="#4" title="이 절의 고정 링크">&para;</a></h2>
+<p>사전 규칙에 따라 <code>emergency radius binding &gt;50%</code>는 구조 재설계 조건이다. 관찰값은
+세 pair 모두 <code>92–99%</code>였고, <code>move_full−path_detach</code> exact AAL도 세 pair 모두 음수였다.
+따라서 판정은 다음과 같다.</p>
+<blockquote>
+<p><strong>SafeMove-SD v0.2: engineering KILL. Stage-2 selection seeds 6–8 remain sealed.</strong></p>
+</blockquote>
+<p>이 결과가 target-aware joint training 전체를 부정하는 것은 아니다. 반증된 것은
+<strong>현재의 transport risk/budget과 CE-metric residual firewall을 결합하면 simple
+drafter-only path보다 좋은 acceptance–quality trade-off를 만든다</strong>는 구체적 가설이다.
+후속 버전은 seed 99 결과로 새 router/radius를 설계한 뒤 protocol version을 올려야
+하며, v0.2 threshold를 사후 완화하거나 sealed seed를 열어 튜닝해서는 안 된다.</p>
+<h2 id="5">5. 해석 한계<a class="headerlink" href="#5" title="이 절의 고정 링크">&para;</a></h2>
+<ul>
+<li>Stage 1은 pair당 engineering seed 하나뿐이다. Training seed가 inferential unit이며
+  token, step, prompt, sampling seed를 독립 표본으로 세지 않는다.</li>
+<li>세 pair는 IID architecture population이 아니다. 이 결과로 architecture-independent
+  universal law나 scratch foundation pretraining behavior를 주장하지 않는다.</li>
+<li><code>path_naive−path_detach</code>는 target trajectory 차이가 유도한 draft co-adaptation까지
+  포함하는 endpoint total effect다. 개별 component의 유일한 additive causal
+  decomposition이 아니다.</li>
+<li>Teacher-forced overlap은 exact AAL이 아니다. Postmortem arm은 원인 진단이지
+  preregistered method superiority panel이 아니다.</li>
+<li>100-step LoRA adaptation 결과이며 downstream five-task non-inferiority나 장기/full
+  fine-tuning은 시험하지 않았다.</li>
+</ul>
+<h2 id="6">6. 원본과 분석 산출물<a class="headerlink" href="#6" title="이 절의 고정 링크">&para;</a></h2>
+<ul>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물">v0.2 machine-readable frozen manifest</span> <code>SAFEMOVE_V0_2_STAGE01_MANIFEST.json</code></li>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물">Stage 0 identity runs</span> <code>runs/safemove_sd_v0_2_stage0_identities_v1/</code></li>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물">Stage 1 prospective pilot training</span> <code>runs/safemove_sd_v0_2_stage1_pilot_v1/</code></li>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물">Same-host historical exact-controller cost reference</span> <code>runs/safemove_sd_v0_2_stage1_exact_cost_reference_v1/</code></li>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물">Stage 1 prospective FP32 rollouts</span> <code>runs/safemove_sd_v0_2_stage1_pilot_fp32_rollouts_v1/</code></li>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물">Six-arm postmortem training</span> <code>runs/safemove_sd_v0_2_stage1_postmortem_v1/</code></li>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물">Six-arm postmortem FP32 rollouts</span> <code>runs/safemove_sd_v0_2_stage1_postmortem_fp32_rollouts_v1/</code></li>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물">Fail-loud analysis, tables, figures and manifest</span> <code>artifacts/safemove_sd_v0_2_stage1_analysis_v1/</code></li>
+</ul>
+<p>Model adapter weights는 Git에 저장하지 않지만 metrics, histories, rollout rows, aggregate
+tables와 figure manifest는 보존한다. 이 보고서는 peer-reviewed 결과가 아니며,
+“proof”는 수학적 보장이 아니라 위의 고정된 engineering falsification 결과를 뜻한다.</p></main>
+  <footer>SafeMove-SD v0.2 · Stage 0 PASS · Stage 1 engineering KILL · 2026-07-16</footer>
+</body>
+</html>
