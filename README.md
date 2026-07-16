@@ -25,6 +25,8 @@ Public pages:
   <https://bluear7878.github.io/specdec-joint-report/safemove/>
 - ARR v0.1 shared-mass responsibility engineering result:
   <https://bluear7878.github.io/specdec-joint-report/arr/>
+- Coordinate-only ARR v0.2 engineering result:
+  <https://bluear7878.github.io/specdec-joint-report/coordinate-arr/>
 - Visually structured follow-up method proposal:
   <https://bluear7878.github.io/specdec-joint-report/ideas/>
 
@@ -42,4 +44,10 @@ the raw target NLL harm by 79–104%, but was also killed: target non-inferiorit
 exact-AAL, and component-Pareto gates failed on engineering seed 99. Selection
 seeds 6–8 remain sealed. A post-hoc objective decomposition identifies the
 dense frozen-target conditional anchor as the next mechanism to isolate; the
-coordinate-only successor remains an unvalidated hypothesis.
+coordinate-only successor was therefore advanced to a separate Stage-0/1 panel.
+
+Coordinate-only ARR v0.2 then removed that dense conditional anchor and passed
+the frozen target-NLL non-inferiority, decomposition, bidirectional-path,
+cross-swap, identity, and cost checks. It was nevertheless killed at engineering
+seed 99 because exact AAL improved for only one of three pairs and component
+Pareto support also failed. Selection seeds 6–8 remain sealed.

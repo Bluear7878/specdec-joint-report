@@ -1,0 +1,727 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="세 independent pretrained AR target-drafter pair에서 dense frozen-target conditional anchor를 제거한 proposal-coordinate ARR의 target NLL, FP32 exact AAL, same-state gradient decomposition과 checkpoint cross-swap을 검증한 seed-99 engineering 보고서. Target NLL gate는 통과했지만 exact-AAL과 component Pareto gate 실패로 Stage 1에서 KILL했다.">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Coordinate-only ARR v0.2 검증: KILL">
+  <meta property="og:description" content="세 independent pretrained AR target-drafter pair에서 dense frozen-target conditional anchor를 제거한 proposal-coordinate ARR의 target NLL, FP32 exact AAL, same-state gradient decomposition과 checkpoint cross-swap을 검증한 seed-99 engineering 보고서. Target NLL gate는 통과했지만 exact-AAL과 component Pareto gate 실패로 Stage 1에서 KILL했다.">
+  <meta property="og:url" content="https://bluear7878.github.io/specdec-joint-report/coordinate-arr/">
+  <meta property="og:image" content="https://bluear7878.github.io/specdec-joint-report/artifacts/coordinate_arr_v0_2_stage1_analysis_v3/coordinate_arr_stage1_pareto.png">
+  <meta property="og:image:alt" content="Dense conditional anchor 제거가 target NLL은 보호했지만 architecture-robust exact AAL을 회수하지 못한 Coordinate-only ARR v0.2 dashboard">
+  <meta property="og:image:width" content="1309">
+  <meta property="og:image:height" content="897">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://bluear7878.github.io/specdec-joint-report/artifacts/coordinate_arr_v0_2_stage1_analysis_v3/coordinate_arr_stage1_pareto.png">
+  <link rel="canonical" href="https://bluear7878.github.io/specdec-joint-report/coordinate-arr/">
+  <title>Coordinate-only ARR v0.2 검증: KILL</title>
+  <script>
+    window.MathJax = {
+      tex: {inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']]},
+      chtml: {scale: 0.94}
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f4f6fa; --surface: #fff; --text: #172033; --muted: #657087;
+      --line: #dce3ed; --blue: #315fa8; --blue-soft: #eaf1fb;
+      --green: #16815d; --green-soft: #e8f6ef; --red: #b93845;
+      --red-soft: #fff0f1; --amber: #b66a16; --code: #f2f4f8;
+      --shadow: 0 18px 50px rgba(28,42,76,.09);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0d1118; --surface: #151a23; --text: #e8edf5; --muted: #aab5c7;
+        --line: #303846; --blue: #9db8f4; --blue-soft: #202c43;
+        --green: #76d7b4; --green-soft: #17352d; --red: #ff9aa4;
+        --red-soft: #3f242a; --amber: #f3b56c; --code: #222936; --shadow: none;
+      }
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; background: var(--bg); color: var(--text); font-family:
+      Pretendard,"Noto Sans KR",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      font-size: 16.5px; line-height: 1.72; word-break: keep-all; }
+    .site-nav { position: sticky; top: 0; z-index: 20; display: flex;
+      justify-content: space-between; align-items: center; min-height: 58px;
+      padding: 0 max(22px,calc((100vw - 1220px)/2)); background:
+      color-mix(in srgb,var(--bg) 87%,transparent); border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(16px); }
+    .brand { font-weight: 850; }
+    .site-nav div { display: flex; flex-wrap: wrap; justify-content: flex-end;
+      gap: .45rem; }
+    .site-nav a { padding: .36rem .66rem; color: var(--muted); border-radius: 999px;
+      text-decoration: none; font-size: .87rem; font-weight: 750; }
+    .site-nav a:hover,.site-nav a[aria-current="page"] { color: var(--blue);
+      background: var(--blue-soft); }
+    main { width: min(1220px,calc(100% - 32px)); margin: 30px auto 80px;
+      padding: clamp(26px,5vw,72px); background: var(--surface); border: 1px solid var(--line);
+      border-radius: 24px; box-shadow: var(--shadow); overflow: hidden; }
+    h1,h2,h3 { line-height: 1.28; letter-spacing: -.028em; }
+    h1 { max-width: 1050px; margin: .2rem 0 1rem; font-size: clamp(2.2rem,5.5vw,4.3rem); }
+    h2 { margin: 4rem 0 1.1rem; padding-top: 1.1rem; border-top: 1px solid var(--line);
+      font-size: clamp(1.65rem,3vw,2.3rem); }
+    h3 { margin: 1.6rem 0 .65rem; font-size: 1.28rem; }
+    .headerlink { margin-left: .35rem; opacity: 0; text-decoration: none; }
+    h2:hover .headerlink,h3:hover .headerlink { opacity: .65; }
+    p { max-width: 940px; }
+    a { color: var(--blue); text-underline-offset: 3px; }
+    blockquote { max-width: 1000px; margin: 1.6rem 0; padding: 1.15rem 1.35rem;
+      background: linear-gradient(125deg,var(--green-soft),var(--blue-soft));
+      border-left: 5px solid var(--green); border-radius: 0 14px 14px 0; }
+    blockquote p { margin: 0; }
+    .toc { margin: 2rem 0 3rem; padding: 1.2rem 1.4rem; background: var(--blue-soft);
+      border: 1px solid var(--line); border-radius: 14px; }
+    .toc::before { content: "검증 지도"; display: block; margin-bottom: .55rem;
+      color: var(--blue); font-weight: 850; }
+    .toc ul { margin: .25rem 0; padding-left: 1.3rem; columns: 2; column-gap: 2rem; }
+    .toc li { break-inside: avoid; margin: .22rem 0; }
+    .toc a { text-decoration: none; }
+    table { display: block; width: 100%; margin: 1.25rem 0 2rem; overflow-x: auto;
+      border-collapse: collapse; font-size: .91rem; }
+    th,td { min-width: 115px; padding: .72rem .78rem; border: 1px solid var(--line);
+      text-align: left; vertical-align: top; }
+    th { color: var(--blue); background: var(--blue-soft); font-weight: 800; }
+    tr:nth-child(even) td { background: color-mix(in srgb,var(--blue-soft) 32%,transparent); }
+    main > p:has(> img) { width: min(1500px,calc(100vw - 30px)); margin: 1.8rem 50% .75rem;
+      transform: translateX(-50%); }
+    main > p:has(> img) img { display: block; width: 100%; height: auto; padding: .35rem;
+      background: #fff; border: 1px solid var(--line); border-radius: 16px; }
+    main > p:has(> img) + p > em { display: block; color: var(--muted); font-size: .86rem; }
+    .math-block { margin: 1.35rem 0; overflow-x: auto; text-align: center; }
+    code { padding: .12rem .3rem; background: var(--code); border-radius: 5px;
+      font-family: "SFMono-Regular",Consolas,monospace; font-size: .88em; }
+    pre { padding: 1rem; overflow-x: auto; background: var(--code); border: 1px solid var(--line);
+      border-radius: 12px; }
+    pre code { padding: 0; }
+    .local-artifact { color: var(--muted); border-bottom: 1px dotted var(--muted); }
+    footer { width: min(1220px,calc(100% - 32px)); margin: -50px auto 38px;
+      color: var(--muted); text-align: center; font-size: .8rem; }
+    @media (max-width: 700px) {
+      body { font-size: 15px; word-break: normal; }
+      .site-nav { position: static; padding: .5rem .7rem; } .brand { display: none; }
+      .site-nav div { width: 100%; justify-content: center; }
+      main { width: 100%; margin: 0; padding: 24px 18px 70px; border: 0; border-radius: 0; }
+      h1 { font-size: 2.25rem; } .toc ul { columns: 1; }
+      main > p:has(> img) { width: 100vw; padding: 0 10px; overflow-x: auto; }
+      main > p:has(> img) img { min-width: 900px; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="site-nav" aria-label="공개 연구 문서">
+    <span class="brand">Independent-AR SpecDec</span>
+    <div>
+      <a href="../">모티베이션</a>
+      <a href="../methods/">이전 방법 검증</a>
+      <a href="../safemove/">SafeMove v0.2</a>
+      <a href="../arr/">ARR v0.1</a>
+      <a href="./" aria-current="page">Coordinate ARR v0.2</a>
+      <a href="../ideas/">아이디어</a>
+    </div>
+  </nav>
+  <main><h1 id="coordinate-only-arr-v02-target-joint-utility">Coordinate-only ARR v0.2: target 보호는 됐지만 joint utility는 아직 아니다<a class="headerlink" href="#coordinate-only-arr-v02-target-joint-utility" title="이 절의 고정 링크">&para;</a></h1>
+<blockquote>
+<p><strong>판정:</strong> Stage 0 identity <strong>PASS</strong> · target protection <strong>PASS</strong> ·
+conditional target AAL <strong>PASS</strong> · 전체 Stage 1 <strong>engineering KILL</strong></p>
+<p><strong>범위:</strong> engineering seed 99, 세 independent pretrained AR target/drafter pair,
+100-step rank-8 LoRA adaptation. Selection seeds <code>6–8</code>은 계속 sealed다.</p>
+</blockquote>
+<div class="toc">
+<ul>
+<li><a href="#0">0. 한 화면 결론</a></li>
+<li><a href="#1-loss-provenance">1. 포함하는 설정과 loss provenance</a></li>
+<li><a href="#2-v01-v02">2. v0.1의 정확한 약점과 v0.2 개선</a></li>
+<li><a href="#3">3. 실험 설계</a><ul>
+<li><a href="#31-pretrained-adaptation-panel">3.1 Pretrained adaptation panel</a></li>
+<li><a href="#32-six-arm-comparison">3.2 Six-arm comparison</a></li>
+<li><a href="#33-precision-preflight">3.3 Precision preflight</a></li>
+</ul>
+</li>
+<li><a href="#4">4. 검증 결과</a><ul>
+<li><a href="#41-stage-0-archived-bridge">4.1 Stage 0와 archived bridge</a></li>
+<li><a href="#42-endpoint-target-nll-exact-aal">4.2 Endpoint target NLL와 exact AAL</a></li>
+<li><a href="#43-cross-swap-target-drafter">4.3 Cross-swap: target 개선을 drafter가 상쇄했다</a></li>
+</ul>
+</li>
+<li><a href="#5-frozen-gate">5. Frozen gate 판정</a></li>
+<li><a href="#6-lagged-target-aware-draft-teacher">6. 다음 개선안: lagged target-aware draft teacher</a></li>
+<li><a href="#7">7. 한계와 정확한 주장 범위</a></li>
+<li><a href="#8-artifact-map">8. 재현과 artifact map</a></li>
+</ul>
+</div>
+<h2 id="0">0. 한 화면 결론<a class="headerlink" href="#0" title="이 절의 고정 링크">&para;</a></h2>
+<p>ARR v0.1의 full-label target auxiliary는 proposal token 하나만 조절하는 loss처럼
+보였지만, 실제로는 나머지 vocabulary 전체를 frozen original target <code>p0</code>에 당기는
+conditional anchor를 포함했다. v0.2는 그 항만 제거하고 proposal-coordinate
+Bernoulli loss만 target에 적용했다.</p>
+<p>결과는 두 층으로 나뉜다.</p>
+<ol>
+<li><strong>약점 개선은 실제였다.</strong> Coordinate main의 <code>target NLL − detach</code>는
+   GPT-2/OPT/Pythia에서 <code>+.00124 / −.00100 / −.00528</code>이었다. 세 pair 모두 frozen
+   <code>+.005</code> non-inferiority margin을 통과했다. Dense ARR은 OPT에서 <code>+.00774</code>, 같은
+   coordinate norm으로 줄인 dense control은 Pythia에서 <code>+.06703</code>을 기록했다.</li>
+<li><strong>하지만 전체 joint method는 실패했다.</strong> Exact AAL 차이는
+   <code>−.1103 / −.1170 / +.1505</code>로 1/3 pair만 개선됐다. 사전 규칙은 최소 2/3
+   nonnegative와 최악 <code>−.05</code> 이상을 요구했으므로 명백한 KILL이다.</li>
+<li><strong>실패 원인은 target 쪽이 아니었다.</strong> Co-adapted coordinate draft를 고정한
+   coordinate-target의 조건부 AAL 기여는 <code>+.0437 / +.0106 / +.0811</code>로 세 pair
+   모두 양수였다. 반대로 detach target을 고정한 coordinate-draft 효과는
+   <code>−.1539 / −.1276 / +.0694</code>였다. GPT-2와 OPT에서는 drafter co-adaptation이
+   target의 이득보다 더 크게 나빴다.</li>
+</ol>
+<p>따라서 이번 실험이 지지하는 문장은 다음이다.</p>
+<blockquote>
+<p><strong>Dense conditional anchor를 제거하면 pretrained target 보호는 개선된다.
+그러나 target-aware target과 drafter를 동시에 학습할 때, 안정화되지 않은
+drafter 추종이 그 이득을 speculative endpoint에서 상쇄할 수 있다.</strong></p>
+</blockquote>
+<p><img alt="Coordinate ARR v0.2의 target NLL–exact AAL Pareto panel" src="../artifacts/coordinate_arr_v0_2_stage1_analysis_v3/coordinate_arr_stage1_pareto.png"></p>
+<h2 id="1-loss-provenance">1. 포함하는 설정과 loss provenance<a class="headerlink" href="#1-loss-provenance" title="이 절의 고정 링크">&para;</a></h2>
+<p>Target distribution을 <code>p_theta</code>, 독립 drafter를 <code>q_phi</code>라 한다. 둘은
+tokenizer-compatible token ID만 공유한다. Target과 draft의 backbone,
+representation, embedding, LM head, LoRA parameter와 optimizer는 모두 분리돼 있다.
+MEDUSA, EAGLE, native draft head와 shared representation은 이 보고서의 실험 범위가
+아니다.</p>
+<pre><code class="language-text">target p_theta  -- detached pathwise teacher --&gt;  drafter q_phi
+target p_theta  &lt;-- detached q-aware coordinate loss -- drafter q_phi
+</code></pre>
+<p>Draft loss는 <a href="https://arxiv.org/abs/2602.23881">LK Losses</a>의 pathwise Hybrid LK를
+사용했다.</p>
+<div class="math-block">\[
+L_{draft}
+=\frac{1}{BK}\sum_{i,k}S^{live}_{i,k}
+\operatorname{HybridLK}_{\eta=3,\gamma=1}
+\!\left(\operatorname{sg}[p_\theta],q_\phi\right).
+\]</div>
+<p><code>eta=3</code>은 이 저장소의 confirmatory schedule에서 고정한 값이다. Target native loss는
+원래 full LM-head vocabulary의 autoregressive CE다. Target-side coefficient <code>beta=1</code>은
+이 연구의 실험적 bidirectional extension이며 exact speculative decoding의 필수 조건이
+아니다.</p>
+<p><a href="https://proceedings.mlr.press/v235/liu24y.html">Online Speculative Decoding</a>,
+<a href="https://openreview.net/forum?id=rsY6J3ZaTF">DistillSpec</a>,
+<a href="https://arxiv.org/abs/2605.29343">Draft-OPD</a>는 proposal/rejection-aware draft 학습의
+근거를 제공하지만 target LM을 고정한다. 이 연구는 별도 pretrained target까지
+draft-aware하게 움직일 때의 보호 문제를 묻는다.</p>
+<h2 id="2-v01-v02">2. v0.1의 정확한 약점과 v0.2 개선<a class="headerlink" href="#2-v01-v02" title="이 절의 고정 링크">&para;</a></h2>
+<p>Frozen adapter-disabled target을 <code>p0</code>, drafter proposal token을 <code>z</code>, routed safe
+label의 proposal mass를 <code>t=r(z)</code>라 하자. ARR v0.1의 safe label은</p>
+<div class="math-block">\[
+r(z)=t,\qquad
+r(v\ne z)=(1-t)p_0(v\mid v\ne z)
+\]</div>
+<p>이고, full-label loss는 정확히 다음처럼 분해된다.</p>
+<div class="math-block">\[
+\underbrace{H(r,p_\theta)}_{L_{dense}}
+=
+\underbrace{H_{Ber}(t,p_\theta(z))}_{L_{coord}}
++
+\underbrace{(1-t)H\!\left(
+p_0(\cdot\mid\neg z),p_\theta(\cdot\mid\neg z)
+\right)}_{L_{conditional\ anchor}}.
+\]</div>
+<p>같은 route, weight와 reduction에서는 FP64 parameter gradient도</p>
+<div class="math-block">\[
+g_{dense}=g_{coord}+g_{conditional\ anchor}
+\]</div>
+<p>로 분해된다. v0.2의 main target update는 두 번째 항을 적용하지 않는다.</p>
+<div class="math-block">\[
+L_{target}^{coord}
+=L_{native\ CE}
++\frac{1}{BK}\sum_{i,k}
+S_{i,k}\,\omega_{i,k}\,{\bf1}_{active}
+H_{Ber}\!\left(t_{i,k},p_\theta(z_{i,k})\right).
+\]</div>
+<p>여기서 <code>omega=min(1,p0(z)/q(z))</code>, prefix survival <code>S</code>, active rule, TV cap <code>.01</code>,
+reverse-KL cap <code>.005</code>, proposal과 <code>t</code>는 v0.1과 동일하고 모두 stop-gradient다.
+바뀐 것은 target에 실제 적용하는 loss coordinate뿐이다.</p>
+<p>이 loss는 non-proposal logit에 gradient를 전혀 주지 않는다는 뜻이 아니다.
+Bernoulli mass 경쟁 때문에 complement logit도 변한다. 제거된 것은
+<code>p0(.|not z)</code>를 복원하려는 <strong>명시적 frozen-target conditional anchor</strong>다.
+또한 이 항은 별도 control인 full-label <code>arr_anchor=H(p0,p)</code>와 같지 않다.</p>
+<p><img alt="Dense objective의 직접 gradient 분해" src="../artifacts/coordinate_arr_v0_2_stage1_analysis_v3/coordinate_arr_stage1_mechanism.png"></p>
+<p>Dense <code>arr_main</code>의 11개 diagnostic step 평균에서
+<code>||g_cond_anchor||/||g_dense||</code>는 GPT/OPT/Pythia <code>1.000/.929/.829</code>,
+<code>||g_coord||/||g_dense||</code>는 <code>.143/.183/.268</code>이었다. 즉 dense auxiliary의 상당 부분이
+proposal-coordinate move가 아닌 conditional anchor였다. FP64 strict decomposition의
+최대 상대 잔차는 <code>6.49e-13</code>으로 frozen <code>2e-5</code> gate를 통과했다.</p>
+<h2 id="3">3. 실험 설계<a class="headerlink" href="#3" title="이 절의 고정 링크">&para;</a></h2>
+<h3 id="31-pretrained-adaptation-panel">3.1 Pretrained adaptation panel<a class="headerlink" href="#31-pretrained-adaptation-panel" title="이 절의 고정 링크">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Pair</th>
+<th>Target</th>
+<th>Drafter</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPT</td>
+<td>GPT-2</td>
+<td>DistilGPT-2</td>
+</tr>
+<tr>
+<td>OPT</td>
+<td>OPT-350M</td>
+<td>OPT-125M</td>
+</tr>
+<tr>
+<td>Pythia</td>
+<td>Pythia-410M</td>
+<td>Pythia-70M</td>
+</tr>
+</tbody>
+</table>
+<p>세 pair 모두 pretrained checkpoint의 base weight를 frozen하고 target/draft 각각 rank-8
+LoRA를 학습했다. WikiText-103, 100 steps, batch 4, sequence 64, BF16,
+별도 AdamW(<code>LR=2e-4</code>, betas <code>.9/.95</code>, clip <code>.5</code>)를 사용했다. 따라서 이 실험은
+foundation model scratch pretraining의 결과가 아니라, 사용자가 질문한
+<strong>pretrained model을 가져와 joint loss로 묶는 adaptation setting</strong>의 직접 증거다.</p>
+<p>같은 pair/seed의 arm은 initialization, minibatch order, scheduler, token exposure,
+proposal uniforms와 draft update rule/coefficient를 맞췄다. 직접 조작은 target-side
+auxiliary의 종류다. 이후 target trajectory가 만든 draft co-adaptation은 diagonal
+endpoint total effect에 포함된다.</p>
+<h3 id="32-six-arm-comparison">3.2 Six-arm comparison<a class="headerlink" href="#32-six-arm-comparison" title="이 절의 고정 링크">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Arm</th>
+<th>Target update</th>
+<th>질문</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>path_detach</code></td>
+<td>native CE</td>
+<td>primary reference</td>
+</tr>
+<tr>
+<td><code>arr_main</code></td>
+<td>CE + weighted dense <code>H(r,p)</code></td>
+<td>제거 전 v0.1</td>
+</tr>
+<tr>
+<td><code>arr_anchor</code></td>
+<td>CE + weighted full-label <code>H(p0,p)</code></td>
+<td>단순 anchor/data control</td>
+</tr>
+<tr>
+<td><code>arr_dense_coord_norm_matched</code></td>
+<td>CE + <code>c*g_dense</code></td>
+<td>단순 gradient dose 감소인가</td>
+</tr>
+<tr>
+<td><code>coordinate_arr_unweighted</code></td>
+<td>CE + <code>S*active*L_coord</code></td>
+<td><code>omega</code> ablation</td>
+</tr>
+<tr>
+<td><code>coordinate_arr_main</code></td>
+<td>CE + <code>S*omega*active*L_coord</code></td>
+<td>제안한 v0.2</td>
+</tr>
+</tbody>
+</table>
+<p>Norm-matched dense는 매 step</p>
+<div class="math-block">\[
+c=\|g_{coord}\|/\|g_{dense}\|
+\]</div>
+<p>를 stop-gradient로 계산해 <code>c*g_dense</code>를 적용했다. Coordinate가 좋아지는 이유를 단순
+norm 축소와 분리하기 위한 cumulative control이다.</p>
+<p>Exact rollout은 FP32 eager에서 WikiText-2, TinyStories, GSM8K text, corpus당 4 prompt,
+sampling seeds <code>{0,1}</code>, <code>K=3</code>, 32 generated tokens로 실행했다. AAL은 stochastic raw
+row에서 다시 계산했고 greedy speculative output은 각 trained target의 target-only
+greedy output과 비교했다.</p>
+<h3 id="33-precision-preflight">3.3 Precision preflight<a class="headerlink" href="#33-precision-preflight" title="이 절의 고정 링크">&para;</a></h3>
+<p>초기 v1은 BF16 graph에서 <code>g_dense</code>, <code>g_coord</code>, <code>g_cond_anchor</code>를 세 번 독립 backward한
+값에 strict algebraic gate를 적용해 routed 15 runs가 step 10에서 fail-loud 종료됐다.
+GPT debug relative residual은 <code>1.706e-2</code>였다. FP32 shadow도 deep-network accumulation
+rounding 때문에 <code>5.683e-4</code>로 실패했다.</p>
+<p>Threshold를 완화하지 않고, <strong>같은 pre-step adapter state/context/route의 FP64 eager
+shadow</strong>에서만 수식 항등식을 검사했다. FP64 shadow는 실제 update나 Adam state를
+공급하지 않는다. 10-step preflight의 최대 residual은 <code>9.195e-14</code>였다. 실제 BF16
+materialized residual도 숨기지 않고 descriptive field로 저장했다. 이 구분은 CE-gradient
+tensor가 오염된다는 뜻이 아니라, 서로 따로 계산한 low-precision gradient의 산술 합이
+고정밀 수식 항등식과 수치적으로 다를 수 있음을 뜻한다.</p>
+<p>실패한 root와 해석은
+<span class="local-artifact" title="로컬 연구 workspace 산출물"><code>COORDINATE_ARR_V0_2_PREFLIGHT_FAILURES.json</code></span>에
+보존돼 있다.</p>
+<h2 id="4">4. 검증 결과<a class="headerlink" href="#4" title="이 절의 고정 링크">&para;</a></h2>
+<h3 id="41-stage-0-archived-bridge">4.1 Stage 0와 archived bridge<a class="headerlink" href="#41-stage-0-archived-bridge" title="이 절의 고정 링크">&para;</a></h3>
+<ul>
+<li>세 pair의 <code>coordinate_arr_forced_off</code>와 fresh <code>path_detach</code>는 target parameter +
+  full Adam state hash, draft parameter + full Adam state hash, NLL과 overlap이 모두 exact였다.</li>
+<li>Analyzer Stage-0 identity는 <code>15/15</code> 통과했다.</li>
+<li>Fresh v2의 <code>path_detach</code>, <code>arr_main</code>, <code>arr_anchor</code>는 archived ARR v0.1과 세 pair에서
+  target/draft hash와 endpoint를 bit-exact 재현했다. Bridge는 <code>45/45</code> 통과했다.</li>
+<li>Frozen <code>p0</code> checksum, target/draft parameter·storage·optimizer disjointness와
+  route TV/KL cap violation은 모두 통과했다.</li>
+</ul>
+<h3 id="42-endpoint-target-nll-exact-aal">4.2 Endpoint target NLL와 exact AAL<a class="headerlink" href="#42-endpoint-target-nll-exact-aal" title="이 절의 고정 링크">&para;</a></h3>
+<p>아래는 같은 pair의 <code>path_detach</code> 대비 차이다. NLL은 낮을수록, AAL은 높을수록 좋다.</p>
+<table>
+<thead>
+<tr>
+<th>Pair</th>
+<th>Arm</th>
+<th style="text-align: right;">Delta target NLL</th>
+<th style="text-align: right;">Delta exact AAL</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPT</td>
+<td>dense ARR</td>
+<td style="text-align: right;"><code>+.004600</code></td>
+<td style="text-align: right;"><code>-.042380</code></td>
+</tr>
+<tr>
+<td>GPT</td>
+<td>p0 anchor</td>
+<td style="text-align: right;"><code>+.006057</code></td>
+<td style="text-align: right;"><code>-.019274</code></td>
+</tr>
+<tr>
+<td>GPT</td>
+<td>norm-matched dense</td>
+<td style="text-align: right;"><code>+.000647</code></td>
+<td style="text-align: right;"><code>-.024256</code></td>
+</tr>
+<tr>
+<td>GPT</td>
+<td>coordinate unweighted</td>
+<td style="text-align: right;"><code>+.002960</code></td>
+<td style="text-align: right;"><code>-.036914</code></td>
+</tr>
+<tr>
+<td>GPT</td>
+<td><strong>coordinate main</strong></td>
+<td style="text-align: right;"><strong><code>+.001238</code></strong></td>
+<td style="text-align: right;"><strong><code>-.110255</code></strong></td>
+</tr>
+<tr>
+<td>OPT</td>
+<td>dense ARR</td>
+<td style="text-align: right;"><code>+.007737</code></td>
+<td style="text-align: right;"><code>+.120975</code></td>
+</tr>
+<tr>
+<td>OPT</td>
+<td>p0 anchor</td>
+<td style="text-align: right;"><code>+.006462</code></td>
+<td style="text-align: right;"><code>+.132663</code></td>
+</tr>
+<tr>
+<td>OPT</td>
+<td>norm-matched dense</td>
+<td style="text-align: right;"><code>+.001045</code></td>
+<td style="text-align: right;"><code>-.047583</code></td>
+</tr>
+<tr>
+<td>OPT</td>
+<td>coordinate unweighted</td>
+<td style="text-align: right;"><code>-.001674</code></td>
+<td style="text-align: right;"><code>+.008686</code></td>
+</tr>
+<tr>
+<td>OPT</td>
+<td><strong>coordinate main</strong></td>
+<td style="text-align: right;"><strong><code>-.001003</code></strong></td>
+<td style="text-align: right;"><strong><code>-.117024</code></strong></td>
+</tr>
+<tr>
+<td>Pythia</td>
+<td>dense ARR</td>
+<td style="text-align: right;"><code>-.002617</code></td>
+<td style="text-align: right;"><code>-.034755</code></td>
+</tr>
+<tr>
+<td>Pythia</td>
+<td>p0 anchor</td>
+<td style="text-align: right;"><code>+.026064</code></td>
+<td style="text-align: right;"><code>+.016098</code></td>
+</tr>
+<tr>
+<td>Pythia</td>
+<td>norm-matched dense</td>
+<td style="text-align: right;"><code>+.067026</code></td>
+<td style="text-align: right;"><code>+.110944</code></td>
+</tr>
+<tr>
+<td>Pythia</td>
+<td>coordinate unweighted</td>
+<td style="text-align: right;"><code>-.014197</code></td>
+<td style="text-align: right;"><code>+.103974</code></td>
+</tr>
+<tr>
+<td>Pythia</td>
+<td><strong>coordinate main</strong></td>
+<td style="text-align: right;"><strong><code>-.005284</code></strong></td>
+<td style="text-align: right;"><strong><code>+.150492</code></strong></td>
+</tr>
+</tbody>
+</table>
+<p><img alt="Dense, norm-matched dense와 coordinate objective 비교" src="../artifacts/coordinate_arr_v0_2_stage1_analysis_v3/coordinate_arr_stage1_dense_vs_coordinate.png"></p>
+<p>Target protection은 분명히 개선됐다. Coordinate main은 세 pair 모두 NLL gate를
+통과했고, dense ARR 대비 세 pair 모두 NLL이 낮았다. 특히 Pythia에서 norm-matched
+dense의 <code>+.0670</code> 악화와 coordinate의 <code>−.0053</code> 개선은 동일한 auxiliary norm만으로
+결과를 설명할 수 없음을 보여 준다. <strong>방향과 누적 Adam state가 중요하다.</strong></p>
+<p>그러나 exact AAL은 architecture-robust하지 않았다. Coordinate main은 1/3만
+nonnegative였고 GPT/OPT가 frozen floor <code>−.05</code>를 크게 넘었다. Component Pareto도
+dense, anchor, norm-matched dense, unweighted 각각에 대해 필요한 2/3 support를 얻지
+못했다.</p>
+<p><code>coordinate_arr_unweighted</code>는 primary NLL margin을 세 pair 모두 지키면서 AAL이
+2/3 pair에서 nonnegative이고 최악도 <code>−.0369</code>였다. 이는 유망한 <strong>exploratory clue</strong>지만
+사전 main arm이 아니고 main-method component gate에서 비교 대상으로 사용됐으므로
+이 결과만으로 selection seeds를 열거나 새 method GO로 바꾸지 않는다. 현재
+shared-mass <code>omega</code>가 target safety에는 유용해도 joint speculative utility weight로는
+잘못 calibrated됐을 가능성이 있다.</p>
+<h3 id="43-cross-swap-target-drafter">4.3 Cross-swap: target 개선을 drafter가 상쇄했다<a class="headerlink" href="#43-cross-swap-target-drafter" title="이 절의 고정 링크">&para;</a></h3>
+<p>12개 off-diagonal checkpoint cross-swap으로 coordinate와 dense target/draft를 각각
+detach counterpart와 교환했다. 다음은 coordinate arm의 conditional effect다.</p>
+<table>
+<thead>
+<tr>
+<th>Pair</th>
+<th style="text-align: right;">Diagonal Delta AAL</th>
+<th style="text-align: right;">Target effect given coordinate draft</th>
+<th style="text-align: right;">Coordinate-draft effect given detach target</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPT</td>
+<td style="text-align: right;"><code>-.110255</code></td>
+<td style="text-align: right;"><code>+.043688</code></td>
+<td style="text-align: right;"><code>-.153942</code></td>
+</tr>
+<tr>
+<td>OPT</td>
+<td style="text-align: right;"><code>-.117024</code></td>
+<td style="text-align: right;"><code>+.010598</code></td>
+<td style="text-align: right;"><code>-.127622</code></td>
+</tr>
+<tr>
+<td>Pythia</td>
+<td style="text-align: right;"><code>+.150492</code></td>
+<td style="text-align: right;"><code>+.081140</code></td>
+<td style="text-align: right;"><code>+.069351</code></td>
+</tr>
+</tbody>
+</table>
+<p><img alt="Cross-swap으로 분리한 target leg와 draft leg" src="../artifacts/coordinate_arr_v0_2_stage1_analysis_v3/coordinate_arr_stage1_cross_swap.png"></p>
+<p>Coordinate target의 frozen gate estimand</p>
+<div class="math-block">\[
+AAL(T_{coord},D_{coord})-AAL(T_{detach},D_{coord})
+\]</div>
+<p>는 세 pair 모두 양수였다. Target-aware coordinate update 자체는 co-adapted draft가
+제안한 token을 verifier가 더 잘 받아들이게 했다. 반면 GPT/OPT의 coordinate-trained
+draft checkpoint를 detach target에 붙이면 AAL이 크게 낮아졌다. 즉 current target을
+teacher로 받는 drafter가 target trajectory를 따라가는 과정이 두 pair에서 불안정했다.</p>
+<p>Cross-swap은 checkpoint-conditional effect다. Diagonal effect의 유일한 additive causal
+mediation decomposition으로 해석하지 않는다. 그래도 “다음에 어느 경로를 고쳐야
+하는가”를 정하는 intervention evidence로는 target loss보다 drafter co-adaptation을
+가리킨다.</p>
+<h2 id="5-frozen-gate">5. Frozen gate 판정<a class="headerlink" href="#5-frozen-gate" title="이 절의 고정 링크">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Gate</th>
+<th>판정</th>
+<th>관찰</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Stage-0 identity</td>
+<td><strong>PASS</strong></td>
+<td><code>15/15</code></td>
+</tr>
+<tr>
+<td>Archived v0.1 bridge</td>
+<td><strong>PASS</strong></td>
+<td><code>45/45</code></td>
+</tr>
+<tr>
+<td>Target NLL non-inferiority</td>
+<td><strong>PASS</strong></td>
+<td><code>+.00124/-.00100/-.00528 &lt;= +.005</code></td>
+</tr>
+<tr>
+<td>FP32 exact AAL</td>
+<td><strong>FAIL</strong></td>
+<td>nonnegative <code>1/3</code>; GPT/OPT below <code>-.05</code></td>
+</tr>
+<tr>
+<td>Component Pareto</td>
+<td><strong>FAIL</strong></td>
+<td>모든 comparator에서 <code>&lt;2/3</code></td>
+</tr>
+<tr>
+<td>FP64 decomposition/trust</td>
+<td><strong>PASS</strong></td>
+<td>max relative residual <code>6.49e-13</code></td>
+</tr>
+<tr>
+<td>Bidirectional information path</td>
+<td><strong>PASS</strong></td>
+<td>nonzero dose, target hash change, participation <code>.134–.234</code></td>
+</tr>
+<tr>
+<td>Exact greedy output</td>
+<td><strong>PASS</strong></td>
+<td>30 rollout conditions 모두 rate <code>1.0</code></td>
+</tr>
+<tr>
+<td>Instrumentation-excluded cost</td>
+<td><strong>PASS</strong></td>
+<td><code>1.58–1.83x &lt;= 2.5x</code></td>
+</tr>
+<tr>
+<td>Conditional target AAL</td>
+<td><strong>PASS</strong></td>
+<td>positive <code>3/3</code></td>
+</tr>
+</tbody>
+</table>
+<p>전체 prospective 판정은 다음과 같다.</p>
+<blockquote>
+<p><strong>Coordinate-only ARR v0.2: engineering KILL. Selection seeds 6–8 remain sealed.</strong></p>
+</blockquote>
+<p>이 판정은 “anchor 제거가 무효”라는 뜻이 아니다. Anchor 제거가 target protection과
+conditional target acceptance를 개선했다는 component result는 남는다. 기각된 것은
+“현재 shared-mass weighting과 기존 live-target draft teacher를 그대로 두면 세
+architecture에서 target-safe exact-AAL gain을 얻는다”는 <strong>완성된 joint method</strong> 가설이다.</p>
+<h2 id="6-lagged-target-aware-draft-teacher">6. 다음 개선안: lagged target-aware draft teacher<a class="headerlink" href="#6-lagged-target-aware-draft-teacher" title="이 절의 고정 링크">&para;</a></h2>
+<p>현재 근거가 가장 직접적으로 지지하는 다음 변경은 target loss를 다시 dense하게 만드는
+것이 아니라 <strong>drafter가 보는 target teacher의 시간축을 안정화하는 것</strong>이다.</p>
+<pre><code class="language-text">actual target update:
+  native CE + coordinate-only draft-aware auxiliary
+
+draft teacher:
+  stopgrad(EMA or lagged target), not the rapidly moving live target
+
+information paths retained:
+  draft proposal --&gt; coordinate target route
+  lagged target distribution --&gt; draft Hybrid LK
+</code></pre>
+<p>예를 들어 target base와 LoRA를 공유하지 않는 별도 training-only EMA shadow
+<code>p_bar</code>를 두고</p>
+<div class="math-block">\[
+\bar\theta_t=\mu\bar\theta_{t-1}+(1-\mu)\theta_t,
+\qquad
+L_{draft}=HybridLK(\operatorname{sg}[p_{\bar\theta_t}],q_\phi)
+\]</div>
+<p>로 만들 수 있다. 이는 drafter-aware target 학습과 target-aware draft 학습을 모두
+유지하면서, auxiliary가 만든 빠른 target oscillation을 draft Adam state가 즉시
+추종하는 피드백만 줄인다.</p>
+<p>다음 prospective panel은 최소한 다음을 분리해야 한다.</p>
+<ul>
+<li>live teacher vs one-step lag vs EMA decay grid</li>
+<li>coordinate weighted vs coordinate unweighted</li>
+<li>동일 target coordinate update에서 draft teacher만 바꾼 matched arm</li>
+<li>diagonal exact AAL과 두 방향 cross-swap</li>
+<li>target NLL <code>+.005</code> margin, exact AAL floor, draft conditional-effect floor</li>
+<li>EMA shadow가 실제 target update/optimizer에 storage나 gradient를 공유하지 않는 identity</li>
+</ul>
+<p>이 아이디어는 이번 결과가 제안하는 <strong>다음 가설</strong>이지 아직 검증된 main method가 아니다.
+새 manifest를 먼저 고정하기 전에는 selection seeds <code>6–8</code>을 열지 않는다.</p>
+<h2 id="7">7. 한계와 정확한 주장 범위<a class="headerlink" href="#7" title="이 절의 고정 링크">&para;</a></h2>
+<ul>
+<li>Seed 99는 engineering data다. Pair, diagnostic step, prompt, corpus, sampling seed,
+  token과 decoding round를 독립 replicate로 세지 않는다.</li>
+<li>세 pair를 IID architecture sample로 해석하지 않는다.</li>
+<li>100-step LoRA adaptation은 scratch foundation-model pretraining을 대표하지 않는다.</li>
+<li>Teacher-forced overlap은 AAL이 아니다. 본 판정은 FP32 eager stochastic rollout을 쓴다.</li>
+<li>FP32 eager greedy identity는 exact speculative decoding의 target-output 보존을 확인할
+  뿐 target quality를 보증하지 않는다.</li>
+<li>BF16 independent-backward residual은 적용 gradient의 정밀도 현상이고, FP64 수식
+  항등식이나 CE-gradient tensor 자체의 변조를 뜻하지 않는다.</li>
+<li>Transparent benchmark latency는 production serving throughput이 아니다.</li>
+</ul>
+<h2 id="8-artifact-map">8. 재현과 artifact map<a class="headerlink" href="#8-artifact-map" title="이 절의 고정 링크">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>역할</th>
+<th>경로</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Method definition</td>
+<td><code>COORDINATE_ARR_METHOD_PROPOSAL_KO.md</code></td>
+</tr>
+<tr>
+<td>Frozen protocol</td>
+<td><code>COORDINATE_ARR_VALIDATION_PROTOCOL_KO.md</code></td>
+</tr>
+<tr>
+<td>Frozen manifest</td>
+<td><code>COORDINATE_ARR_V0_2_STAGE01_MANIFEST.json</code></td>
+</tr>
+<tr>
+<td>Precision preflight provenance</td>
+<td><code>COORDINATE_ARR_V0_2_PREFLIGHT_FAILURES.json</code></td>
+</tr>
+<tr>
+<td>Coordinate loss/decomposition</td>
+<td><code>src/specdec_joint/coordinate_arr.py</code></td>
+</tr>
+<tr>
+<td>Trainer</td>
+<td><code>src/specdec_joint/train_arr.py</code></td>
+</tr>
+<tr>
+<td>Fail-loud analyzer</td>
+<td><code>src/specdec_joint/analyze_coordinate_arr_stage01.py</code></td>
+</tr>
+<tr>
+<td>Stage-0 root</td>
+<td><code>runs/coordinate_arr_v0_2_stage0_identities_v2/</code></td>
+</tr>
+<tr>
+<td>Stage-1 root</td>
+<td><code>runs/coordinate_arr_v0_2_stage1_engineering_v2/</code></td>
+</tr>
+<tr>
+<td>FP32 diagonal rollouts</td>
+<td><code>runs/coordinate_arr_v0_2_stage1_fp32_rollouts_v2/</code></td>
+</tr>
+<tr>
+<td>FP32 cross-swaps</td>
+<td><code>runs/coordinate_arr_v0_2_stage1_fp32_cross_swaps_v2/</code></td>
+</tr>
+<tr>
+<td>Initial immutable analysis</td>
+<td><code>artifacts/coordinate_arr_v0_2_stage1_analysis_v2/</code></td>
+</tr>
+<tr>
+<td>Visual-enhanced deterministic reanalysis</td>
+<td><code>artifacts/coordinate_arr_v0_2_stage1_analysis_v3/</code></td>
+</tr>
+</tbody>
+</table>
+<p>원래 H100 host에서는 모든 CUDA/PyTorch command 전에 다음 library를 preload한다.</p>
+<pre><code class="language-bash">export LD_PRELOAD=/lib/x86_64-linux-gnu/libcuda.so.580.95.05:/lib/x86_64-linux-gnu/libnvidia-ml.so.580.95.05
+export PYTHONPATH=&quot;$PWD/src&quot;
+</code></pre>
+<p>Completed root는 덮어쓰지 않고 새 versioned root를 사용한다.</p>
+<pre><code class="language-bash">STAGE=stage0 GPU_LIST=0,1,2 bash scripts/run_coordinate_arr_stage01.sh
+STAGE=stage1 GPU_LIST=0,1,2 bash scripts/run_coordinate_arr_stage01.sh
+STAGE=rollout GPU_LIST=0,1,2 bash scripts/run_coordinate_arr_stage01.sh
+STAGE=crossswap GPU_LIST=0,1,2 bash scripts/run_coordinate_arr_stage01.sh
+
+python -m specdec_joint.analyze_coordinate_arr_stage01
+</code></pre>
+<p>Analyzer가 소비한 panel은 Stage-0 6 training runs, Stage-1 18 runs와 1,800 history
+rows, 165 FP64 mechanism rows, 18 diagonal + 12 cross-swap rollout runs와 총 1,080 raw
+rollout rows다. Gate JSON, input/output SHA-256와 figure manifest는 analysis root에 있다.</p></main>
+  <footer>Coordinate-only ARR v0.2 · Stage 0 PASS · Stage 1 engineering KILL · 2026-07-17</footer>
+</body>
+</html>

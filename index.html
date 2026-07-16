@@ -78,7 +78,8 @@
       backdrop-filter: blur(16px);
     }
     .site-nav .brand { color: var(--text); font-weight: 850; letter-spacing: -.02em; }
-    .site-nav div { display: flex; gap: .5rem; }
+    .site-nav div { display: flex; flex-wrap: wrap; justify-content: flex-end;
+      gap: .5rem; }
     .site-nav a {
       padding: .36rem .66rem;
       color: var(--muted);
@@ -245,6 +246,7 @@
       <a href="methods/">방법 검증</a>
       <a href="safemove/">SafeMove v0.2</a>
       <a href="arr/">ARR v0.1</a>
+      <a href="coordinate-arr/">Coordinate ARR v0.2</a>
       <a href="ideas/">아이디어</a>
     </div>
   </nav>
@@ -257,6 +259,11 @@
 공유하지 않는 두 pretrained autoregressive language model</p>
 <p>상태: 짧은 LoRA adaptation에서 얻은 controlled evidence이며 peer-reviewed
 결과가 아님</p>
+<p><strong>2026-07-17 Coordinate ARR update.</strong> Dense conditional anchor를 제거한
+independent-AR v0.2는 세 pair에서 target-NLL 보호와 조건부 target AAL을 통과했지만,
+GPT/OPT의 drafter co-adaptation 때문에 diagonal exact AAL gate를 실패했다. 최신
+시각화와 판정은
+<span class="local-artifact" title="로컬 연구 workspace 산출물"><code>REPORT_COORDINATE_ARR_STAGE01_KO.md</code></span>에 있다.</p>
 <p><strong>2026-07-16 methods update.</strong> 이후 2×2 Adam-state intervention을 seeds 0–4로
 확장한 결과, total harm·state-only exposure·state scrub recovery가 세 pair에서
 각각 5/5 seed 동일 방향으로 재현됐다. Exact same-state controller는 detach 대비

@@ -51,7 +51,8 @@
       color-mix(in srgb,var(--bg) 87%,transparent); border-bottom: 1px solid var(--line);
       backdrop-filter: blur(16px); }
     .brand { font-weight: 850; }
-    .site-nav div { display: flex; gap: .45rem; }
+    .site-nav div { display: flex; flex-wrap: wrap; justify-content: flex-end;
+      gap: .45rem; }
     .site-nav a { padding: .36rem .66rem; color: var(--muted); border-radius: 999px;
       text-decoration: none; font-size: .87rem; font-weight: 750; }
     .site-nav a:hover,.site-nav a[aria-current="page"] { color: var(--blue);
@@ -118,6 +119,7 @@
       <a href="./" aria-current="page">방법 검증</a>
       <a href="../safemove/">SafeMove v0.2</a>
       <a href="../arr/">ARR v0.1</a>
+      <a href="../coordinate-arr/">Coordinate ARR v0.2</a>
       <a href="../ideas/">아이디어</a>
     </div>
   </nav>
