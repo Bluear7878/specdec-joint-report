@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="세 independent pretrained AR target-drafter pair에서 raw joint target harm와 shared-mass responsibility routing을 검증한 seed-99 engineering 보고서. ARR은 target harm를 줄였지만 NLL, exact AAL과 component Pareto gate를 통과하지 못했다.">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="ARR v0.1 shared-mass 검증: KILL">
+  <meta property="og:description" content="세 independent pretrained AR target-drafter pair에서 raw joint target harm와 shared-mass responsibility routing을 검증한 seed-99 engineering 보고서. ARR은 target harm를 줄였지만 NLL, exact AAL과 component Pareto gate를 통과하지 못했다.">
+  <meta property="og:url" content="https://bluear7878.github.io/specdec-joint-report/arr/">
+  <meta property="og:image" content="https://bluear7878.github.io/specdec-joint-report/artifacts/arr_shared_mass_v0_1_stage1_analysis_v2/arr_stage1_pareto.png">
+  <meta property="og:image:alt" content="Raw joint target harm를 줄였지만 architecture-robust exact AAL을 확보하지 못해 engineering KILL된 ARR v0.1 trade-off">
+  <meta property="og:image:width" content="3078">
+  <meta property="og:image:height" content="1227">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://bluear7878.github.io/specdec-joint-report/artifacts/arr_shared_mass_v0_1_stage1_analysis_v2/arr_stage1_pareto.png">
+  <link rel="canonical" href="https://bluear7878.github.io/specdec-joint-report/arr/">
+  <title>ARR v0.1 shared-mass 검증: KILL</title>
+  <script>
+    window.MathJax = {
+      tex: {inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']]},
+      chtml: {scale: 0.94}
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f4f6fa; --surface: #fff; --text: #172033; --muted: #657087;
+      --line: #dce3ed; --blue: #315fa8; --blue-soft: #eaf1fb;
+      --green: #16815d; --green-soft: #e8f6ef; --red: #b93845;
+      --red-soft: #fff0f1; --amber: #b66a16; --code: #f2f4f8;
+      --shadow: 0 18px 50px rgba(28,42,76,.09);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0d1118; --surface: #151a23; --text: #e8edf5; --muted: #aab5c7;
+        --line: #303846; --blue: #9db8f4; --blue-soft: #202c43;
+        --green: #76d7b4; --green-soft: #17352d; --red: #ff9aa4;
+        --red-soft: #3f242a; --amber: #f3b56c; --code: #222936; --shadow: none;
+      }
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; background: var(--bg); color: var(--text); font-family:
+      Pretendard,"Noto Sans KR",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      font-size: 16.5px; line-height: 1.72; word-break: keep-all; }
+    .site-nav { position: sticky; top: 0; z-index: 20; display: flex;
+      justify-content: space-between; align-items: center; min-height: 58px;
+      padding: 0 max(22px,calc((100vw - 1220px)/2)); background:
+      color-mix(in srgb,var(--bg) 87%,transparent); border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(16px); }
+    .brand { font-weight: 850; }
+    .site-nav div { display: flex; gap: .45rem; }
+    .site-nav a { padding: .36rem .66rem; color: var(--muted); border-radius: 999px;
+      text-decoration: none; font-size: .87rem; font-weight: 750; }
+    .site-nav a:hover,.site-nav a[aria-current="page"] { color: var(--blue);
+      background: var(--blue-soft); }
+    main { width: min(1220px,calc(100% - 32px)); margin: 30px auto 80px;
+      padding: clamp(26px,5vw,72px); background: var(--surface); border: 1px solid var(--line);
+      border-radius: 24px; box-shadow: var(--shadow); overflow: hidden; }
+    h1,h2,h3 { line-height: 1.28; letter-spacing: -.028em; }
+    h1 { max-width: 1050px; margin: .2rem 0 1rem; font-size: clamp(2.2rem,5.5vw,4.3rem); }
+    h2 { margin: 4rem 0 1.1rem; padding-top: 1.1rem; border-top: 1px solid var(--line);
+      font-size: clamp(1.65rem,3vw,2.3rem); }
+    h3 { margin: 1.6rem 0 .65rem; font-size: 1.28rem; }
+    .headerlink { margin-left: .35rem; opacity: 0; text-decoration: none; }
+    h2:hover .headerlink,h3:hover .headerlink { opacity: .65; }
+    p { max-width: 940px; }
+    a { color: var(--blue); text-underline-offset: 3px; }
+    blockquote { max-width: 1000px; margin: 1.6rem 0; padding: 1.15rem 1.35rem;
+      background: linear-gradient(125deg,var(--green-soft),var(--blue-soft));
+      border-left: 5px solid var(--green); border-radius: 0 14px 14px 0; }
+    blockquote p { margin: 0; }
+    .toc { margin: 2rem 0 3rem; padding: 1.2rem 1.4rem; background: var(--blue-soft);
+      border: 1px solid var(--line); border-radius: 14px; }
+    .toc::before { content: "검증 지도"; display: block; margin-bottom: .55rem;
+      color: var(--blue); font-weight: 850; }
+    .toc ul { margin: .25rem 0; padding-left: 1.3rem; columns: 2; column-gap: 2rem; }
+    .toc li { break-inside: avoid; margin: .22rem 0; }
+    .toc a { text-decoration: none; }
+    table { display: block; width: 100%; margin: 1.25rem 0 2rem; overflow-x: auto;
+      border-collapse: collapse; font-size: .91rem; }
+    th,td { min-width: 115px; padding: .72rem .78rem; border: 1px solid var(--line);
+      text-align: left; vertical-align: top; }
+    th { color: var(--blue); background: var(--blue-soft); font-weight: 800; }
+    tr:nth-child(even) td { background: color-mix(in srgb,var(--blue-soft) 32%,transparent); }
+    main > p:has(> img) { width: min(1500px,calc(100vw - 30px)); margin: 1.8rem 50% .75rem;
+      transform: translateX(-50%); }
+    main > p:has(> img) img { display: block; width: 100%; height: auto; padding: .35rem;
+      background: #fff; border: 1px solid var(--line); border-radius: 16px; }
+    main > p:has(> img) + p > em { display: block; color: var(--muted); font-size: .86rem; }
+    .math-block { margin: 1.35rem 0; overflow-x: auto; text-align: center; }
+    code { padding: .12rem .3rem; background: var(--code); border-radius: 5px;
+      font-family: "SFMono-Regular",Consolas,monospace; font-size: .88em; }
+    pre { padding: 1rem; overflow-x: auto; background: var(--code); border: 1px solid var(--line);
+      border-radius: 12px; }
+    pre code { padding: 0; }
+    .local-artifact { color: var(--muted); border-bottom: 1px dotted var(--muted); }
+    footer { width: min(1220px,calc(100% - 32px)); margin: -50px auto 38px;
+      color: var(--muted); text-align: center; font-size: .8rem; }
+    @media (max-width: 700px) {
+      body { font-size: 15px; word-break: normal; }
+      .site-nav { position: static; padding: .5rem .7rem; } .brand { display: none; }
+      .site-nav div { width: 100%; justify-content: center; }
+      main { width: 100%; margin: 0; padding: 24px 18px 70px; border: 0; border-radius: 0; }
+      h1 { font-size: 2.25rem; } .toc ul { columns: 1; }
+      main > p:has(> img) { width: 100vw; padding: 0 10px; overflow-x: auto; }
+      main > p:has(> img) img { min-width: 900px; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="site-nav" aria-label="공개 연구 문서">
+    <span class="brand">Independent-AR SpecDec</span>
+    <div>
+      <a href="../">모티베이션</a>
+      <a href="../methods/">이전 방법 검증</a>
+      <a href="../safemove/">SafeMove v0.2</a>
+      <a href="./" aria-current="page">ARR v0.1</a>
+      <a href="../ideas/">아이디어</a>
+    </div>
+  </nav>
+  <main><h1 id="arr-v01-shared-mass-responsibility-routing">ARR v0.1: shared-mass responsibility routing 실험 보고서<a class="headerlink" href="#arr-v01-shared-mass-responsibility-routing" title="이 절의 고정 링크">&para;</a></h1>
+<blockquote>
+<p><strong>판정:</strong> Stage 0 identity <strong>PASS</strong> · Stage 1 engineering <strong>KILL</strong><br>
+<strong>범위:</strong> engineering seed 99, 세 independent pretrained AR target/drafter pair<br>
+<strong>핵심:</strong> raw joint loss의 target 손상은 재현했고 ARR은 이를 크게 줄였지만,
+target non-inferiority와 exact AAL을 동시에 만족하지 못했다. Selection seeds <code>6–8</code>은 sealed다.</p>
+</blockquote>
+<div class="toc">
+<ul>
+<li><a href="#0">0. 결론</a></li>
+<li><a href="#1">1. 연구 질문과 범위</a></li>
+<li><a href="#2-arr-v01">2. ARR v0.1 가설</a></li>
+<li><a href="#3">3. 실험 설계</a></li>
+<li><a href="#4">4. 결과</a><ul>
+<li><a href="#41-motivation-utility-target-quality-trade-off">4.1 Motivation: utility와 target quality의 직접 trade-off</a></li>
+<li><a href="#42-protection-shared-mass-weight-harm-attenuator">4.2 Protection: shared-mass weight는 harm attenuator로 작동</a></li>
+<li><a href="#43-safe-label-local-gain-endpoint-gain">4.3 Safe label의 local gain은 endpoint gain이 아니었다</a></li>
+<li><a href="#44-objective-full-label-ce-dense-p0-anchor">4.4 사후 objective 분해: full-label CE에는 dense p0 anchor가 있었다</a></li>
+</ul>
+</li>
+<li><a href="#5-gradient-adam-same-state">5. Gradient와 Adam same-state 진단</a></li>
+<li><a href="#6-prospective-gate">6. Prospective gate 판정</a></li>
+<li><a href="#7">7. 무엇이 남았고 무엇을 바꿔야 하는가</a></li>
+<li><a href="#8">8. 해석 한계</a></li>
+<li><a href="#9">9. 재현 산출물</a></li>
+</ul>
+</div>
+<h2 id="0">0. 결론<a class="headerlink" href="#0" title="이 절의 고정 링크">&para;</a></h2>
+<p>이 실험은 연구 motivation과 제안 method를 분리해서 해석해야 한다.</p>
+<ol>
+<li><strong>Motivation은 더 선명해졌다.</strong> Draft path loss를 target AdamW에 그대로 더한
+   <code>path_naive</code>는 matched <code>path_detach</code>보다 target NLL을 GPT/OPT/Pythia에서 각각
+   <code>+.0364 / +.0362 / +.0649</code> 악화시켰다. 동시에 FP32 exact AAL은
+   <code>+.0938 / +.0711 / +.1164</code> 증가했다. 즉 독립 pretrained AR pair에서도
+   speculative utility를 얻는 target-side joint update가 target quality를 희생하는
+   trade-off가 세 pair 모두에서 나타났다.</li>
+<li><strong>ARR의 보호 아이디어는 부분적으로 작동했다.</strong> <code>arr_main</code>의 target NLL 차이는
+   <code>+.0046 / +.0077 / −.0026</code>으로, raw joint harm를 각각 약 <code>87% / 79% / 104%</code>
+   줄였다. Shared-mass weight를 뺀 <code>arr_unweighted</code>보다도 세 pair 모두 NLL이 좋았다.</li>
+<li><strong>하지만 main-method 가설은 실패했다.</strong> Frozen NLL margin <code>+.005</code>를 OPT가
+   넘었고, exact AAL은 <code>−.0424 / +.1210 / −.0348</code>로 두 pair에서 감소했다.
+   <code>arr_anchor</code>와 <code>arr_unweighted</code>에 대한 component Pareto gate도 통과하지 못했다.</li>
+<li>따라서 <strong>ARR v0.1은 engineering KILL</strong>이다. Seed 99 결과를 본 뒤 threshold를
+   완화하거나 selection seeds를 열지 않는다.</li>
+</ol>
+<p><img alt="ARR v0.1의 target NLL–exact AAL trade-off" src="../artifacts/arr_shared_mass_v0_1_stage1_analysis_v2/arr_stage1_pareto.png"></p>
+<h2 id="1">1. 연구 질문과 범위<a class="headerlink" href="#1" title="이 절의 고정 링크">&para;</a></h2>
+<p>Target <code>p_theta</code>와 drafter <code>q_phi</code>는 tokenizer-compatible token ID만 공유한다.
+Backbone, embedding, hidden state, LM head, LoRA parameter와 optimizer는 전부 분리돼
+있다. MEDUSA, EAGLE, native draft head와 shared representation은 포함하지 않는다.</p>
+<p>Target-side draft loss는 exact speculative decoding의 필수 조건이 아니라 이 연구가
+시험하는 <strong>bidirectional extension</strong>이다. Exact decoding은 최종 target 분포를 보존하지만,
+joint training이 original target 품질을 보존해 주지는 않는다.</p>
+<p>비교하는 정보 경로는 다음과 같다.</p>
+<pre><code class="language-text">current target p_theta  -- pathwise Hybrid LK teacher --&gt;  drafter q_phi
+current target p_theta  &lt;-- q proposal-aware target loss -- drafter q_phi
+</code></pre>
+<p>직접 관련된 공개 연구 가운데
+<a href="https://sergiu-nistor.com/assets/publications/Halfway_Speculative_Decoding.pdf">Halfway Speculative Decoding</a>은
+target과 EAGLE-style head를 함께 학습하지만 target hidden feature를 사용한다.
+<a href="https://proceedings.mlr.press/v235/liu24y.html">Online Speculative Decoding</a>,
+<a href="https://openreview.net/forum?id=rsY6J3ZaTF">DistillSpec</a>,
+<a href="https://arxiv.org/abs/2605.29343">Draft-OPD</a>는 proposal/rejection-aware 학습의 유용성을
+보이지만 target LM은 고정한다. <a href="https://arxiv.org/abs/2605.24793">CoSpec</a>은
+draft/target mismatch에서 RL arbitration을 학습하지만 target-only distribution을
+보존하는 exact SD가 아니라 두 모델의 지식을 decoding 때 결합하는 설정이다.
+2026-07-17까지 확인한 공개 문헌에서
+<code>independent pretrained AR pair × proposal-aware target update × exact SD × target
+non-inferiority</code> 전체를 직접 검증한 선행 방법은 찾지 못했다. 이는 검색 범위 내 gap이며
+최초성을 단정하지 않는다.</p>
+<h2 id="2-arr-v01">2. ARR v0.1 가설<a class="headerlink" href="#2-arr-v01" title="이 절의 고정 링크">&para;</a></h2>
+<p>Frozen adapter-disabled original target을 <code>p0</code>, live target을 <code>p</code>, drafter를 <code>q</code>라 한다.
+Drafter가 token <code>z</code>를 제안했을 때 original target과 공유하는 exact proposal mass의
+posterior responsibility를 사용한다.</p>
+<pre><code class="language-text">omega(z) = min(1, p0(z) / q(z))
+q(z) * omega(z) = min(p0(z), q(z))
+
+proposal mass = shared mass + draft-only excess
+              = min(p0,q) + [q-p0]+
+</code></pre>
+<p><code>q(z)&gt;p0(z)</code>일 때만 proposal coordinate를 올린 safe label <code>r</code>를 만든다.</p>
+<pre><code class="language-text">r(z) = t
+r(v != z) = p0(v) * (1-t) / (1-p0(z))
+
+p0(z) &lt;= t &lt;= q(z)
+TV(p0,r) &lt;= 0.01
+KL(r || p0) &lt;= 0.005
+</code></pre>
+<p>이전 proposal의 frozen responsibility product를 <code>S_k</code>라 하면 target loss는 다음과 같다.</p>
+<pre><code class="language-text">L_target = L_native_CE
+         + sum_{i,k} S_{i,k} * omega_{i,k} * active_{i,k}
+             * H(stopgrad(r_{i,k}), p_theta(.|h_{i,k})) / (B*K)
+</code></pre>
+<p>Target에는 positive soft-label cross-entropy만 흐르고 <code>p0</code>, <code>q</code>, sampling, <code>omega</code>,
+<code>S</code>, <code>active</code>, <code>r</code>는 stop-gradient다. Drafter loss는
+<a href="https://arxiv.org/abs/2602.23881">LK Losses</a>의 pathwise Hybrid LK를 사용했다.</p>
+<pre><code class="language-text">L_draft = sum_{i,k} S_live * HybridLK(stopgrad(p_theta), q_phi) / (B*K)
+eta = 3, gamma = 1, K = 3
+</code></pre>
+<p><code>eta=3</code>은 confirmatory panel과 맞춘 Hybrid LK schedule이고 target-side coefficient
+<code>beta=1</code>은 본 연구의 실험값이다. 상세 정의는
+<span class="local-artifact" title="로컬 연구 workspace 산출물">ARR method proposal</span> <code>ARR_METHOD_PROPOSAL_KO.md</code>과
+<span class="local-artifact" title="로컬 연구 workspace 산출물">prospective protocol</span> <code>ARR_VALIDATION_PROTOCOL_KO.md</code>에 고정했다.</p>
+<h2 id="3">3. 실험 설계<a class="headerlink" href="#3" title="이 절의 고정 링크">&para;</a></h2>
+<p>세 pair를 사용했다.</p>
+<ul>
+<li>GPT-2 / DistilGPT-2</li>
+<li>OPT-350M / OPT-125M</li>
+<li>Pythia-410M / Pythia-70M</li>
+</ul>
+<p>모든 arm은 같은 initialization, minibatch order, optimizer/scheduler, token exposure와
+counter-keyed proposal uniform을 공유했다. WikiText-103에서 100 step, batch 4,
+sequence 64, rank-8 LoRA, BF16, 별도 target/draft AdamW(<code>2e-4</code>, betas <code>.9/.95</code>)로
+학습했다. Exact rollout은 FP32 eager에서 WikiText-2, TinyStories, GSM8K text,
+<code>K=3</code>, 32 generated tokens로 실행했다.</p>
+<table>
+<thead>
+<tr>
+<th>Arm</th>
+<th>Target update</th>
+<th>목적</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>path_detach</code></td>
+<td>native CE</td>
+<td>matched reference</td>
+</tr>
+<tr>
+<td><code>path_naive</code></td>
+<td>CE + raw target-side path Hybrid LK</td>
+<td>motivation/harm reference</td>
+</tr>
+<tr>
+<td><code>arr_anchor</code></td>
+<td>CE + routed <code>p0</code> label</td>
+<td>anchor/data control</td>
+</tr>
+<tr>
+<td><code>arr_unweighted</code></td>
+<td>CE + safe <code>r</code>, current-token <code>omega</code> 없음</td>
+<td>responsibility ablation</td>
+</tr>
+<tr>
+<td><code>arr_main</code></td>
+<td>CE + <code>S*omega*active*H(r,p)</code></td>
+<td>제안 방법</td>
+</tr>
+</tbody>
+</table>
+<p>Stage 0에서 세 pair의 10-step <code>arr_forced_off</code>가 <code>path_detach</code>와 target/draft parameter,
+전체 Adam state hash와 endpoint에서 bit-exact였다. Core simplex, shared-mass identity,
+TV/KL cap, gradient detach와 exact-zero identity를 포함해 12개 gate check가 통과했다.</p>
+<h2 id="4">4. 결과<a class="headerlink" href="#4" title="이 절의 고정 링크">&para;</a></h2>
+<p>아래 값은 같은 pair의 <code>path_detach</code> 대비 차이다. NLL은 낮을수록, exact AAL은
+높을수록 좋다.</p>
+<table>
+<thead>
+<tr>
+<th>Pair</th>
+<th>Arm</th>
+<th style="text-align: right;">Delta target NLL</th>
+<th style="text-align: right;">Delta exact AAL</th>
+<th style="text-align: right;">Active responsibility</th>
+<th style="text-align: right;">Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPT-2</td>
+<td><code>path_naive</code></td>
+<td style="text-align: right;"><code>+.036352</code></td>
+<td style="text-align: right;"><code>+.093838</code></td>
+<td style="text-align: right;"><code>0</code></td>
+<td style="text-align: right;"><code>1.22x</code></td>
+</tr>
+<tr>
+<td>GPT-2</td>
+<td><code>arr_main</code></td>
+<td style="text-align: right;"><code>+.004600</code></td>
+<td style="text-align: right;"><code>-.042380</code></td>
+<td style="text-align: right;"><code>.238</code></td>
+<td style="text-align: right;"><code>1.89x</code></td>
+</tr>
+<tr>
+<td>OPT</td>
+<td><code>path_naive</code></td>
+<td style="text-align: right;"><code>+.036157</code></td>
+<td style="text-align: right;"><code>+.071113</code></td>
+<td style="text-align: right;"><code>0</code></td>
+<td style="text-align: right;"><code>1.29x</code></td>
+</tr>
+<tr>
+<td>OPT</td>
+<td><code>arr_main</code></td>
+<td style="text-align: right;"><code>+.007737</code></td>
+<td style="text-align: right;"><code>+.120975</code></td>
+<td style="text-align: right;"><code>.230</code></td>
+<td style="text-align: right;"><code>1.57x</code></td>
+</tr>
+<tr>
+<td>Pythia</td>
+<td><code>path_naive</code></td>
+<td style="text-align: right;"><code>+.064916</code></td>
+<td style="text-align: right;"><code>+.116371</code></td>
+<td style="text-align: right;"><code>0</code></td>
+<td style="text-align: right;"><code>1.21x</code></td>
+</tr>
+<tr>
+<td>Pythia</td>
+<td><code>arr_main</code></td>
+<td style="text-align: right;"><code>-.002617</code></td>
+<td style="text-align: right;"><code>-.034755</code></td>
+<td style="text-align: right;"><code>.126</code></td>
+<td style="text-align: right;"><code>1.60x</code></td>
+</tr>
+</tbody>
+</table>
+<p><img alt="Raw joint와 ARR main의 target harm 및 exact AAL 비교" src="../artifacts/arr_shared_mass_v0_1_stage1_analysis_v2/arr_stage1_naive_vs_main.png"></p>
+<h3 id="41-motivation-utility-target-quality-trade-off">4.1 Motivation: utility와 target quality의 직접 trade-off<a class="headerlink" href="#41-motivation-utility-target-quality-trade-off" title="이 절의 고정 링크">&para;</a></h3>
+<p><code>path_naive</code>는 세 pair 모두 exact AAL을 높였지만 target NLL도 모두 악화시켰다.
+이는 “draft-aware target update가 무조건 나쁘다”는 주장이 아니라, <strong>speculative
+objective의 utility가 target 품질 비용 없이 공짜로 생기지 않는다</strong>는 관찰이다.
+같은 seed의 detach와 naive는 직접 조작인 target-side path gradient 적용 여부만 다르고,
+그 뒤 target trajectory가 유도한 draft co-adaptation은 endpoint total effect에 포함된다.</p>
+<h3 id="42-protection-shared-mass-weight-harm-attenuator">4.2 Protection: shared-mass weight는 harm attenuator로 작동<a class="headerlink" href="#42-protection-shared-mass-weight-harm-attenuator" title="이 절의 고정 링크">&para;</a></h3>
+<p><code>arr_main</code>은 <code>arr_unweighted</code>보다 target NLL이 GPT/OPT/Pythia에서 각각
+<code>.0131 / .0176 / .0158</code> 낮았다. Raw joint 대비 target harm도 크게 줄었다.
+따라서 <code>omega</code>가 무의미한 것은 아니다. 그러나 exact AAL 차이는
+<code>−.0211 / +.0067 / −.0884</code>로, shared-mass posterior가 <strong>target update의 utility
+posterior</strong>는 아니었다.</p>
+<h3 id="43-safe-label-local-gain-endpoint-gain">4.3 Safe label의 local gain은 endpoint gain이 아니었다<a class="headerlink" href="#43-safe-label-local-gain-endpoint-gain" title="이 절의 고정 링크">&para;</a></h3>
+<p><code>arr_main</code>은 <code>arr_anchor</code>보다 target NLL을 GPT와 Pythia에서는 개선하고 OPT에서는
+<code>.0013</code> 악화시켰다. 그러나 exact AAL은 세 pair 모두 anchor보다
+<code>−.0231 / −.0117 / −.0509</code> 낮았다. Sampled token과 현재 context를 고정한 local
+acceptance gain은 다음 효과를 포함하지 않는다.</p>
+<ul>
+<li>한 adapter update가 다른 context와 vocabulary coordinate에 일반화하는 효과</li>
+<li>native CE와 auxiliary가 같은 Adam moments에 누적되는 효과</li>
+<li>target 변화에 따라 drafter proposal과 이후 prefix가 다시 변하는 co-adaptation</li>
+<li>frozen <code>p0</code> responsibility와 final live target verifier 사이의 차이</li>
+</ul>
+<h3 id="44-objective-full-label-ce-dense-p0-anchor">4.4 사후 objective 분해: full-label CE에는 dense <code>p0</code> anchor가 있었다<a class="headerlink" href="#44-objective-full-label-ce-dense-p0-anchor" title="이 절의 고정 링크">&para;</a></h3>
+<p>Safe label은 proposal coordinate 하나만 바꾸지만, 그 label에 대한 full-vocabulary
+cross-entropy는 coordinate-only objective가 아니다. <code>t=r(z)</code>,
+<code>p_{\neg z}(v)=p(v)/(1-p(z))</code>라 두면 정확히 다음처럼 분해된다.</p>
+<div class="math-block">\[
+H(r,p)
+=
+H_{\mathrm{Ber}}\!\left(t,p(z)\right)
++(1-t)\,
+H\!\left(p_0(\cdot\mid \neg z),p(\cdot\mid \neg z)\right).
+\]</div>
+<p>첫 항은 proposal token <code>z</code>의 확률을 직접 조절한다. 두 번째 항은 나머지 전체
+vocabulary의 조건부분포를 frozen original target <code>p0</code>로 당기는 <strong>dense anchor</strong>다.
+Route-weighted 평균 <code>1-t</code>는 GPT/OPT/Pythia에서 <code>.825/.812/.813</code>이었다. 또한
+<code>arr_main</code>의 aux/CE norm ratio는 steps 1–10의 <code>.034/.026/.019</code>에서 steps 76–100의
+<code>.272/.305/.276</code>으로 커졌고, detach 대비 final target–base KL은
+<code>.367→.316 / .538→.436 / .591→.483</code>으로 줄었다. 이는 native CE가 live target을
+<code>p0</code>에서 이동시킬수록 anchor gradient가 뒤늦게 커지는 해석과 일치한다.
+정확한 weight 정의와 수치는
+<span class="local-artifact" title="로컬 연구 workspace 산출물">dense-anchor diagnostics v2</span> <code>artifacts/arr_shared_mass_v0_1_stage1_diagnostics_v2/arr_anchor_decomposition_diagnostics.csv</code>에
+고정했다.</p>
+<p>다만 현재 history는 같은 live trajectory에서 Bernoulli coordinate gradient와
+conditional-anchor gradient를 직접 따로 저장하지 않았다. 따라서 <strong>dense anchor가
+항상 gradient를 지배했다고 입증한 것은 아니며</strong>, 구조적 분해와 late-stage telemetry가
+그 가설을 강하게 지지하는 수준이다. <code>arr_main</code>의 exact AAL이 <code>arr_anchor</code>보다 세
+pair 모두 낮았다는 사실도, v0.1의 proposal move가 anchor control을 넘어 안정적인
+endpoint utility를 만들었다는 증거가 없음을 보여준다.</p>
+<h2 id="5-gradient-adam-same-state">5. Gradient와 Adam same-state 진단<a class="headerlink" href="#5-gradient-adam-same-state" title="이 절의 고정 링크">&para;</a></h2>
+<p><code>arr_main</code>은 raw joint보다 auxiliary dose와 Adam deflection을 줄였다.</p>
+<table>
+<thead>
+<tr>
+<th>Pair</th>
+<th style="text-align: right;">Aux/CE raw→ARR</th>
+<th style="text-align: right;">Negative cosine raw→ARR</th>
+<th style="text-align: right;">Held-out exact harm raw→ARR</th>
+<th style="text-align: right;">Aux-induced update raw→ARR</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPT-2</td>
+<td style="text-align: right;"><code>.580→.212</code></td>
+<td style="text-align: right;"><code>76%→48%</code></td>
+<td style="text-align: right;"><code>9/10→4/10</code></td>
+<td style="text-align: right;"><code>13.1%→5.7%</code></td>
+</tr>
+<tr>
+<td>OPT</td>
+<td style="text-align: right;"><code>.533→.244</code></td>
+<td style="text-align: right;"><code>58%→56%</code></td>
+<td style="text-align: right;"><code>3/10→4/10</code></td>
+<td style="text-align: right;"><code>15.7%→7.4%</code></td>
+</tr>
+<tr>
+<td>Pythia</td>
+<td style="text-align: right;"><code>1.134→.169</code></td>
+<td style="text-align: right;"><code>57%→45%</code></td>
+<td style="text-align: right;"><code>6/10→6/10</code></td>
+<td style="text-align: right;"><code>32.7%→10.9%</code></td>
+</tr>
+</tbody>
+</table>
+<p>Held-out harm는 learning rate가 0이 아닌 steps <code>{10,...,100}</code>의 동일 pre-step
+parameter/Adam state에서 실제 CE+aux candidate와 CE-only shadow를 비교한 횟수다.
+10개 step은 독립 replicate가 아니며 endpoint mediation decomposition도 아니다.
+<code>arr_main</code>의 mean CE–aux cosine은 <code>+.008/−.012/+.007</code>로 거의 0이었다. 따라서 이
+seed에서 target 보호의 주된 설명은 gradient angle 정렬보다 <strong>route에 의해 auxiliary
+dose와 Adam deflection이 작아진 것</strong>이다. 특히 OPT에서는 current-step shadow 평균이
+반드시 해롭지 않았어도 endpoint NLL gate가 실패했다. Instantaneous cosine이나
+one-step counterfactual만으로 cumulative Adam trajectory를 보증할 수 없다.</p>
+<p><img alt="ARR target-side dose와 current-step diagnostic" src="../artifacts/arr_shared_mass_v0_1_stage1_analysis_v2/arr_stage1_mechanism.png"></p>
+<h2 id="6-prospective-gate">6. Prospective gate 판정<a class="headerlink" href="#6-prospective-gate" title="이 절의 고정 링크">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Gate</th>
+<th>판정</th>
+<th>관찰</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Stage-0 identity</td>
+<td><strong>PASS</strong></td>
+<td>12/12 checks</td>
+</tr>
+<tr>
+<td>Target NLL non-inferiority</td>
+<td><strong>FAIL</strong></td>
+<td>OPT <code>+.007737 &gt; +.005</code></td>
+</tr>
+<tr>
+<td>FP32 exact AAL</td>
+<td><strong>FAIL</strong></td>
+<td>nonnegative 1/3 pair</td>
+</tr>
+<tr>
+<td>Component Pareto support</td>
+<td><strong>FAIL</strong></td>
+<td>anchor 0/3, unweighted 1/3</td>
+</tr>
+<tr>
+<td>Bidirectional information path</td>
+<td><strong>PASS</strong></td>
+<td>responsibility <code>.126–.238</code>, nonzero dose/hash change</td>
+</tr>
+<tr>
+<td>Trust/numerics</td>
+<td><strong>PASS</strong></td>
+<td>violation 0</td>
+</tr>
+<tr>
+<td>Exact greedy identity</td>
+<td><strong>PASS</strong></td>
+<td>all rollout endpoints <code>1.0</code></td>
+</tr>
+<tr>
+<td>Training cost</td>
+<td><strong>PASS</strong></td>
+<td><code>1.57–1.89x &lt;= 2.5x</code></td>
+</tr>
+</tbody>
+</table>
+<p>사전 규칙의 결론은 하나다.</p>
+<blockquote>
+<p><strong>ARR v0.1: engineering KILL. Selection seeds 6–8 remain sealed.</strong></p>
+</blockquote>
+<h2 id="7">7. 무엇이 남았고 무엇을 바꿔야 하는가<a class="headerlink" href="#7" title="이 절의 고정 링크">&para;</a></h2>
+<p>이 결과는 연구 motivation을 약화시키지 않는다. 오히려 raw joint가 세 pair 모두에서
+AAL을 늘리는 동시에 target NLL을 해치는 명확한 trade-off를 만들었다. 반증된 것은
+“frozen-target shared-mass posterior와 one-coordinate safe label만으로 target-safe
+exact-AAL gain을 architecture-robust하게 만들 수 있다”는 v0.1 가설이다.</p>
+<p>가장 직접적인 후속 가설은 <strong>Coordinate-only ARR</strong>이다. <code>omega</code>, prefix survival,
+active route와 TV/KL cap은 유지하되 target auxiliary를 다음 Bernoulli CE로 바꾼다.</p>
+<div class="math-block">\[
+L_{\mathrm{coord}}
+=
+\frac{1}{BK}\sum_{i,k}
+S_{i,k}\omega_{i,k}\mathbf 1_{\mathrm{active}}
+H_{\mathrm{Ber}}\!\left(t_{i,k},p_\theta(z_{i,k}\mid h_{i,k})\right).
+\]</div>
+<p>이 objective에서도 proposal, <code>omega</code>, route와 목적확률 <code>t</code>가 모두 drafter <code>q</code>에
+의존하므로 target은 drafter-aware하며, target→draft Hybrid LK와 draft→target route의
+bidirectionality도 유지된다. 달라지는 것은 acceptance와 직접 관계없는
+<code>p0(·|¬z)</code> dense anchor를 제거한다는 점이다.</p>
+<p>다음 engineering panel은 원인을 섞지 않도록 우선
+<code>path_detach / arr_main / arr_anchor / coordinate_arr_main /
+coordinate_arr_unweighted</code>만 비교한다. 같은 live state와 context에서
+<code>g_dense</code>, <code>g_coord</code>, <code>g_anchor</code>, <code>g_dense−g_coord</code>를 따로 기록해 anchor-dominance
+가설을 직접 검증해야 한다. <code>omega</code>는 exact-contract responsibility로 유지하되
+parameter-space utility selector로 오해하지 않고, final live-target multi-token
+acceptance를 endpoint에서 별도로 검증한다. CE-only moment firewall이나 virtual
+draft-response는 coordinate-only objective가 먼저 engineering NLL–AAL gate를 통과한
+뒤 별도 factorial로 다룬다.</p>
+<p>새 설계는 v0.2 protocol과 새 output root를 동결한 뒤 exposed seed 99에서만 먼저
+재검증한다. 이번 결과로 threshold를 조정하거나 selection seeds 6–8을 여는 방식은
+사용하지 않는다. Coordinate-only ARR은 <strong>후속 연구 가설이지 아직 검증된 개선법이
+아니다.</strong></p>
+<h2 id="8">8. 해석 한계<a class="headerlink" href="#8" title="이 절의 고정 링크">&para;</a></h2>
+<ul>
+<li>Stage 1은 pair당 engineering seed 하나다. Training seed가 inferential unit이며 step,
+  token, prompt, corpus와 sampling seed를 독립 표본으로 세지 않는다.</li>
+<li>세 pair는 IID architecture sample이 아니다. Architecture-independent universal law나
+  scratch foundation pretraining behavior를 주장하지 않는다.</li>
+<li>100-step LoRA adaptation 결과다. Full fine-tuning, 장기 학습과 five-task downstream
+  non-inferiority는 ARR v0.1 KILL 뒤 실행하지 않았다.</li>
+<li>Teacher-forced overlap은 actual acceptance length가 아니다. 보고한 primary utility는
+  FP32 eager exact rollout의 AAL이다.</li>
+<li>Cross-arm endpoint 차이는 target trajectory가 유도한 draft co-adaptation을 포함한
+  total effect이며 component의 유일한 additive causal decomposition이 아니다.</li>
+</ul>
+<h2 id="9">9. 재현 산출물<a class="headerlink" href="#9" title="이 절의 고정 링크">&para;</a></h2>
+<ul>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물">Frozen method manifest</span> <code>ARR_V0_1_STAGE01_MANIFEST.json</code></li>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물">Stage-0 identity runs</span> <code>runs/arr_shared_mass_v0_1_stage0_identities_v1/</code></li>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물">Stage-1 training runs</span> <code>runs/arr_shared_mass_v0_1_stage1_engineering_v1/</code></li>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물">FP32 eager exact rollouts</span> <code>runs/arr_shared_mass_v0_1_stage1_fp32_rollouts_v1/</code></li>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물">Primary fail-loud analysis</span> <code>artifacts/arr_shared_mass_v0_1_stage1_analysis_v1/</code></li>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물">Audited visual reanalysis</span> <code>artifacts/arr_shared_mass_v0_1_stage1_analysis_v2/</code></li>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물">Initial fail-loud deep diagnostics</span> <code>artifacts/arr_shared_mass_v0_1_stage1_diagnostics_v1/</code></li>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물">Dense-anchor augmented diagnostics</span> <code>artifacts/arr_shared_mass_v0_1_stage1_diagnostics_v2/</code></li>
+</ul>
+<p>Model adapter weights는 Git에 저장하지 않는다. Config, metrics, histories, rollout rows,
+aggregate tables, figures와 SHA-256 analysis manifest는 보존한다. 이 결과는
+peer-reviewed proof가 아니라 prospective engineering falsification 결과다.</p></main>
+  <footer>ARR v0.1 · Stage 0 PASS · Stage 1 engineering KILL · 2026-07-17</footer>
+</body>
+</html>

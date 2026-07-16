@@ -23,6 +23,8 @@ Public pages:
   <https://bluear7878.github.io/specdec-joint-report/methods/>
 - SafeMove-SD v0.2 Stage 0/1 engineering result:
   <https://bluear7878.github.io/specdec-joint-report/safemove/>
+- ARR v0.1 shared-mass responsibility engineering result:
+  <https://bluear7878.github.io/specdec-joint-report/arr/>
 - Visually structured follow-up method proposal:
   <https://bluear7878.github.io/specdec-joint-report/ideas/>
 
@@ -34,3 +36,10 @@ stage-gated experiments.
 SafeMove-SD v0.2 passed its implementation identities but was killed at the
 frozen engineering gate: its emergency radius bound was active on 92–99% of
 steps and exact FP32 AAL fell for all three independent target–drafter pairs.
+
+ARR v0.1 reproduced the raw joint target-quality/acceptance trade-off, reduced
+the raw target NLL harm by 79–104%, but was also killed: target non-inferiority,
+exact-AAL, and component-Pareto gates failed on engineering seed 99. Selection
+seeds 6–8 remain sealed. A post-hoc objective decomposition identifies the
+dense frozen-target conditional anchor as the next mechanism to isolate; the
+coordinate-only successor remains an unvalidated hypothesis.
