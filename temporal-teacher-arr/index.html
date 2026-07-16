@@ -886,9 +886,12 @@ evidence에 따라 same-state에서 선택</strong>하는 것이다.</p>
     B --&gt; E[&quot;held-out on-policy proposals&lt;br/&gt;live-target verification&quot;]
     C --&gt; E
     D --&gt; E
+    H[&quot;current live target verifier&quot;] --&gt; E
     E --&gt; F[&quot;utility + consensus gate&quot;]
     F --&gt; G[&quot;commit one draft parameter&lt;br/&gt;and full Adam state atomically&quot;]
-    H[&quot;protected coordinate-live target update&quot;] --&gt; G
+    I[&quot;coordinate target rule&quot;] --&gt; K[&quot;separate target parameter&lt;br/&gt;and target Adam commit&quot;]
+    G --&gt; J[&quot;next joint state&quot;]
+    K --&gt; J
 </div>
 <p>구체적인 prospective v0.4는 다음을 분리해야 한다.</p>
 <ul>
