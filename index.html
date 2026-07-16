@@ -353,6 +353,18 @@ g_T &= \nabla_\theta L_{CE}
 g_D &= \nabla_\phi L_A(\operatorname{sg}[p_\theta],q_\phi).
 \end{aligned}
 \]</div>
+<blockquote>
+<p><strong>Loss provenance.</strong> <code>L_CE</code>는 target의 native LM head 전체 vocabulary에서 계산하는
+표준 teacher-forced next-token cross-entropy다. <code>L_A</code>는
+<a href="https://arxiv.org/html/2602.23881">LK Losses v2</a>가 제안한 direct-acceptance
+<strong>Hybrid LK</strong> objective이며, adaptive KL–TV 혼합의 정확한 정의는
+<a href="#21-hybrid-lk-objective">§2.1</a>에 둔다. 위 draft 식은 고정 target에 drafter를
+맞추는 원 논문의 방향을 따른다. 반면 bidirectional 식의
+<code>∇_θ L_A(p_θ, sg[q_φ])</code>는 동일 loss를 target에도 미분한 <strong>본 연구의 실험적
+extension</strong>이지, LK Losses의 필수 recipe나 exact speculative decoding의 요건이
+아니다. Confirmatory panel은 Hybrid LK <code>η=3</code>, target-side <code>β=1</code>로 고정했다.
+<code>sg[·]</code>는 stop-gradient다.</p>
+</blockquote>
 <p>같은 seed의 두 arm은 minibatch 순서, optimizer, learning-rate schedule, token exposure,
 draft update rule/coefficient를 맞췄다. 유일하게 직접 조작한 것은 target-side <code>L_A</code>
 gradient의 적용 여부다. 이후 target trajectory 차이가 유도하는 draft co-adaptation까지
