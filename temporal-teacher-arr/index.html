@@ -1,0 +1,960 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="세 independent pretrained AR target-drafter pair에서 coordinate-only target objective는 고정하고 drafter teacher만 lag/EMA로 필터링한 seed-99 engineering 검증. EMA .9는 GPT/OPT draft leg를 개선했지만 target NLL, exact AAL, draft-leg, strong-smoothing gate를 모두 만족하지 못해 Stage 1에서 KILL했다.">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Temporal-Teacher Coordinate ARR v0.3: KILL">
+  <meta property="og:description" content="세 independent pretrained AR target-drafter pair에서 coordinate-only target objective는 고정하고 drafter teacher만 lag/EMA로 필터링한 seed-99 engineering 검증. EMA .9는 GPT/OPT draft leg를 개선했지만 target NLL, exact AAL, draft-leg, strong-smoothing gate를 모두 만족하지 못해 Stage 1에서 KILL했다.">
+  <meta property="og:url" content="https://bluear7878.github.io/specdec-joint-report/temporal-teacher-arr/">
+  <meta property="og:image" content="https://bluear7878.github.io/specdec-joint-report/artifacts/coordinate_arr_temporal_teacher_v0_3_stage1_analysis_v2/temporal_teacher_arr_stage1_pareto.png">
+  <meta property="og:image:alt" content="Temporal-Teacher Coordinate ARR v0.3의 target NLL과 exact AAL engineering Pareto scorecard">
+  <meta property="og:image:width" content="2067">
+  <meta property="og:image:height" content="783">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://bluear7878.github.io/specdec-joint-report/artifacts/coordinate_arr_temporal_teacher_v0_3_stage1_analysis_v2/temporal_teacher_arr_stage1_pareto.png">
+  <link rel="canonical" href="https://bluear7878.github.io/specdec-joint-report/temporal-teacher-arr/">
+  <title>Temporal-Teacher Coordinate ARR v0.3: KILL</title>
+  <script>
+    window.MathJax = {
+      tex: {inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']]},
+      chtml: {scale: 0.94}
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f4f6fa; --surface: #fff; --text: #172033; --muted: #657087;
+      --line: #dce3ed; --blue: #315fa8; --blue-soft: #eaf1fb;
+      --green: #16815d; --green-soft: #e8f6ef; --red: #b93845;
+      --red-soft: #fff0f1; --amber: #b66a16; --code: #f2f4f8;
+      --shadow: 0 18px 50px rgba(28,42,76,.09);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0d1118; --surface: #151a23; --text: #e8edf5; --muted: #aab5c7;
+        --line: #303846; --blue: #9db8f4; --blue-soft: #202c43;
+        --green: #76d7b4; --green-soft: #17352d; --red: #ff9aa4;
+        --red-soft: #3f242a; --amber: #f3b56c; --code: #222936; --shadow: none;
+      }
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; background: var(--bg); color: var(--text); font-family:
+      Pretendard,"Noto Sans KR",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      font-size: 16.5px; line-height: 1.72; word-break: keep-all; }
+    .site-nav { position: sticky; top: 0; z-index: 20; display: flex;
+      justify-content: space-between; align-items: center; min-height: 58px;
+      padding: 0 max(22px,calc((100vw - 1220px)/2)); background:
+      color-mix(in srgb,var(--bg) 87%,transparent); border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(16px); }
+    .brand { font-weight: 850; }
+    .site-nav div { display: flex; flex-wrap: wrap; justify-content: flex-end;
+      gap: .45rem; }
+    .site-nav a { padding: .36rem .66rem; color: var(--muted); border-radius: 999px;
+      text-decoration: none; font-size: .87rem; font-weight: 750; }
+    .site-nav a:hover,.site-nav a[aria-current="page"] { color: var(--blue);
+      background: var(--blue-soft); }
+    main { width: min(1220px,calc(100% - 32px)); margin: 30px auto 80px;
+      padding: clamp(26px,5vw,72px); background: var(--surface); border: 1px solid var(--line);
+      border-radius: 24px; box-shadow: var(--shadow); overflow: hidden; }
+    h1,h2,h3 { line-height: 1.28; letter-spacing: -.028em; }
+    h1 { max-width: 1050px; margin: .2rem 0 1rem; font-size: clamp(2.2rem,5.5vw,4.3rem); }
+    h2 { margin: 4rem 0 1.1rem; padding-top: 1.1rem; border-top: 1px solid var(--line);
+      font-size: clamp(1.65rem,3vw,2.3rem); }
+    h3 { margin: 1.6rem 0 .65rem; font-size: 1.28rem; }
+    .headerlink { margin-left: .35rem; opacity: 0; text-decoration: none; }
+    h2:hover .headerlink,h3:hover .headerlink { opacity: .65; }
+    p { max-width: 940px; }
+    a { color: var(--blue); text-underline-offset: 3px; }
+    blockquote { max-width: 1000px; margin: 1.6rem 0; padding: 1.15rem 1.35rem;
+      background: linear-gradient(125deg,var(--green-soft),var(--blue-soft));
+      border-left: 5px solid var(--green); border-radius: 0 14px 14px 0; }
+    blockquote p { margin: 0; }
+    .toc { margin: 2rem 0 3rem; padding: 1.2rem 1.4rem; background: var(--blue-soft);
+      border: 1px solid var(--line); border-radius: 14px; }
+    .toc::before { content: "검증 지도"; display: block; margin-bottom: .55rem;
+      color: var(--blue); font-weight: 850; }
+    .toc ul { margin: .25rem 0; padding-left: 1.3rem; columns: 2; column-gap: 2rem; }
+    .toc li { break-inside: avoid; margin: .22rem 0; }
+    .toc a { text-decoration: none; }
+    table { display: block; width: 100%; margin: 1.25rem 0 2rem; overflow-x: auto;
+      border-collapse: collapse; font-size: .91rem; }
+    th,td { min-width: 115px; padding: .72rem .78rem; border: 1px solid var(--line);
+      text-align: left; vertical-align: top; }
+    th { color: var(--blue); background: var(--blue-soft); font-weight: 800; }
+    tr:nth-child(even) td { background: color-mix(in srgb,var(--blue-soft) 32%,transparent); }
+    main > p:has(> img) { width: min(1500px,calc(100vw - 30px)); margin: 1.8rem 50% .75rem;
+      transform: translateX(-50%); }
+    main > p:has(> img) img { display: block; width: 100%; height: auto; padding: .35rem;
+      background: #fff; border: 1px solid var(--line); border-radius: 16px; }
+    main > p:has(> img) + p > em { display: block; color: var(--muted); font-size: .86rem; }
+    .math-block { margin: 1.35rem 0; overflow-x: auto; text-align: center; }
+    code { padding: .12rem .3rem; background: var(--code); border-radius: 5px;
+      font-family: "SFMono-Regular",Consolas,monospace; font-size: .88em; }
+    pre { padding: 1rem; overflow-x: auto; background: var(--code); border: 1px solid var(--line);
+      border-radius: 12px; }
+    pre code { padding: 0; }
+    .local-artifact { color: var(--muted); border-bottom: 1px dotted var(--muted); }
+    footer { width: min(1220px,calc(100% - 32px)); margin: -50px auto 38px;
+      color: var(--muted); text-align: center; font-size: .8rem; }
+    @media (max-width: 700px) {
+      body { font-size: 15px; word-break: normal; }
+      .site-nav { position: static; padding: .5rem .7rem; } .brand { display: none; }
+      .site-nav div { width: 100%; justify-content: center; }
+      main { width: 100%; margin: 0; padding: 24px 18px 70px; border: 0; border-radius: 0; }
+      h1 { font-size: 2.25rem; } .toc ul { columns: 1; }
+      main > p:has(> img) { width: 100vw; padding: 0 10px; overflow-x: auto; }
+      main > p:has(> img) img { min-width: 900px; }
+    }
+  
+    .executive-scorecard { margin: 1.4rem 0 2.4rem; padding: clamp(18px,3vw,30px);
+      border: 1px solid var(--line); border-radius: 20px; background:
+      linear-gradient(145deg,color-mix(in srgb,var(--red-soft) 72%,var(--surface)),
+      color-mix(in srgb,var(--blue-soft) 55%,var(--surface))); }
+    .decision-strip { display: grid; grid-template-columns: max-content 1fr;
+      align-items: center; gap: 1rem; }
+    .decision-strip p { margin: 0; }
+    .status-chip,.status-inline { display: inline-flex; align-items: center;
+      justify-content: center; width: fit-content; padding: .28rem .68rem;
+      border-radius: 999px; font-size: .78rem; font-weight: 900;
+      letter-spacing: .035em; white-space: nowrap; }
+    .status-pass { color: var(--green); background: var(--green-soft);
+      border: 1px solid color-mix(in srgb,var(--green) 45%,transparent); }
+    .status-fail,.status-kill { color: var(--red); background: var(--red-soft);
+      border: 1px solid color-mix(in srgb,var(--red) 42%,transparent); }
+    .score-grid { display: grid; grid-template-columns: repeat(5,minmax(0,1fr));
+      gap: .75rem; margin-top: 1.2rem; }
+    .score-card { min-width: 0; padding: .9rem; background: var(--surface);
+      border: 1px solid var(--line); border-top: 4px solid var(--red);
+      border-radius: 13px; }
+    .score-card.pass { border-top-color: var(--green); }
+    .score-card > span { display: block; color: var(--muted); font-size: .78rem;
+      font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
+    .score-card > strong { display: block; margin: .22rem 0; color: var(--red);
+      font-size: 1rem; }
+    .score-card.pass > strong { color: var(--green); }
+    .score-card p { margin: .2rem 0 0; color: var(--muted); font-size: .78rem;
+      line-height: 1.45; word-break: normal; }
+    .table-shell { width: 100%; margin: 1.25rem 0 2rem; overflow-x: auto;
+      border-radius: 12px; }
+    .table-shell table { margin: 0; }
+    .math-block { padding: 1rem .8rem; background: var(--code);
+      border: 1px solid var(--line); border-radius: 12px; }
+    mjx-container { max-width: 100%; overflow-x: auto; overflow-y: hidden; }
+    .mermaid { margin: 1.4rem 0 2rem; padding: 1.1rem; overflow-x: auto;
+      color: #172033; background: #fff; border: 1px solid var(--line);
+      border-radius: 14px; text-align: center; }
+    .mermaid svg { display: block; min-width: 720px; max-width: 100%;
+      height: auto; margin: 0 auto; }
+    main > p:has(> img) img { box-shadow: 0 12px 32px rgba(28,42,76,.08); }
+    @media (max-width: 900px) { .score-grid { grid-template-columns: repeat(2,1fr); } }
+    @media (max-width: 620px) {
+      .decision-strip { grid-template-columns: 1fr; }
+      .score-grid { grid-template-columns: 1fr; }
+    }
+
+  </style>
+  <script type="module">
+    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+    mermaid.initialize({startOnLoad: true, securityLevel: "strict", theme: "neutral"});
+  </script>
+</head>
+<body>
+  <nav class="site-nav" aria-label="공개 연구 문서">
+    <span class="brand">Independent-AR SpecDec</span>
+    <div>
+      <a href="../">모티베이션</a>
+      <a href="../methods/">이전 방법 검증</a>
+      <a href="../safemove/">SafeMove v0.2</a>
+      <a href="../arr/">ARR v0.1</a>
+      <a href="../coordinate-arr/">Coordinate ARR v0.2</a>
+      <a href="./" aria-current="page">Temporal Teacher v0.3</a>
+      <a href="../ideas/">아이디어</a>
+    </div>
+  </nav>
+  <main><h1 id="temporal-teacher-coordinate-arr-v03-moving-target-joint-method-kill">Temporal-Teacher Coordinate ARR v0.3: moving-target 완화는 부분 성공, joint method는 KILL<a class="headerlink" href="#temporal-teacher-coordinate-arr-v03-moving-target-joint-method-kill" title="이 절의 고정 링크">&para;</a></h1>
+<section class="executive-scorecard" aria-label="EMA .9 engineering 판정">
+  <div class="decision-strip">
+    <span class="status-chip status-kill">ENGINEERING KILL</span>
+    <p><strong>EMA .9는 GPT·OPT의 나쁜 draft leg를 줄였지만 없애지 못했다.</strong>
+    Pythia target NLL과 전체 exact AAL까지 동시에 지키지 못해 selection seeds
+    6–8은 계속 봉인한다.</p>
+  </div>
+  <div class="score-grid">
+    <article class="score-card fail"><span>Target NLL</span><span class="status-inline status-fail">FAIL</span>
+      <p>Pythia +0.0164 &gt; +.005 margin</p></article>
+    <article class="score-card fail"><span>Exact AAL</span><strong>FAIL · 0/3</strong>
+      <p>-0.010 / -0.021 / -0.011</p></article>
+    <article class="score-card pass"><span>EMA target leg</span><strong>PASS · 3/3</strong>
+      <p>+0.005 / +0.079 / +0.011</p></article>
+    <article class="score-card fail"><span>EMA draft leg</span><strong>FAIL · 0/3</strong>
+      <p>-0.014 / -0.100 / -0.022</p></article>
+    <article class="score-card fail"><span>Strong smoothing</span><strong>FAIL · 0/3</strong>
+      <p>0.88 / 0.91 / 0.94; gate ≤ .80</p></article>
+  </div>
+</section>
+
+<blockquote>
+<p><strong>판정:</strong> Stage 0 identity <span class="status-inline status-pass">PASS</span> · GPT/OPT draft-leg repair <span class="status-inline status-pass">PASS</span> ·
+complete Stage 1 <strong>engineering KILL</strong></p>
+<p><strong>범위:</strong> engineering seed <code>99</code>, 세 independent pretrained AR target/drafter pair,
+100-step rank-8 LoRA adaptation. Selection seeds <code>6–8</code>은 계속 sealed다.</p>
+</blockquote>
+<div class="toc">
+<ul>
+<li><a href="#0">0. 한 화면 결론</a></li>
+<li><a href="#1">1. 설정과 문헌상의 위치</a></li>
+<li><a href="#2-update-timeline">2. 목적함수와 정확한 update timeline</a></li>
+<li><a href="#3">3. 사전 고정 설계</a></li>
+<li><a href="#4-identity-implementation-audit">4. Identity와 implementation audit</a></li>
+<li><a href="#5-primary-endpoint">5. Primary endpoint</a><ul>
+<li><a href="#sensitivity">시간척도 sensitivity</a></li>
+</ul>
+</li>
+<li><a href="#6-complete-cross-swap-target-leg-draft-leg">6. Complete cross-swap: target leg는 남고 draft leg가 실패했다</a><ul>
+<li><a href="#oracle-composition-clue">중요한 oracle composition clue</a></li>
+</ul>
+</li>
+<li><a href="#7-mechanism">7. Mechanism과 비용</a></li>
+<li><a href="#8-frozen-gate-ledger">8. Frozen gate ledger와 판정</a></li>
+<li><a href="#9">9. 무엇을 배웠고, 무엇을 아직 말할 수 없는가</a></li>
+<li><a href="#10-v04-online-same-state-draft-update-selectorconsensus">10. v0.4 제안: online same-state draft-update selector/consensus</a></li>
+<li><a href="#11-artifact-provenance">11. 추론 한계와 artifact provenance</a></li>
+</ul>
+</div>
+<h2 id="0">0. 한 화면 결론<a class="headerlink" href="#0" title="이 절의 고정 링크">&para;</a></h2>
+<p>Coordinate-only ARR v0.2에서는 target checkpoint의 조건부 AAL 기여는 세 pair 모두
+양수였지만, live target을 계속 추종한 draft checkpoint가 GPT-2와 OPT에서 크게
+나빴다. v0.3은 target loss를 그대로 두고 drafter가 보는 teacher만 target parameter의
+EMA(<code>mu=.9</code>)로 바꿨다.</p>
+<p>결과는 <strong>부분 repair이지만 main-method 실패</strong>다.</p>
+<ol>
+<li>EMA <code>.9</code>의 <code>target NLL − detach</code>는 GPT-2/OPT/Pythia에서
+   <code>−.000719 / +.001712 / +.016387</code>이었다. Pythia가 frozen <code>+.005</code> margin을 넘었다.</li>
+<li>FP32 eager exact <code>AAL − detach</code>는 <code>−.009536 / −.020501 / −.010823</code>이었다.
+   세 값 모두 사전 floor <code>−.05</code> 안이지만, nonnegative pair가 <code>0/3</code>이라 gate를
+   통과하지 못했다.</li>
+<li>Cross-swap에서 EMA target leg는 <code>+.004625 / +.079471 / +.011363</code>으로 <code>3/3</code>
+   양수였다. 그러나 EMA draft leg는 <code>−.014161 / −.099972 / −.022186</code>으로 <code>0/3</code>
+   양수였다.</li>
+<li>EMA는 기존 live draft leg를 GPT-2에서 <code>+.139781</code>, OPT에서 <code>+.027650</code>만큼
+   회복했지만 부호를 바꾸지 못했다. Pythia에서는 기존의 양의 draft co-adaptation
+   <code>+.069351</code>을 <code>−.022186</code>으로 바꿨다.</li>
+</ol>
+<p>따라서 이번 패널이 지지하는 결론은 좁고 명확하다.</p>
+<blockquote>
+<p><strong>빠르게 움직이는 target teacher를 시간적으로 평활화하면 GPT/OPT의 drafter harm를
+줄일 수 있다. 하지만 negative draft co-adaptation의 충분한 해결책은 아니며,
+하나의 고정 EMA 시간척도는 Pythia의 유익한 co-adaptation까지 제거할 수 있다.</strong></p>
+</blockquote>
+<p><img loading="lazy" decoding="async" alt="Temporal-Teacher ARR의 target NLL–exact AAL Pareto panel" src="../artifacts/coordinate_arr_temporal_teacher_v0_3_stage1_analysis_v2/temporal_teacher_arr_stage1_pareto.png"></p>
+<h2 id="1">1. 설정과 문헌상의 위치<a class="headerlink" href="#1" title="이 절의 고정 링크">&para;</a></h2>
+<p>Target distribution을 <code>p_theta</code>, 독립 drafter를 <code>q_phi</code>라 한다. 두 모델은
+tokenizer-compatible token ID만 공유한다. Backbone, embedding, hidden state, LM head,
+LoRA parameter와 optimizer는 모두 분리돼 있다. MEDUSA, EAGLE, native draft head와
+shared representation은 범위 밖이다.</p>
+<div class="table-shell"><table>
+<thead>
+<tr>
+<th>Reference</th>
+<th>이 패널이 가져온 부분</th>
+<th>이 논문들이 제공하지 않는 것</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://proceedings.neurips.cc/paper_files/paper/2017/hash/68053af2923e00204c3ca7c6a3150cf7-Abstract.html">Mean Teacher, NeurIPS 2017</a></td>
+<td>연속 student weight의 EMA를 frozen teacher로 쓰는 시간 평활화 원리</td>
+<td>independent AR speculative pair의 AAL 또는 joint target 보호 근거</td>
+</tr>
+<tr>
+<td><a href="https://proceedings.mlr.press/v235/liu24y.html">Online Speculative Decoding, ICML 2024</a></td>
+<td>query distribution에서 target-aware draft를 계속 적응시키는 문제 설정</td>
+<td>target LM까지 draft-aware하게 공동 학습하는 방법</td>
+</tr>
+<tr>
+<td><a href="https://arxiv.org/abs/2602.23881">LK Losses</a></td>
+<td>KL proxy 대신 acceptance를 직접 겨냥하는 draft objective; 여기서는 frozen <code>HybridLK</code>, <code>eta=3</code>, <code>gamma=1</code></td>
+<td>temporal teacher나 target-side bidirectional auxiliary</td>
+</tr>
+<tr>
+<td><a href="https://arxiv.org/abs/2605.29343">Draft-OPD</a></td>
+<td>draft-induced state와 rejection feedback을 학습에 반영해야 한다는 on-policy 관점</td>
+<td>본 패널의 별도 pretrained target/drafter joint update에 대한 검증</td>
+</tr>
+</tbody>
+</table></div>
+<p>즉 EMA는 Mean Teacher에서 빌린 <strong>가설적 안정화 장치</strong>이지, 위 문헌이 이 joint setting의
+효과를 보장한다는 뜻이 아니다. Online Speculative Decoding과 Draft-OPD도 주로 drafter
+적응을 다룬다. 본 연구의 빈틈은 별도 pretrained target도 draft-aware하게 움직일 때
+target 보호와 speculative utility를 동시에 확보하는 문제다.</p>
+<h2 id="2-update-timeline">2. 목적함수와 정확한 update timeline<a class="headerlink" href="#2-update-timeline" title="이 절의 고정 링크">&para;</a></h2>
+<p>Step <code>t</code> 시작의 live target과 drafter를 각각 <code>theta_(t-1)</code>, <code>phi_(t-1)</code>라 한다.
+Target은 v0.2와 동일한 weighted proposal-coordinate objective를 쓴다.</p>
+<div class="math-block">\[
+L^T_t=L_{CE}(\theta_{t-1})+
+\frac{\beta}{BK}\sum_{i,k}S^{p_0}_{i,k}\,\omega_{i,k}\,
+\mathbf 1_{active}\,
+H_{Ber}\!\left(m^*_{i,k},p_{\theta_{t-1}}(z_{i,k})\right),
+\qquad \beta=1.
+\]</div>
+<p><code>z</code>는 drafter proposal, <code>m*</code>는 TV <code>.01</code>과 reverse-KL <code>.005</code> 안에서 만든 safe
+proposal mass, <code>omega=min(1,p0(z)/q(z))</code>는 shared-mass responsibility다. Route,
+proposal과 drafter probability는 target backward에서 stop-gradient다. Dense
+<code>p0(.|not z)</code> conditional anchor는 다시 넣지 않았다.</p>
+<p>Drafter만 temporal teacher <code>psi_t</code>를 본다.</p>
+<div class="math-block">\[
+L^D_t=\frac{1}{BK}\sum_{i,k}S^{\psi_t}_{i,k}
+\operatorname{HybridLK}_{\eta=3,\gamma=1}
+\!\left(\operatorname{sg}[p_{\psi_t}],q_{\phi_{t-1}}\right).
+\]</div>
+<p>Teacher logits와 prefix survival은 반드시 같은 <code>psi_t</code>에서 계산한다. EMA main은
+<code>bar(theta)_0=theta_0</code>, <code>psi_t=bar(theta)_(t-1)</code>이고 실제 optimizer step 뒤에</p>
+<div class="math-block">\[
+\bar\theta_t=.9\,\bar\theta_{t-1}+.1\,\theta_t
+\]</div>
+<p>를 적용한다. Teacher는 target의 storage-disjoint full copy이며 LoRA tensor만 이름으로
+pairing해 갱신한다. 모든 teacher parameter는 frozen이고 optimizer와 inference
+checkpoint에 들어가지 않는다.</p>
+<div class="mermaid" role="img" aria-label="Temporal-Teacher ARR 학습 흐름도">flowchart LR
+    A[&quot;q_phi(t-1): K=3 proposal&quot;] --&gt; B[&quot;live p_theta(t-1)&lt;br/&gt;CE + coordinate route&quot;]
+    A --&gt; C[&quot;temporal teacher psi_t&lt;br/&gt;Hybrid LK + teacher survival&quot;]
+    B --&gt; D[&quot;separate target gradient&quot;]
+    C --&gt; E[&quot;separate draft gradient&quot;]
+    D --&gt; F[&quot;target AdamW -&gt; theta_t&quot;]
+    E --&gt; G[&quot;draft AdamW -&gt; phi_t&quot;]
+    F --&gt; H[&quot;post-step EMA -&gt; bar(theta)_t&quot;]
+    G --&gt; H
+</div>
+<p>따라서 정보 경로는 실제로 bidirectional이다. <code>target -&gt; temporal teacher -&gt; draft</code>가
+남아 있고, 바뀐 draft proposal과 responsibility route를 통해 <code>draft -&gt; live target</code>도
+남는다. 다만 EMA teacher 자체는 target graph에 들어가지 않는다.</p>
+<h2 id="3">3. 사전 고정 설계<a class="headerlink" href="#3" title="이 절의 고정 링크">&para;</a></h2>
+<p>Protocol과 primary를 endpoint를 보기 전에
+<span class="local-artifact" title="로컬 연구 workspace 산출물"><code>TEMPORAL_TEACHER_COORDINATE_ARR_V0_3_PROTOCOL_KO.md</code></span>와
+<span class="local-artifact" title="로컬 연구 workspace 산출물"><code>TEMPORAL_TEACHER_COORDINATE_ARR_V0_3_STAGE01_MANIFEST.json</code></span>에
+고정했다.</p>
+<div class="table-shell"><table>
+<thead>
+<tr>
+<th>Arm</th>
+<th>Target auxiliary</th>
+<th>Draft teacher</th>
+<th>역할</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>path_detach</code></td>
+<td>없음</td>
+<td>live</td>
+<td>primary reference</td>
+</tr>
+<tr>
+<td><code>coordinate_arr_main</code></td>
+<td>weighted coordinate</td>
+<td>live</td>
+<td>v0.2 bridge</td>
+</tr>
+<tr>
+<td><code>coordinate_arr_lag1</code></td>
+<td>weighted coordinate</td>
+<td>one-step lag</td>
+<td>delay control</td>
+</tr>
+<tr>
+<td><code>coordinate_arr_ema090</code></td>
+<td>weighted coordinate</td>
+<td>EMA <code>.9</code></td>
+<td><strong>frozen primary</strong></td>
+</tr>
+<tr>
+<td><code>coordinate_arr_ema099</code></td>
+<td>weighted coordinate</td>
+<td>EMA <code>.99</code></td>
+<td>slow-timescale sensitivity</td>
+</tr>
+<tr>
+<td><code>coordinate_arr_unweighted</code></td>
+<td>unweighted coordinate</td>
+<td>live</td>
+<td>strong comparator</td>
+</tr>
+</tbody>
+</table></div>
+<p>공통 recipe는 WikiText-103, 100 steps, batch 4, sequence 64, 25,600 exposed input tokens,
+rank-8 LoRA, target/draft AdamW LR <code>2e-4</code>, warmup 10, BF16 H100 training이다. Exact endpoint는
+WikiText-2/TinyStories/GSM8K text, corpus당 4 prompt, sampling seed <code>{0,1}</code>, <code>K=3</code>, 32 new
+tokens의 FP32 eager reference다.</p>
+<ul>
+<li>Stage 0: 3 pair x 3 arm x 10 steps = 9 training runs</li>
+<li>Stage 1: 3 pair x 6 arm x 100 steps = 18 training runs, 1,800 history rows</li>
+<li>Exact rollout: 18 diagonal + 18 directed cross-swap runs, 1,296 rollout rows</li>
+<li>Cross-swap nodes: detach, coordinate-live, EMA <code>.9</code>의 complete directed triangle</li>
+</ul>
+<p>Primary GO에는 target NLL <code>&lt;=+.005</code> 3/3, AAL nonnegative 최소 2/3와 floor <code>−.05</code>, 두
+comparator 대비 Pareto support, target/draft cross leg, GPT/OPT draft-leg repair, 강한
+temporal smoothing, exact identity, trust/firewall, core cost <code>&lt;=2x</code>를 <strong>모두</strong> 요구했다.
+Lag-1이나 EMA <code>.99</code>가 더 좋아도 primary를 바꿀 수 없게 했다.</p>
+<h2 id="4-identity-implementation-audit">4. Identity와 implementation audit<a class="headerlink" href="#4-identity-implementation-audit" title="이 절의 고정 링크">&para;</a></h2>
+<p>Stage 0에서 live, EMA <code>.0</code>, lag-0를 비교한 target/draft parameter, full Adam state,
+proposal/loss와 endpoint identity <code>36/36</code>이 bit-exact했다. Fresh v0.3 detach/live/unweighted와
+archived v0.2의 parameter hash·endpoint bridge도 <code>72/72</code> 통과했다. 따라서 EMA <code>.9</code>
+차이는 새 launcher나 RNG drift가 아니라 teacher 시간축 조작에서 시작한다.</p>
+<p>모든 Stage-1 run에서 <code>p0</code> checksum, TV/KL trust cap, teacher storage isolation,
+teacher-gradient firewall, teacher optimizer 부재가 확인됐다. Diagonal과 cross-swap을
+합친 36개 FP32 eager rollout 모두 target-only greedy output과 <code>100%</code> 일치했다.</p>
+<h2 id="5-primary-endpoint">5. Primary endpoint<a class="headerlink" href="#5-primary-endpoint" title="이 절의 고정 링크">&para;</a></h2>
+<div class="table-shell"><table>
+<thead>
+<tr>
+<th>Pair</th>
+<th style="text-align: right;">Detach target NLL</th>
+<th style="text-align: right;">EMA <code>.9</code> target NLL</th>
+<th style="text-align: right;">Delta NLL</th>
+<th style="text-align: right;">Detach AAL</th>
+<th style="text-align: right;">EMA <code>.9</code> AAL</th>
+<th style="text-align: right;">Delta AAL</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPT-2 / DistilGPT-2</td>
+<td style="text-align: right;">3.926018</td>
+<td style="text-align: right;">3.925299</td>
+<td style="text-align: right;"><strong>−.000719</strong></td>
+<td style="text-align: right;">2.553517</td>
+<td style="text-align: right;">2.543981</td>
+<td style="text-align: right;"><strong>−.009536</strong></td>
+</tr>
+<tr>
+<td>OPT-350M / OPT-125M</td>
+<td style="text-align: right;">3.654464</td>
+<td style="text-align: right;">3.656176</td>
+<td style="text-align: right;"><strong>+.001712</strong></td>
+<td style="text-align: right;">2.396357</td>
+<td style="text-align: right;">2.375856</td>
+<td style="text-align: right;"><strong>−.020501</strong></td>
+</tr>
+<tr>
+<td>Pythia-410M / Pythia-70M</td>
+<td style="text-align: right;">3.322557</td>
+<td style="text-align: right;">3.338943</td>
+<td style="text-align: right;"><strong>+.016387</strong></td>
+<td style="text-align: right;">1.776046</td>
+<td style="text-align: right;">1.765223</td>
+<td style="text-align: right;"><strong>−.010823</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>EMA <code>.9</code>는 GPT/OPT target NLL margin과 모든 pair의 AAL floor는 지켰다. 그러나 Pythia
+NLL gate와 <code>2/3</code> nonnegative AAL gate를 모두 놓쳤다. 이것은 “거의 GO”가 아니라 frozen
+rule상 명확한 KILL이다.</p>
+<h3 id="sensitivity">시간척도 sensitivity<a class="headerlink" href="#sensitivity" title="이 절의 고정 링크">&para;</a></h3>
+<p>아래는 각 diagonal checkpoint의 detach 대비 차이다.</p>
+<div class="table-shell"><table>
+<thead>
+<tr>
+<th>Pair</th>
+<th>Arm</th>
+<th style="text-align: right;">Delta target NLL</th>
+<th style="text-align: right;">Delta exact AAL</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPT-2</td>
+<td>coordinate-live</td>
+<td style="text-align: right;">+.001238</td>
+<td style="text-align: right;">−.110255</td>
+</tr>
+<tr>
+<td></td>
+<td>lag-1</td>
+<td style="text-align: right;">+.000778</td>
+<td style="text-align: right;">−.081797</td>
+</tr>
+<tr>
+<td></td>
+<td><strong>EMA <code>.9</code></strong></td>
+<td style="text-align: right;"><strong>−.000719</strong></td>
+<td style="text-align: right;"><strong>−.009536</strong></td>
+</tr>
+<tr>
+<td></td>
+<td>EMA <code>.99</code></td>
+<td style="text-align: right;">+.000065</td>
+<td style="text-align: right;">−.152688</td>
+</tr>
+<tr>
+<td></td>
+<td>unweighted-live</td>
+<td style="text-align: right;">+.002960</td>
+<td style="text-align: right;">−.036914</td>
+</tr>
+<tr>
+<td>OPT</td>
+<td>coordinate-live</td>
+<td style="text-align: right;">−.001003</td>
+<td style="text-align: right;">−.117024</td>
+</tr>
+<tr>
+<td></td>
+<td>lag-1</td>
+<td style="text-align: right;">−.001588</td>
+<td style="text-align: right;">−.000924</td>
+</tr>
+<tr>
+<td></td>
+<td><strong>EMA <code>.9</code></strong></td>
+<td style="text-align: right;"><strong>+.001712</strong></td>
+<td style="text-align: right;"><strong>−.020501</strong></td>
+</tr>
+<tr>
+<td></td>
+<td>EMA <code>.99</code></td>
+<td style="text-align: right;">+.000514</td>
+<td style="text-align: right;">−.060252</td>
+</tr>
+<tr>
+<td></td>
+<td>unweighted-live</td>
+<td style="text-align: right;">−.001674</td>
+<td style="text-align: right;">+.008686</td>
+</tr>
+<tr>
+<td>Pythia</td>
+<td>coordinate-live</td>
+<td style="text-align: right;">−.005284</td>
+<td style="text-align: right;">+.150492</td>
+</tr>
+<tr>
+<td></td>
+<td>lag-1</td>
+<td style="text-align: right;">−.011766</td>
+<td style="text-align: right;">+.034934</td>
+</tr>
+<tr>
+<td></td>
+<td><strong>EMA <code>.9</code></strong></td>
+<td style="text-align: right;"><strong>+.016387</strong></td>
+<td style="text-align: right;"><strong>−.010823</strong></td>
+</tr>
+<tr>
+<td></td>
+<td>EMA <code>.99</code></td>
+<td style="text-align: right;">+.026406</td>
+<td style="text-align: right;">−.056092</td>
+</tr>
+<tr>
+<td></td>
+<td>unweighted-live</td>
+<td style="text-align: right;">−.014197</td>
+<td style="text-align: right;">+.103974</td>
+</tr>
+</tbody>
+</table></div>
+<p>EMA <code>.99</code>가 더 안정적이라는 단조 관계는 없었다. EMA <code>.9</code>의 Pareto support도
+coordinate-live 대비 <code>1/3</code>, unweighted-live 대비 <code>0/3</code>으로 사전 최소 <code>2/3</code>에 못 미쳤다.</p>
+<h2 id="6-complete-cross-swap-target-leg-draft-leg">6. Complete cross-swap: target leg는 남고 draft leg가 실패했다<a class="headerlink" href="#6-complete-cross-swap-target-leg-draft-leg" title="이 절의 고정 링크">&para;</a></h2>
+<p>아래 행은 target checkpoint, 열은 draft checkpoint이며 값은 FP32 exact AAL이다.</p>
+<p><strong>GPT-2 / DistilGPT-2</strong></p>
+<div class="table-shell"><table>
+<thead>
+<tr>
+<th>Target \ Draft</th>
+<th style="text-align: right;">Detach</th>
+<th style="text-align: right;">Coordinate live</th>
+<th style="text-align: right;">EMA <code>.9</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Detach</td>
+<td style="text-align: right;">2.553517</td>
+<td style="text-align: right;">2.399575</td>
+<td style="text-align: right;">2.539356</td>
+</tr>
+<tr>
+<td>Coordinate live</td>
+<td style="text-align: right;">2.547809</td>
+<td style="text-align: right;">2.443263</td>
+<td style="text-align: right;"><strong>2.603245</strong></td>
+</tr>
+<tr>
+<td>EMA <code>.9</code></td>
+<td style="text-align: right;">2.570230</td>
+<td style="text-align: right;">2.422820</td>
+<td style="text-align: right;">2.543981</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>OPT-350M / OPT-125M</strong></p>
+<div class="table-shell"><table>
+<thead>
+<tr>
+<th>Target \ Draft</th>
+<th style="text-align: right;">Detach</th>
+<th style="text-align: right;">Coordinate live</th>
+<th style="text-align: right;">EMA <code>.9</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Detach</td>
+<td style="text-align: right;">2.396357</td>
+<td style="text-align: right;">2.268735</td>
+<td style="text-align: right;">2.296385</td>
+</tr>
+<tr>
+<td>Coordinate live</td>
+<td style="text-align: right;">2.408164</td>
+<td style="text-align: right;">2.279334</td>
+<td style="text-align: right;"><strong>2.359321</strong></td>
+</tr>
+<tr>
+<td>EMA <code>.9</code></td>
+<td style="text-align: right;">2.339603</td>
+<td style="text-align: right;">2.342353</td>
+<td style="text-align: right;">2.375856</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Pythia-410M / Pythia-70M</strong></p>
+<div class="table-shell"><table>
+<thead>
+<tr>
+<th>Target \ Draft</th>
+<th style="text-align: right;">Detach</th>
+<th style="text-align: right;">Coordinate live</th>
+<th style="text-align: right;">EMA <code>.9</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Detach</td>
+<td style="text-align: right;">1.776046</td>
+<td style="text-align: right;">1.845398</td>
+<td style="text-align: right;">1.753860</td>
+</tr>
+<tr>
+<td>Coordinate live</td>
+<td style="text-align: right;">1.830418</td>
+<td style="text-align: right;">1.926538</td>
+<td style="text-align: right;"><strong>1.922011</strong></td>
+</tr>
+<tr>
+<td>EMA <code>.9</code></td>
+<td style="text-align: right;">1.802538</td>
+<td style="text-align: right;">1.779100</td>
+<td style="text-align: right;">1.765223</td>
+</tr>
+</tbody>
+</table></div>
+<p>Detach를 reference node로 둔 핵심 조건부 leg는 다음과 같다.</p>
+<div class="table-shell"><table>
+<thead>
+<tr>
+<th>Pair</th>
+<th style="text-align: right;">Live target leg given live draft</th>
+<th style="text-align: right;">Live draft leg given detach target</th>
+<th style="text-align: right;">EMA target leg given EMA draft</th>
+<th style="text-align: right;">EMA draft leg given detach target</th>
+<th style="text-align: right;">EMA draft repair vs live</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPT-2</td>
+<td style="text-align: right;">+.043688</td>
+<td style="text-align: right;">−.153942</td>
+<td style="text-align: right;"><strong>+.004625</strong></td>
+<td style="text-align: right;"><strong>−.014161</strong></td>
+<td style="text-align: right;"><strong>+.139781</strong></td>
+</tr>
+<tr>
+<td>OPT</td>
+<td style="text-align: right;">+.010598</td>
+<td style="text-align: right;">−.127622</td>
+<td style="text-align: right;"><strong>+.079471</strong></td>
+<td style="text-align: right;"><strong>−.099972</strong></td>
+<td style="text-align: right;"><strong>+.027650</strong></td>
+</tr>
+<tr>
+<td>Pythia</td>
+<td style="text-align: right;">+.081140</td>
+<td style="text-align: right;">+.069351</td>
+<td style="text-align: right;"><strong>+.011363</strong></td>
+<td style="text-align: right;"><strong>−.022186</strong></td>
+<td style="text-align: right;"><strong>−.091537</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>EMA target leg의 frozen estimand는
+<code>AAL(T_ema,D_ema) − AAL(T_detach,D_ema)</code>이고 세 pair 모두 양수다. EMA draft leg는
+<code>AAL(T_detach,D_ema) − AAL(T_detach,D_detach)</code>이며 세 pair 모두 음수다. OPT는
+<code>−.099972</code>로 floor <code>−.05</code>도 넘었다. 즉 target checkpoint가 co-adapted draft 조건에서
+제공하는 acceptance utility는 남았지만, draft checkpoint 자체의 병목은 해결되지 않았다.</p>
+<p><img loading="lazy" decoding="async" alt="Live와 EMA target/draft conditional legs" src="../artifacts/coordinate_arr_temporal_teacher_v0_3_stage1_analysis_v2/temporal_teacher_arr_stage1_cross_legs.png"></p>
+<h3 id="oracle-composition-clue">중요한 oracle composition clue<a class="headerlink" href="#oracle-composition-clue" title="이 절의 고정 링크">&para;</a></h3>
+<p>Cross triangle의 <code>T_coordinate-live + D_EMA.9</code> 조합은 다음과 같다.</p>
+<div class="table-shell"><table>
+<thead>
+<tr>
+<th>Pair</th>
+<th style="text-align: right;">Coordinate-live target Delta NLL vs detach</th>
+<th style="text-align: right;">Cross-composed AAL</th>
+<th style="text-align: right;">Delta AAL vs detach</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPT-2</td>
+<td style="text-align: right;">+.001238</td>
+<td style="text-align: right;">2.603245</td>
+<td style="text-align: right;"><strong>+.049728</strong></td>
+</tr>
+<tr>
+<td>OPT</td>
+<td style="text-align: right;">−.001003</td>
+<td style="text-align: right;">2.359321</td>
+<td style="text-align: right;"><strong>−.037037</strong></td>
+</tr>
+<tr>
+<td>Pythia</td>
+<td style="text-align: right;">−.005284</td>
+<td style="text-align: right;">1.922011</td>
+<td style="text-align: right;"><strong>+.145965</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>이 조합은 target 보호 margin을 3/3 지키면서 AAL을 2/3 pair에서 높였다. 그러나 서로
+다른 training trajectory에서 가져온 checkpoint의 <strong>조건부/oracle cross-composition</strong>일
+뿐, 하나의 deployable jointly trained method도 아니고 diagonal effect의 mediation
+decomposition도 아니다. 다만 target 역할과 draft 역할을 같은 temporal rule에 묶지 말아야
+한다는 v0.4 설계 단서는 제공한다.</p>
+<h2 id="7-mechanism">7. Mechanism과 비용<a class="headerlink" href="#7-mechanism" title="이 절의 고정 링크">&para;</a></h2>
+<p>Steps <code>{1,10,...,100}</code>에서 같은 draft state에 actual temporal-teacher gradient와
+live-teacher counterfactual gradient를 함께 계산했다. 이 branch는 진단용이며 실제
+optimizer trajectory를 바꾸지 않는다.</p>
+<div class="table-shell"><table>
+<thead>
+<tr>
+<th>Pair</th>
+<th style="text-align: right;">Mean live/teacher output TV</th>
+<th style="text-align: right;">Mean draft-gradient cosine</th>
+<th style="text-align: right;">Mean temporal drift ratio</th>
+<th style="text-align: right;">Core cost / coordinate-live</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPT-2</td>
+<td style="text-align: right;">.0732</td>
+<td style="text-align: right;">.9604</td>
+<td style="text-align: right;">.8815</td>
+<td style="text-align: right;">1.154x</td>
+</tr>
+<tr>
+<td>OPT</td>
+<td style="text-align: right;">.0449</td>
+<td style="text-align: right;">.9710</td>
+<td style="text-align: right;">.9100</td>
+<td style="text-align: right;">1.092x</td>
+</tr>
+<tr>
+<td>Pythia</td>
+<td style="text-align: right;">.1027</td>
+<td style="text-align: right;">.6463</td>
+<td style="text-align: right;">.9354</td>
+<td style="text-align: right;">1.166x</td>
+</tr>
+</tbody>
+</table></div>
+<p>Treatment는 세 pair 모두 nonzero였고 teacher가 실제 draft gradient를 바꿨다. 하지만
+frozen smoothing gate는 모든 ratio <code>&lt;=1</code>, 최소 2/3이 <code>&lt;=.8</code>이어야 했다. 세 pair 모두
+<code>.8</code>보다 커서 <code>0/3</code> strong smoothing으로 실패했다. 표의 ratio는 정의 가능한 diagnostic
+step별 same-probe <code>teacher drift / live drift</code>의 평균이며 step이나 probe는 독립 replicate가
+아니다. Core cost는 instrumentation 시간을 제외하며 사전 <code>2x</code> ceiling을 모두 통과했다.</p>
+<p><img loading="lazy" decoding="async" alt="Temporal output drift와 draft-gradient treatment" src="../artifacts/coordinate_arr_temporal_teacher_v0_3_stage1_analysis_v2/temporal_teacher_arr_stage1_drift.png"></p>
+<h2 id="8-frozen-gate-ledger">8. Frozen gate ledger와 판정<a class="headerlink" href="#8-frozen-gate-ledger" title="이 절의 고정 링크">&para;</a></h2>
+<div class="table-shell"><table>
+<thead>
+<tr>
+<th>Gate</th>
+<th>결과</th>
+<th>근거</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Stage-0 bit identity</td>
+<td><span class="status-inline status-pass">PASS</span></td>
+<td>36/36</td>
+</tr>
+<tr>
+<td>Archived v0.2 bridge</td>
+<td><span class="status-inline status-pass">PASS</span></td>
+<td>72/72</td>
+</tr>
+<tr>
+<td>Target NLL non-inferiority</td>
+<td><span class="status-inline status-fail">FAIL</span></td>
+<td>Pythia <code>+.016387 &gt; +.005</code></td>
+</tr>
+<tr>
+<td>Exact diagonal AAL</td>
+<td><span class="status-inline status-fail">FAIL</span></td>
+<td>nonnegative <code>0/3</code>, required <code>2/3</code></td>
+</tr>
+<tr>
+<td>Component Pareto support</td>
+<td><span class="status-inline status-fail">FAIL</span></td>
+<td>live <code>1/3</code>, unweighted <code>0/3</code></td>
+</tr>
+<tr>
+<td>EMA target conditional leg</td>
+<td><span class="status-inline status-pass">PASS</span></td>
+<td>positive <code>3/3</code></td>
+</tr>
+<tr>
+<td>EMA draft conditional leg</td>
+<td><span class="status-inline status-fail">FAIL</span></td>
+<td>positive <code>0/3</code>; OPT below floor</td>
+</tr>
+<tr>
+<td>GPT/OPT draft-leg repair vs live</td>
+<td><span class="status-inline status-pass">PASS</span></td>
+<td><code>+.139781 / +.027650</code></td>
+</tr>
+<tr>
+<td>Strong temporal smoothing</td>
+<td><span class="status-inline status-fail">FAIL</span></td>
+<td>ratio <code>&lt;=.8</code>가 <code>0/3</code></td>
+</tr>
+<tr>
+<td>Bidirectional temporal treatment</td>
+<td><span class="status-inline status-pass">PASS</span></td>
+<td>target route와 teacher/gradient difference nonzero <code>3/3</code></td>
+</tr>
+<tr>
+<td>Exact greedy output</td>
+<td><span class="status-inline status-pass">PASS</span></td>
+<td>36/36 rollout, minimum rate <code>1.0</code></td>
+</tr>
+<tr>
+<td>Core training cost</td>
+<td><span class="status-inline status-pass">PASS</span></td>
+<td><code>1.09–1.17x &lt;= 2x</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>모든 component가 통과해야 한다는 frozen conjunction에 따라 최종 decision은
+<strong><code>kill_engineering_stage1</code></strong>이다. <code>coordinate_arr_ema090</code>을 selection stage로 올리지
+않으며 seeds <code>6–8</code>은 열지 않는다.</p>
+<h2 id="9">9. 무엇을 배웠고, 무엇을 아직 말할 수 없는가<a class="headerlink" href="#9" title="이 절의 고정 링크">&para;</a></h2>
+<ol>
+<li><strong>Moving-target chasing은 원인의 일부다.</strong> EMA가 GPT/OPT의 매우 나쁜 live draft leg를
+   줄였다는 점은 temporal instability 가설을 지지한다.</li>
+<li><strong>그것만이 원인은 아니다.</strong> EMA draft leg는 여전히 3/3 음수다. Proposal coverage,
+   teacher bias, route weighting과 optimizer history 같은 다른 요인이 남아 있다.</li>
+<li><strong>고정 시간척도는 architecture-robust하지 않다.</strong> Pythia의 유익한 live co-adaptation을
+   EMA가 제거했고, 더 느린 EMA <code>.99</code>도 일관되게 낫지 않았다.</li>
+<li><strong>Target objective가 같아도 target endpoint는 달라진다.</strong> EMA가 draft trajectory를
+   바꾸고, 그 proposal과 route가 다시 target coordinate update를 바꾸므로 Pythia target
+   NLL까지 악화될 수 있다.</li>
+<li><strong>양의 target leg는 target 품질 보증이 아니다.</strong> 이는 특정 draft checkpoint를 고정한
+   AAL 조건부 효과이며 cumulative target-quality causal effect가 아니다.</li>
+</ol>
+<p>Teacher-forced overlap은 actual acceptance length가 아니다. 본 보고서의 AAL은 stochastic
+FP32 eager rollout row에서 다시 계산했고 greedy row는 lossless identity에만 썼다.
+Cross-swap은 conditional checkpoint effect이며 고유한 additive causal decomposition이
+아니다.</p>
+<h2 id="10-v04-online-same-state-draft-update-selectorconsensus">10. v0.4 제안: online same-state draft-update selector/consensus<a class="headerlink" href="#10-v04-online-same-state-draft-update-selectorconsensus" title="이 절의 고정 링크">&para;</a></h2>
+<p>다음 가설은 고정 EMA decay를 하나 더 시험하는 것이 아니다. <strong>Target 역할은 보호가 확인된
+coordinate-live trajectory에 두고, draft update만 현재 verifier evidence에 따라
+same-state에서 선택</strong>하는 것이다.</p>
+<div class="mermaid" role="img" aria-label="Temporal-Teacher ARR 학습 흐름도">flowchart LR
+    A[&quot;same pre-step draft + Adam state&quot;] --&gt; B[&quot;live-teacher candidate&quot;]
+    A --&gt; C[&quot;EMA candidate&quot;]
+    A --&gt; D[&quot;lag / no-update fallback&quot;]
+    B --&gt; E[&quot;held-out on-policy proposals&lt;br/&gt;live-target verification&quot;]
+    C --&gt; E
+    D --&gt; E
+    E --&gt; F[&quot;utility + consensus gate&quot;]
+    F --&gt; G[&quot;commit one draft parameter&lt;br/&gt;and full Adam state atomically&quot;]
+    H[&quot;protected coordinate-live target update&quot;] --&gt; G
+</div>
+<p>구체적인 prospective v0.4는 다음을 분리해야 한다.</p>
+<ul>
+<li>같은 draft parameter와 full Adam pre-state에서 live/EMA/lag/no-update 후보를 만든다.</li>
+<li>training loss를 다시 보지 않고 별도 held-out on-policy proposal에서 current live target의
+  acceptance proxy 또는 짧은 exact verification utility를 평가한다.</li>
+<li>live와 EMA gradient가 합의하지 않거나 candidate utility가 fallback보다 낮으면 update를
+  거부한다. 고정 decay 대신 상태별 consensus가 temporal bias–variance를 조절한다.</li>
+<li>선택된 parameter만 가져오지 말고 그 candidate의 <strong>full Adam state를 함께</strong> commit한다.</li>
+<li>Target-side coordinate objective와 target Adam은 그대로 분리해 target 보호를 유지한다.</li>
+</ul>
+<p>이는 위 oracle composition을 실제 online rule로 근사하려는 <strong>future work</strong>다. 아직 구현,
+비용 측정, GO/KILL manifest나 효능 근거는 없다. 다음 패널은 먼저 seed 99에서 selector의
+same-state identity, no-update fallback, optimizer-state atomicity와 exact AAL gate를 통과한
+뒤에만 새 selection seed를 논의해야 한다.</p>
+<h2 id="11-artifact-provenance">11. 추론 한계와 artifact provenance<a class="headerlink" href="#11-artifact-provenance" title="이 절의 고정 링크">&para;</a></h2>
+<p>이번 패널은 노출된 engineering seed <code>99</code> 하나다. Training seed가 inferential unit이며,
+세 model pair, diagnostic step, token, prompt, corpus, sampling seed와 decoding round를 IID
+replicate로 취급하지 않는다. 따라서 architecture-general efficacy, 유의성 또는
+confirmatory claim은 하지 않는다.</p>
+<p>Fail-loud gate는 먼저 <code>analysis_v1</code>에 materialize됐다. 아래 <code>analysis_v2</code>는 raw input과
+gate JSON이 동일한 layout-only visual reanalysis이며 drift figure의 title/legend 배치만
+고쳤다. 수치 표와 그림의 공개 기준은 다음 파일이다.</p>
+<div class="table-shell"><table>
+<thead>
+<tr>
+<th>역할</th>
+<th>Artifact</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Frozen decision</td>
+<td><span class="local-artifact" title="로컬 연구 workspace 산출물"><code>temporal_teacher_arr_stage1_engineering_gate.json</code></span> <code>artifacts/coordinate_arr_temporal_teacher_v0_3_stage1_analysis_v2/temporal_teacher_arr_stage1_engineering_gate.json</code></td>
+</tr>
+<tr>
+<td>Run/endpoint table</td>
+<td><span class="local-artifact" title="로컬 연구 workspace 산출물"><code>temporal_teacher_arr_stage1_run_metrics.csv</code></span> <code>artifacts/coordinate_arr_temporal_teacher_v0_3_stage1_analysis_v2/temporal_teacher_arr_stage1_run_metrics.csv</code></td>
+</tr>
+<tr>
+<td>Paired contrasts</td>
+<td><span class="local-artifact" title="로컬 연구 workspace 산출물"><code>temporal_teacher_arr_stage1_pairwise_contrasts.csv</code></span> <code>artifacts/coordinate_arr_temporal_teacher_v0_3_stage1_analysis_v2/temporal_teacher_arr_stage1_pairwise_contrasts.csv</code></td>
+</tr>
+<tr>
+<td>Temporal diagnostics/summary</td>
+<td><span class="local-artifact" title="로컬 연구 workspace 산출물"><code>temporal_teacher_arr_stage1_diagnostics.csv</code></span> <code>artifacts/coordinate_arr_temporal_teacher_v0_3_stage1_analysis_v2/temporal_teacher_arr_stage1_diagnostics.csv</code>, <span class="local-artifact" title="로컬 연구 workspace 산출물"><code>temporal_teacher_arr_stage1_temporal_summary.csv</code></span> <code>artifacts/coordinate_arr_temporal_teacher_v0_3_stage1_analysis_v2/temporal_teacher_arr_stage1_temporal_summary.csv</code></td>
+</tr>
+<tr>
+<td>Complete cross triangle/effects</td>
+<td><span class="local-artifact" title="로컬 연구 workspace 산출물"><code>temporal_teacher_arr_stage1_cross_swap_matrix.csv</code></span> <code>artifacts/coordinate_arr_temporal_teacher_v0_3_stage1_analysis_v2/temporal_teacher_arr_stage1_cross_swap_matrix.csv</code>, <span class="local-artifact" title="로컬 연구 workspace 산출물"><code>temporal_teacher_arr_stage1_cross_swap_effects.csv</code></span> <code>artifacts/coordinate_arr_temporal_teacher_v0_3_stage1_analysis_v2/temporal_teacher_arr_stage1_cross_swap_effects.csv</code></td>
+</tr>
+<tr>
+<td>Stage-0/v0.2 bridge</td>
+<td><span class="local-artifact" title="로컬 연구 workspace 산출물"><code>temporal_teacher_arr_stage0_identity_checks.csv</code></span> <code>artifacts/coordinate_arr_temporal_teacher_v0_3_stage1_analysis_v2/temporal_teacher_arr_stage0_identity_checks.csv</code>, <span class="local-artifact" title="로컬 연구 workspace 산출물"><code>temporal_teacher_arr_v02_bridge_checks.csv</code></span> <code>artifacts/coordinate_arr_temporal_teacher_v0_3_stage1_analysis_v2/temporal_teacher_arr_v02_bridge_checks.csv</code></td>
+</tr>
+<tr>
+<td>Hashes/counts/guardrails</td>
+<td><span class="local-artifact" title="로컬 연구 workspace 산출물"><code>temporal_teacher_arr_stage1_analysis_manifest.json</code></span> <code>artifacts/coordinate_arr_temporal_teacher_v0_3_stage1_analysis_v2/temporal_teacher_arr_stage1_analysis_manifest.json</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>Raw roots는 아래와 같다.</p>
+<ul>
+<li><code>runs/coordinate_arr_temporal_teacher_v0_3_stage0_identities_v1</code></li>
+<li><code>runs/coordinate_arr_temporal_teacher_v0_3_stage1_engineering_v1</code></li>
+<li><code>runs/coordinate_arr_temporal_teacher_v0_3_stage1_fp32_rollouts_v1</code></li>
+<li><code>runs/coordinate_arr_temporal_teacher_v0_3_stage1_fp32_cross_swaps_v1</code></li>
+</ul></main>
+  <footer>Temporal-Teacher Coordinate ARR v0.3 · Stage 0 PASS · Stage 1 engineering KILL · 2026-07-17</footer>
+</body>
+</html>
