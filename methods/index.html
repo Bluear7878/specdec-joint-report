@@ -1,0 +1,682 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="독립 pretrained AR target-drafter의 bidirectional Hybrid LK 학습에서 Adam-state interference를 5개 training seed로 재현하고 exact controller의 frozen target-NLL engineering margin 및 FP32 exact-AAL Pareto gate를 검증한 결과 보고서.">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Optimizer-state 기전과 exact-controller 검증">
+  <meta property="og:description" content="독립 pretrained AR target-drafter의 bidirectional Hybrid LK 학습에서 Adam-state interference를 5개 training seed로 재현하고 exact controller의 frozen target-NLL engineering margin 및 FP32 exact-AAL Pareto gate를 검증한 결과 보고서.">
+  <meta property="og:url" content="https://bluear7878.github.io/specdec-joint-report/methods/">
+  <meta property="og:image" content="https://bluear7878.github.io/specdec-joint-report/figures/figure_11_exact_controller_pareto.png">
+  <meta property="og:image:alt" content="Exact controller가 detach 대비 NLL engineering margin을 통과하지만 norm cap과 linear gate를 이기지 못한 Pareto dashboard">
+  <meta property="og:image:width" content="3078">
+  <meta property="og:image:height" content="1227">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://bluear7878.github.io/specdec-joint-report/figures/figure_11_exact_controller_pareto.png">
+  <link rel="canonical" href="https://bluear7878.github.io/specdec-joint-report/methods/">
+  <title>Optimizer-state 기전과 exact-controller 검증</title>
+  <script>
+    window.MathJax = {
+      tex: {inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']]},
+      chtml: {scale: 0.94}
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f4f6fa; --surface: #fff; --text: #172033; --muted: #657087;
+      --line: #dce3ed; --blue: #315fa8; --blue-soft: #eaf1fb;
+      --green: #16815d; --green-soft: #e8f6ef; --red: #b93845;
+      --red-soft: #fff0f1; --amber: #b66a16; --code: #f2f4f8;
+      --shadow: 0 18px 50px rgba(28,42,76,.09);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0d1118; --surface: #151a23; --text: #e8edf5; --muted: #aab5c7;
+        --line: #303846; --blue: #9db8f4; --blue-soft: #202c43;
+        --green: #76d7b4; --green-soft: #17352d; --red: #ff9aa4;
+        --red-soft: #3f242a; --amber: #f3b56c; --code: #222936; --shadow: none;
+      }
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; background: var(--bg); color: var(--text); font-family:
+      Pretendard,"Noto Sans KR",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      font-size: 16.5px; line-height: 1.72; word-break: keep-all; }
+    .site-nav { position: sticky; top: 0; z-index: 20; display: flex;
+      justify-content: space-between; align-items: center; min-height: 58px;
+      padding: 0 max(22px,calc((100vw - 1220px)/2)); background:
+      color-mix(in srgb,var(--bg) 87%,transparent); border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(16px); }
+    .brand { font-weight: 850; }
+    .site-nav div { display: flex; gap: .45rem; }
+    .site-nav a { padding: .36rem .66rem; color: var(--muted); border-radius: 999px;
+      text-decoration: none; font-size: .87rem; font-weight: 750; }
+    .site-nav a:hover,.site-nav a[aria-current="page"] { color: var(--blue);
+      background: var(--blue-soft); }
+    main { width: min(1220px,calc(100% - 32px)); margin: 30px auto 80px;
+      padding: clamp(26px,5vw,72px); background: var(--surface); border: 1px solid var(--line);
+      border-radius: 24px; box-shadow: var(--shadow); overflow: hidden; }
+    h1,h2,h3 { line-height: 1.28; letter-spacing: -.028em; }
+    h1 { max-width: 1050px; margin: .2rem 0 1rem; font-size: clamp(2.2rem,5.5vw,4.3rem); }
+    h2 { margin: 4rem 0 1.1rem; padding-top: 1.1rem; border-top: 1px solid var(--line);
+      font-size: clamp(1.65rem,3vw,2.3rem); }
+    h3 { margin: 1.6rem 0 .65rem; font-size: 1.28rem; }
+    .headerlink { margin-left: .35rem; opacity: 0; text-decoration: none; }
+    h2:hover .headerlink,h3:hover .headerlink { opacity: .65; }
+    p { max-width: 940px; }
+    a { color: var(--blue); text-underline-offset: 3px; }
+    blockquote { max-width: 1000px; margin: 1.6rem 0; padding: 1.15rem 1.35rem;
+      background: linear-gradient(125deg,var(--green-soft),var(--blue-soft));
+      border-left: 5px solid var(--green); border-radius: 0 14px 14px 0; }
+    blockquote p { margin: 0; }
+    .toc { margin: 2rem 0 3rem; padding: 1.2rem 1.4rem; background: var(--blue-soft);
+      border: 1px solid var(--line); border-radius: 14px; }
+    .toc::before { content: "검증 지도"; display: block; margin-bottom: .55rem;
+      color: var(--blue); font-weight: 850; }
+    .toc ul { margin: .25rem 0; padding-left: 1.3rem; columns: 2; column-gap: 2rem; }
+    .toc li { break-inside: avoid; margin: .22rem 0; }
+    .toc a { text-decoration: none; }
+    table { display: block; width: 100%; margin: 1.25rem 0 2rem; overflow-x: auto;
+      border-collapse: collapse; font-size: .91rem; }
+    th,td { min-width: 115px; padding: .72rem .78rem; border: 1px solid var(--line);
+      text-align: left; vertical-align: top; }
+    th { color: var(--blue); background: var(--blue-soft); font-weight: 800; }
+    tr:nth-child(even) td { background: color-mix(in srgb,var(--blue-soft) 32%,transparent); }
+    main > p:has(> img) { width: min(1500px,calc(100vw - 30px)); margin: 1.8rem 50% .75rem;
+      transform: translateX(-50%); }
+    main > p:has(> img) img { display: block; width: 100%; height: auto; padding: .35rem;
+      background: #fff; border: 1px solid var(--line); border-radius: 16px; }
+    main > p:has(> img) + p > em { display: block; color: var(--muted); font-size: .86rem; }
+    .math-block { margin: 1.35rem 0; overflow-x: auto; text-align: center; }
+    code { padding: .12rem .3rem; background: var(--code); border-radius: 5px;
+      font-family: "SFMono-Regular",Consolas,monospace; font-size: .88em; }
+    pre { padding: 1rem; overflow-x: auto; background: var(--code); border: 1px solid var(--line);
+      border-radius: 12px; }
+    pre code { padding: 0; }
+    .local-artifact { color: var(--muted); border-bottom: 1px dotted var(--muted); }
+    footer { width: min(1220px,calc(100% - 32px)); margin: -50px auto 38px;
+      color: var(--muted); text-align: center; font-size: .8rem; }
+    @media (max-width: 700px) {
+      body { font-size: 15px; word-break: normal; }
+      .site-nav { position: static; padding: .5rem .7rem; } .brand { display: none; }
+      .site-nav div { width: 100%; justify-content: center; }
+      main { width: 100%; margin: 0; padding: 24px 18px 70px; border: 0; border-radius: 0; }
+      h1 { font-size: 2.25rem; } .toc ul { columns: 1; }
+      main > p:has(> img) { width: 100vw; padding: 0 10px; overflow-x: auto; }
+      main > p:has(> img) img { min-width: 900px; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="site-nav" aria-label="공개 연구 문서">
+    <span class="brand">Independent-AR SpecDec</span>
+    <div>
+      <a href="../">모티베이션 증거</a>
+      <a href="./" aria-current="page">방법 검증 결과</a>
+      <a href="../ideas/">후속 아이디어</a>
+    </div>
+  </nav>
+  <main><h1 id="ar-speculative-co-training-optimizer-state">독립 AR speculative co-training의 optimizer-state 기전과 방법 검증<a class="headerlink" href="#ar-speculative-co-training-optimizer-state" title="이 절의 고정 링크">&para;</a></h1>
+<blockquote>
+<p>Mechanism replication · exact-controller negative result · 2026-07-16
+범위: parameter, representation, LM head, LoRA, optimizer를 공유하지 않는 두
+pretrained autoregressive model
+판정: <strong>기전 GO · 현재 controller는 main method KILL · top-tier main-track NO-GO</strong></p>
+</blockquote>
+<div class="toc">
+<ul>
+<li><a href="#0">0. 한 화면 결론</a></li>
+<li><a href="#1-loss-setting">1. 정확히 어떤 loss와 setting인가</a></li>
+<li><a href="#2-stage-gated">2. Stage-gated 검증 설계</a></li>
+<li><a href="#3-parameter-candidate-adam-state-22">3. 기전: parameter candidate와 Adam state의 2×2 분리</a><ul>
+<li><a href="#31-selection-replication">3.1 Selection과 replication</a></li>
+<li><a href="#32-identity">3.2 구현 identity</a></li>
+</ul>
+</li>
+<li><a href="#4-exact-candidate-replay">4. Exact candidate replay: 첫 가설은 반증됐다</a></li>
+<li><a href="#5-atomic-exact-controller">5. Atomic exact controller</a><ul>
+<li><a href="#51-target-nll-margin-engagement">5.1 Target NLL margin과 engagement</a></li>
+<li><a href="#52-fp32-exact-acceptance">5.2 FP32 exact acceptance</a></li>
+<li><a href="#53">5.3 비용</a></li>
+</ul>
+</li>
+<li><a href="#6-frozen-decision-top-tier">6. Frozen decision과 top-tier 판정</a><ul>
+<li><a href="#61-main-track">6.1 지금 main-track에 낼 수 있는가</a></li>
+</ul>
+</li>
+<li><a href="#7-novelty">7. Novelty 경계</a></li>
+<li><a href="#8">8. 재현성과 산출물</a></li>
+</ul>
+</div>
+<h2 id="0">0. 한 화면 결론<a class="headerlink" href="#0" title="이 절의 고정 링크">&para;</a></h2>
+<p>이번 후속 연구는 두 질문을 분리했다.</p>
+<ol>
+<li><strong>기전:</strong> target-side acceptance loss가 당장 적용되는 target update뿐 아니라
+   이후 AdamW state를 통해서도 target 품질을 해치는가?</li>
+<li><strong>방법:</strong> 동일 pre-state에서 실제 AdamW candidate를 평가하는 exact gate가
+   target 품질을 지키면서 단순 norm cap·linear gate보다 더 나은 acceptance를 주는가?</li>
+</ol>
+<p>판정은 비대칭이다.</p>
+<table>
+<thead>
+<tr>
+<th>축</th>
+<th>사전 기준</th>
+<th style="text-align: right;">결과</th>
+<th>판정</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2×2 optimizer-state 기전</td>
+<td>3 pair 중 2 pair 이상에서 harm·recovery</td>
+<td style="text-align: right;">3/3 pair, 5/5 seed/pair 동일 방향</td>
+<td><strong>GO</strong></td>
+</tr>
+<tr>
+<td>Exact controller NLL safety</td>
+<td>모든 pair 평균 <code>≤ +0.010</code>, 각 pair 2/3 seed</td>
+<td style="text-align: right;">3/3 pair, 9/9 seed</td>
+<td><strong>PASS</strong></td>
+</tr>
+<tr>
+<td>Exact controller AAL vs detach</td>
+<td>2/3 pair <code>≥ +0.05</code>, 어느 pair도 <code>&lt; −0.05</code> 아님</td>
+<td style="text-align: right;">GPT <code>+0.090</code>, OPT <code>+0.035</code>, Pythia <code>+0.070</code></td>
+<td><strong>PASS</strong></td>
+</tr>
+<tr>
+<td>Exact vs linear Pareto</td>
+<td>2/3 pair</td>
+<td style="text-align: right;">0/3</td>
+<td><strong>FAIL</strong></td>
+</tr>
+<tr>
+<td>Exact vs cap Pareto</td>
+<td>2/3 pair</td>
+<td style="text-align: right;">0/3</td>
+<td><strong>FAIL</strong></td>
+</tr>
+<tr>
+<td>현재 형태의 main method</td>
+<td>위 조건 모두</td>
+<td style="text-align: right;">comparator superiority 실패</td>
+<td><strong>KILL</strong></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>핵심 결론.</strong> Target-side draft-aware loss의 optimizer-state interference는
+독립 seed에서 강하게 재현됐다. Exact gate는 detach 대비 사전 <code>+0.010</code> target-NLL
+engineering margin 안에서 acceptance를 회수했다. 그러나 더 단순하고 저렴한
+cap/linear baseline을 이기지 못했으므로,
+현재 결과는 <strong>좋은 mechanism paper의 씨앗</strong>이지 top-tier main-track에 제출할
+완성된 method result는 아니다.</p>
+</blockquote>
+<p><img alt="Exact controller가 detach 대비 target safety와 acceptance를 일부 회수하지만 linear와 norm cap 대비 Pareto 우위를 만들지 못한 결과 dashboard" src="../figures/figure_11_exact_controller_pareto.png"></p>
+<p><em>그림 1. 점은 seeds 3–5의 pair 평균이다. x축은 detach 대비 target NLL 변화로
+왼쪽이 좋고, y축은 matched-prompt FP32 eager exact rollout AAL 변화로 위가 좋다.
+초록 영역과 scorecard 기준은 endpoint 확인 전에 고정했다. Exact는 detach 기준의
+NLL-margin·utility engineering gate를 통과하지만 linear/cap 대비 0/3 pair라 최종
+method gate는 kill이다. 이 gate 통과를 downstream 또는 CI 기반 non-inferiority로
+해석하지 않는다.</em></p>
+<h2 id="1-loss-setting">1. 정확히 어떤 loss와 setting인가<a class="headerlink" href="#1-loss-setting" title="이 절의 고정 링크">&para;</a></h2>
+<p>Target distribution을 <code>p_θ</code>, 독립 drafter를 <code>q_φ</code>라 둔다. 둘은 tokenizer-compatible
+token ID 외에 backbone, embedding, hidden state, LM head, LoRA, optimizer를 공유하지
+않는다. MEDUSA, EAGLE, native MTP head는 이 분석에서 제외한다.</p>
+<p>Acceptance objective <code>L_A</code>는
+<a href="https://arxiv.org/html/2602.23881#S4.SS2">Samarin et al., <em>LK Losses</em> (2026), §4.2</a>의
+adaptive Hybrid LK다.</p>
+<div class="math-block">\[
+L_A=\sum_{k=1}^{K}\gamma^{k-1}
+\left[\lambda_kD_{KL}(p^{(k)}_\theta\|q^{(k)}_\phi)
++(1-\lambda_k)\operatorname{TV}(p^{(k)}_\theta,q^{(k)}_\phi)\right],
+\qquad
+\lambda_k=\exp[-\eta\operatorname{sg}(\alpha_k)].
+\]</div>
+<p>위 식은 reference의 multi-position 일반형이다. 이 standalone-AR panel의
+teacher-forced alignment 구현은 한 next-token position만 loss에 넣어 <code>K_loss=1</code>이고,
+따라서 <code>η=3</code>은 작동하지만 기록된 <code>γ=0.8</code>은 <code>γ^0=1</code>이라 수치에 영향을 주지 않는다.
+Exact rollout의 <code>K=3</code> chain length는 training loss의 position/head 수가 아니다.
+Drafter update는 두 arm에서 동일하다.</p>
+<div class="math-block">\[
+g_D=\nabla_\phi L_A(\operatorname{sg}[p_\theta],q_\phi).
+\]</div>
+<p>Target은 다음 두 경로를 비교한다.</p>
+<div class="math-block">\[
+g_T^{detach}=\nabla_\theta L_{CE},\qquad
+g_T^{joint}=\nabla_\theta L_{CE}
++\beta\nabla_\theta L_A(p_\theta,\operatorname{sg}[q_\phi]),\quad \beta=1.
+\]</div>
+<p>Hybrid LK를 target에도 미분하는 가장 가까운 공개 선행은
+<a href="https://sergiu-nistor.com/assets/publications/Halfway_Speculative_Decoding.pdf">Nistor, <em>Halfway Speculative Decoding</em> (2026)</a>이다.
+다만 그 연구의 drafter는 target embedding과 hidden state를 입력으로 받는
+EAGLE-3-style head다. 본 연구는 같은 문제를 <strong>두 independent pretrained AR model</strong>로
+옮겨 target update와 full Adam state를 분리 측정한다.</p>
+<p><code>g_CE</code> tensor 자체가 손상되는 것은 아니다. 코드에서는 <code>g_CE</code>와 <code>g_aux</code>를 따로
+계산한다. 여기서 interference는 합성되어 실제 적용되는 update와 그 history를 담는
+Adam <code>m,v</code>가 CE-only 반사실에서 벗어난다는 뜻이다.</p>
+<h2 id="2-stage-gated">2. Stage-gated 검증 설계<a class="headerlink" href="#2-stage-gated" title="이 절의 고정 링크">&para;</a></h2>
+<p>공통 recipe는 WikiText-103, 100 steps, batch 4, sequence 64, warmup 10,
+25,600 exposed tokens, BF16 rank-8 LoRA다. Target endpoint는 untouched WikiText-2
+8,192 tokens이고, acceptance endpoint는 FP32 eager exact rejection sampling이다.
+추론 단위는 training seed다.</p>
+<table>
+<thead>
+<tr>
+<th>Stage</th>
+<th>Seed</th>
+<th>직접 질문</th>
+<th>결과 확인 전 기준</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0. Identity</td>
+<td>99</td>
+<td>구현 corner가 기존 arm과 같은가</td>
+<td>forced <code>α=0/1</code>, <code>CC/JJ</code> exact identity</td>
+</tr>
+<tr>
+<td>1A. 2×2 selection</td>
+<td>0–2</td>
+<td>Adam state가 독립 contributor인가</td>
+<td>harm, recovery, seed consistency</td>
+</tr>
+<tr>
+<td>1B. candidate replay</td>
+<td>0–2</td>
+<td>exact가 linear unsafe 선택을 줄이는가</td>
+<td>unsafe <code>≥10%</code>, reduction <code>≥10%p</code></td>
+</tr>
+<tr>
+<td>2. controller pivot</td>
+<td>3–5</td>
+<td>exact가 safe useful α를 회수하는가</td>
+<td>NLL, exact AAL, alpha, cap/linear Pareto</td>
+</tr>
+<tr>
+<td>1A-R. post-controller replication</td>
+<td>3–4</td>
+<td>새 seed에서 같은 기전인가</td>
+<td>selection과 분리 보고</td>
+</tr>
+</tbody>
+</table>
+<p>Stage 1B의 원 가설은 결과를 보기 전에
+<span class="local-artifact" title="로컬 연구 workspace 산출물"><code>OPTIMIZER_SAFE_CONTROLLER_PROTOCOL_KO.md</code></span>에
+동결했다. 그 가설이 반증된 뒤, 보지 않은 seeds 3–5에 대한 exploratory pivot을
+<span class="local-artifact" title="로컬 연구 workspace 산출물"><code>EXACT_CONTROLLER_EXPLORATORY_PROTOCOL_KO.md</code></span>에
+별도로 동결했다. Confirmatory 결과로 재명명하지 않는다. Seeds 3–4의 기전
+replication은 controller endpoint 뒤에 실행했으므로, mechanism 재현만 독립 패널로
+해석하고 method 결과의 사전 확인으로 소급 해석하지 않는다.</p>
+<h2 id="3-parameter-candidate-adam-state-22">3. 기전: parameter candidate와 Adam state의 2×2 분리<a class="headerlink" href="#3-parameter-candidate-adam-state-22" title="이 절의 고정 링크">&para;</a></h2>
+<p>동일한 pre-step <code>(θ_t,S_t)</code>에서 실제 AdamW CE-only candidate와 joint candidate를
+만든 뒤, 적용 parameter와 다음 step에 저장할 full Adam state의 출처를 독립적으로
+교차했다.</p>
+<table>
+<thead>
+<tr>
+<th>Cell</th>
+<th>적용 parameter</th>
+<th>persisted Adam state</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>CC</code></td>
+<td>CE-only</td>
+<td>CE-only</td>
+</tr>
+<tr>
+<td><code>CJ</code></td>
+<td>CE-only</td>
+<td>joint</td>
+</tr>
+<tr>
+<td><code>JC</code></td>
+<td>joint</td>
+<td>CE-only</td>
+</tr>
+<tr>
+<td><code>JJ</code></td>
+<td>joint</td>
+<td>joint</td>
+</tr>
+</tbody>
+</table>
+<p>Primary contrasts는 다음과 같다.</p>
+<ul>
+<li>total harm: <code>H = NLL_JJ − NLL_CC</code></li>
+<li>state-only exposure: <code>S = NLL_CJ − NLL_CC</code></li>
+<li>state scrub recovery: <code>M = NLL_JJ − NLL_JC</code></li>
+</ul>
+<p><img alt="Target parameter candidate와 persisted Adam state를 교차한 2x2 실험이 selection seed와 독립 replication seed에서 모두 재현된 그래프" src="../figures/figure_10_optimizer_state_replication.png"></p>
+<p><em>그림 2. 원은 selection seeds 0–2, 빈 diamond는 미사용 replication seeds 3–4다.
+굵은 선은 다섯 seed 평균이다. 총 15개 pair-seed block 모두에서 <code>H&gt;0</code>, <code>S&gt;0</code>,
+<code>M&gt;0</code>이다. Cross-cell은 dynamic hybrid intervention이며 유일한 causal mediation
+decomposition이 아니다.</em></p>
+<h3 id="31-selection-replication">3.1 Selection과 replication<a class="headerlink" href="#31-selection-replication" title="이 절의 고정 링크">&para;</a></h3>
+<p>단위는 nats/token이다.</p>
+<table>
+<thead>
+<tr>
+<th>Pair</th>
+<th style="text-align: right;">Selection <code>H / S / M</code> (n=3)</th>
+<th style="text-align: right;">Replication <code>H / S / M</code> (n=2)</th>
+<th style="text-align: right;">Five-seed mean <code>H / S / M</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPT-2 ← DistilGPT-2</td>
+<td style="text-align: right;"><code>.0358 / .0313 / .0309</code></td>
+<td style="text-align: right;"><code>.0324 / .0278 / .0301</code></td>
+<td style="text-align: right;"><code>.0344 / .0299 / .0306</code></td>
+</tr>
+<tr>
+<td>OPT-350M ← OPT-125M</td>
+<td style="text-align: right;"><code>.0204 / .0181 / .0208</code></td>
+<td style="text-align: right;"><code>.0186 / .0166 / .0177</code></td>
+<td style="text-align: right;"><code>.0197 / .0175 / .0196</code></td>
+</tr>
+<tr>
+<td>Pythia-410M ← Pythia-70M</td>
+<td style="text-align: right;"><code>.0953 / .0659 / .0612</code></td>
+<td style="text-align: right;"><code>.0834 / .0549 / .1116</code></td>
+<td style="text-align: right;"><code>.0905 / .0615 / .0813</code></td>
+</tr>
+</tbody>
+</table>
+<p>새 replication에서는 세 pair 모두 <code>H&gt;0.010</code>, <code>S&gt;0.005</code>, <code>M&gt;0.005</code>를 다시
+만족했다. Selection과 replication을 합치면 contrast별 15/15 pair-seed가 같은
+방향이다.</p>
+<h3 id="32-identity">3.2 구현 identity<a class="headerlink" href="#32-identity" title="이 절의 고정 링크">&para;</a></h3>
+<ul>
+<li><code>JJ</code>는 ordinary naive <code>β=1</code>, <code>CC</code>는 ordinary detach와 같아야 한다.</li>
+<li>seeds 0–2의 18 identity pair와 seeds 3–4의 새 12 identity pair에서 target/draft
+  adapter bytes와 target NLL, draft NLL, overlap, TinyStories/GSM8K target NLL이 모두
+  exact match였다.</li>
+<li>Engineering seed 99의 corner test와 unit test도 같은 identity를 통과했다.</li>
+</ul>
+<p>따라서 state-only 결과를 서로 다른 초기화나 minibatch의 산물로 설명할 수 없다.
+다만 <code>CJ−CC</code>를 joint effect의 유일한 additive mediation으로 해석해서는 안 된다.</p>
+<h2 id="4-exact-candidate-replay">4. Exact candidate replay: 첫 가설은 반증됐다<a class="headerlink" href="#4-exact-candidate-replay" title="이 절의 고정 링크">&para;</a></h2>
+<p>Naive trajectory의 step <code>{1,10,…,100}</code>에서
+<code>α∈{0,.125,.25,.5,1}</code>의 actual AdamW candidate를 같은 pre-state로 replay했다.
+Exact safety는 post-step held-out CE, linear safety는 현재 held-out gradient의
+일차 근사로 판정했다. 이 probe는 실제 trajectory를 바꾸지 않으며 adapter/endpoints가
+ordinary naive와 bitwise/numeric exact였다.</p>
+<p>사전 가설은 “linear가 unsafe candidate를 자주 고르고 exact가 이를 10%p 이상
+줄인다”였다. 실제 linear unsafe-selection rate는 세 pair 모두 평균 <strong>3.3%</strong>로
+kill threshold 5%보다 낮았다. 따라서 원 가설은 <strong>kill</strong>이다.</p>
+<p>동시에 exploratory 신호가 있었다.</p>
+<table>
+<thead>
+<tr>
+<th>Pair</th>
+<th style="text-align: right;">Exact/linear selector agreement</th>
+<th style="text-align: right;">Exact mean α</th>
+<th style="text-align: right;">Linear mean α</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPT</td>
+<td style="text-align: right;">46.7%</td>
+<td style="text-align: right;">.308</td>
+<td style="text-align: right;">.017</td>
+</tr>
+<tr>
+<td>OPT</td>
+<td style="text-align: right;">43.3%</td>
+<td style="text-align: right;">.308</td>
+<td style="text-align: right;">.042</td>
+</tr>
+<tr>
+<td>Pythia</td>
+<td style="text-align: right;">43.3%</td>
+<td style="text-align: right;">.271</td>
+<td style="text-align: right;">.075</td>
+</tr>
+</tbody>
+</table>
+<p>Linear는 위험해서가 아니라 지나치게 보수적일 가능성이 컸다. Exact finite-step
+evaluation이 linearization이 버린 safe useful candidate를 되살리는지 별도 seed에서
+시험한 이유가 이것이다. 이 pivot은 원 가설 성공으로 재해석하지 않는다.</p>
+<h2 id="5-atomic-exact-controller">5. Atomic exact controller<a class="headerlink" href="#5-atomic-exact-controller" title="이 절의 고정 링크">&para;</a></h2>
+<p>Controller는 매 step 같은 <code>(θ_t,S_t)</code>에서 다섯 candidate를 실제 AdamW로 실행한다.
+Safety constraint를 만족하는 candidate 중 calibration expected-token proxy가 가장 큰
+α를 고른 뒤, 그 candidate의 <strong>parameter와 full Adam state를 원자적으로 commit</strong>한다.</p>
+<p><code>forced α=0</code>은 detach, <code>forced α=1</code>은 naive와 adapter/endpoints가 exact match였다.
+본 panel의 18 controller run은 <code>18 × 100 × 5 = 9,000</code> candidate row를 가지며,
+모든 step에서 α=1 live-fork identity와 selected-state commit hash를 통과했다.</p>
+<h3 id="51-target-nll-margin-engagement">5.1 Target NLL margin과 engagement<a class="headerlink" href="#51-target-nll-margin-engagement" title="이 절의 고정 링크">&para;</a></h3>
+<p>아래 값은 condition−detach target NLL이다. 낮을수록 좋다.</p>
+<table>
+<thead>
+<tr>
+<th>Pair</th>
+<th style="text-align: right;">Naive</th>
+<th style="text-align: right;">Cap 0.1</th>
+<th style="text-align: right;">Linear</th>
+<th style="text-align: right;">Exact</th>
+<th style="text-align: right;">Exact mean α / α=0 fraction</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPT</td>
+<td style="text-align: right;">+.0321</td>
+<td style="text-align: right;">+.0052</td>
+<td style="text-align: right;">+.0020</td>
+<td style="text-align: right;"><strong>+.0039</strong></td>
+<td style="text-align: right;"><code>.238 / .477</code></td>
+</tr>
+<tr>
+<td>OPT</td>
+<td style="text-align: right;">+.0203</td>
+<td style="text-align: right;">+.0035</td>
+<td style="text-align: right;">+.0030</td>
+<td style="text-align: right;"><strong>+.0058</strong></td>
+<td style="text-align: right;"><code>.437 / .337</code></td>
+</tr>
+<tr>
+<td>Pythia</td>
+<td style="text-align: right;">+.0785</td>
+<td style="text-align: right;">−.0234</td>
+<td style="text-align: right;">−.0274</td>
+<td style="text-align: right;"><strong>−.0206</strong></td>
+<td style="text-align: right;"><code>.297 / .410</code></td>
+</tr>
+</tbody>
+</table>
+<p>Exact는 모든 pair 평균이 <code>+0.010</code> margin 안이고 9/9 seed가 margin 안이었다.
+Mean α는 세 pair 모두 <code>.10</code>보다 크고 α=0 비율은 80%보다 낮다. 즉 안전성 결과가
+항상 detach를 선택한 퇴행적 controller 때문은 아니다. 여기서 safety는 사전 설정한
+WikiText-2 NLL engineering margin 통과만 뜻한다. <code>n=3</code>에서 CI-backed non-inferiority를
+확립하거나 downstream target 품질을 직접 검증한 결과는 아니다.</p>
+<h3 id="52-fp32-exact-acceptance">5.2 FP32 exact acceptance<a class="headerlink" href="#52-fp32-exact-acceptance" title="이 절의 고정 링크">&para;</a></h3>
+<p>45개 rollout은 3 pair × 3 seed × 5 arm이며, WikiText-2/TinyStories/GSM8K에서
+matched prompt, sampling seeds <code>{0,1}</code>, chain length 3을 사용했다. 540 prompt cluster
+모두에서 bookkeeping을 감사했다. 별도로 보고된 greedy subset에서는 speculative
+output이 해당 target-only greedy output과 일치했다.</p>
+<p>아래 값은 condition−detach AAL(token/round)이다.</p>
+<table>
+<thead>
+<tr>
+<th>Pair</th>
+<th style="text-align: right;">Naive</th>
+<th style="text-align: right;">Cap 0.1</th>
+<th style="text-align: right;">Linear</th>
+<th style="text-align: right;">Exact</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPT</td>
+<td style="text-align: right;">+.186</td>
+<td style="text-align: right;">+.112</td>
+<td style="text-align: right;">+.047</td>
+<td style="text-align: right;"><strong>+.090</strong></td>
+</tr>
+<tr>
+<td>OPT</td>
+<td style="text-align: right;">+.116</td>
+<td style="text-align: right;">+.047</td>
+<td style="text-align: right;">+.062</td>
+<td style="text-align: right;"><strong>+.035</strong></td>
+</tr>
+<tr>
+<td>Pythia</td>
+<td style="text-align: right;">+.189</td>
+<td style="text-align: right;">+.072</td>
+<td style="text-align: right;">+.070</td>
+<td style="text-align: right;"><strong>+.070</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Exact는 GPT와 Pythia에서 <code>+0.05</code>를 넘고 어느 pair에서도 detach보다 낮지 않아
+detach-relative utility gate를 통과한다. 하지만 novelty를 결정하는 comparator
+contrast는 다르다.</p>
+<table>
+<thead>
+<tr>
+<th>Pair</th>
+<th style="text-align: right;">Exact−linear NLL / AAL</th>
+<th style="text-align: right;">Exact−cap NLL / AAL</th>
+<th style="text-align: right;">Pareto win</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPT</td>
+<td style="text-align: right;"><code>+.0020 / +.042</code></td>
+<td style="text-align: right;"><code>−.0012 / −.023</code></td>
+<td style="text-align: right;">없음</td>
+</tr>
+<tr>
+<td>OPT</td>
+<td style="text-align: right;"><code>+.0028 / −.027</code></td>
+<td style="text-align: right;"><code>+.0023 / −.012</code></td>
+<td style="text-align: right;">없음</td>
+</tr>
+<tr>
+<td>Pythia</td>
+<td style="text-align: right;"><code>+.0067 / +.001</code></td>
+<td style="text-align: right;"><code>+.0028 / −.002</code></td>
+<td style="text-align: right;">없음</td>
+</tr>
+</tbody>
+</table>
+<p>사전 Pareto rule은 <code>(AAL≥+.05, NLL≤+.002)</code> 또는
+<code>(NLL 개선≥.005, AAL 손실≤.02)</code>였다. Exact는 linear와 cap 각각 <strong>0/3 pair</strong>다.</p>
+<h3 id="53">5.3 비용<a class="headerlink" href="#53" title="이 절의 고정 링크">&para;</a></h3>
+<p>현재 transparent reference 구현의 exact-controller training elapsed ratio는 detach 대비
+GPT <code>15.3×</code>, OPT <code>17.0×</code>, Pythia <code>18.0×</code>였다. 이는 production 최적화 수치가
+아니지만, comparator superiority가 없는 상태에서 무시할 수 없는 비용이다. 추론 시
+controller는 사용하지 않으므로 serving latency overhead는 아니다.</p>
+<h2 id="6-frozen-decision-top-tier">6. Frozen decision과 top-tier 판정<a class="headerlink" href="#6-frozen-decision-top-tier" title="이 절의 고정 링크">&para;</a></h2>
+<p>최종 판정은 <strong>local exact controller를 main method로 kill</strong>이다.</p>
+<ul>
+<li>NLL safety: pass</li>
+<li>AAL vs detach: pass</li>
+<li>non-trivial α: pass</li>
+<li>linear 대비 Pareto: fail</li>
+<li>cap 대비 Pareto: fail</li>
+</ul>
+<p>프로토콜은 local controller가 전체 gate를 통과할 때만 persistent CE-only twin/dual을
+추가하도록 고정했다. 따라서 cumulative arm을 실행하지 않은 것은 결과 누락이 아니라
+사전 stop rule 준수다. 이미 local method가 simple comparators를 이기지 못한 상황에서
+더 복잡한 component를 붙여 exploratory degrees of freedom을 늘리지 않았다.</p>
+<h3 id="61-main-track">6.1 지금 main-track에 낼 수 있는가<a class="headerlink" href="#61-main-track" title="이 절의 고정 링크">&para;</a></h3>
+<p><strong>현재는 아니다.</strong> 이유는 데이터가 부정적이어서가 아니라 contribution 구조가
+main-track method paper의 최소선을 못 넘기기 때문이다.</p>
+<ol>
+<li>Mechanism은 강하다: 독립 AR setting에서 optimizer state가 조건부 contributor라는
+   결과가 3 pair × 5 seed로 재현됐다.</li>
+<li>Method는 약하다: exact same-state gate가 detach 대비 NLL engineering margin 안에서
+   AAL을 높였지만 norm cap/linear보다 Pareto-superior하지 않다.</li>
+<li>Scale evidence가 아직 짧은 rank-8 LoRA 100-step에 한정된다.</li>
+<li>Exact controller의 15–18× training cost를 상쇄할 성능 이득이 없다.</li>
+</ol>
+<p>따라서 현재의 정직한 포지셔닝은 다음이다.</p>
+<blockquote>
+<p><strong>Independent-AR bidirectional speculative co-training에서 Adam-state carryover가
+target negative transfer의 재현 가능한 contributor임을 보이는 analysis paper.</strong></p>
+</blockquote>
+<p>Main-track 가능성을 다시 열려면 더 싼 controller가 cap/linear를 엄격히 이기고,
+더 긴/full fine-tuning, 큰 model pair, untouched downstream non-inferiority, exact AAL과
+실제 serving throughput까지 재현되어야 한다.</p>
+<h2 id="7-novelty">7. Novelty 경계<a class="headerlink" href="#7-novelty" title="이 절의 고정 링크">&para;</a></h2>
+<p>넓은 “joint speculative training”은 새롭지 않다. Halfway가 target-side LK와 CE
+regularization을 이미 다룬다. Optimizer state 분리 자체도
+<a href="https://ojs.aaai.org/index.php/AAAI/article/view/26275">AdaTask (AAAI 2023)</a>,
+<a href="https://proceedings.neurips.cc/paper_files/paper/2025/hash/7b76eea0c3683e440c3d362620f578cd-Abstract-Conference.html">DualOptim (NeurIPS 2025)</a>,
+<a href="https://openreview.net/forum?id=xGfnQajGPQ">DualOptim+ (ICML 2026)</a>와 겹친다.
+Adam의 실제 finite update가 gradient-space 의도와 어긋날 수 있다는 문제의식도
+<a href="https://arxiv.org/abs/2606.03904">MAdam (2026)</a>과 인접한다.</p>
+<p>현재 방어 가능한 부분은 다음의 조합이다.</p>
+<ul>
+<li>두 independent pretrained standalone AR model</li>
+<li>target-side direct-acceptance gradient의 target-quality cost</li>
+<li>parameter candidate × persisted full Adam state의 2×2 conditional intervention</li>
+<li>same-state actual AdamW replay와 atomic state commit의 성공·실패를 모두 공개</li>
+<li>untouched target NLL과 FP32 exact AAL로 사전 Pareto gate를 적용한 negative result</li>
+</ul>
+<p>따라서 “최초”보다 다음처럼 제한된 주장이 안전하다.</p>
+<blockquote>
+<p>조사한 선행연구 중 위 다섯 요소를 함께 제공하는 연구는 찾지 못했다. 다만
+optimizer splitting, validation gating, bidirectional LK 각각에는 직접 선행이 있다.</p>
+</blockquote>
+<h2 id="8">8. 재현성과 산출물<a class="headerlink" href="#8" title="이 절의 고정 링크">&para;</a></h2>
+<p>핵심 코드:</p>
+<ul>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물"><code>train_standalone.py</code></span> <code>src/specdec_joint/train_standalone.py</code>: 2×2 state intervention,
+  candidate replay, atomic controller</li>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물"><code>analyze_optimizer_state_factorial.py</code></span> <code>src/specdec_joint/analyze_optimizer_state_factorial.py</code>:
+  incomplete/mixed factorial panel fail-loud 분석</li>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물"><code>analyze_candidate_controller.py</code></span> <code>src/specdec_joint/analyze_candidate_controller.py</code>:
+  45 training run과 9,000 candidate row 감사</li>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물"><code>analyze_rollouts.py</code></span> <code>src/specdec_joint/analyze_rollouts.py</code>: matched-prompt,
+  training-seed inference의 exact AAL 분석</li>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물"><code>build_optimizer_safe_figures.py</code></span> <code>scripts/build_optimizer_safe_figures.py</code>: 본 보고서 그림</li>
+</ul>
+<p>핵심 artifact:</p>
+<ul>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물">Selection factorial</span> <code>artifacts/target_moment_factorial_eta3_v1_analysis/summary.json</code></li>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물">Replication factorial</span> <code>artifacts/target_moment_factorial_eta3_confirmatory_v1_analysis/summary.json</code></li>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물">Candidate replay decision</span> <code>artifacts/candidate_replay_eta3_v1_analysis/summary.json</code></li>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물">Controller training manifest</span> <code>artifacts/exact_controller_exploratory_v1_analysis/candidate_controller_manifest.json</code></li>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물">Exact rollout manifest</span> <code>artifacts/exact_controller_exploratory_fp32_rollouts_v1_analysis/rollout_analysis_manifest.json</code></li>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물">Frozen final-gate decision</span> <code>artifacts/exact_controller_exploratory_final_gate_v1/candidate_controller_final_gate_decision.json</code></li>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물">Figure manifest</span> <code>figures/optimizer_safe_figure_manifest.json</code></li>
+</ul>
+<p>재현 명령:</p>
+<pre><code class="language-bash">PYTHONPATH=src python -m specdec_joint.analyze_optimizer_state_factorial \
+  --root runs/target_moment_factorial_eta3_confirmatory_v1 \
+  --output-dir artifacts/target_moment_factorial_eta3_confirmatory_reanalysis_v1 \
+  --pairs gpt2 opt pythia --seeds 3 4
+
+PYTHONPATH=src python -m specdec_joint.analyze_candidate_controller \
+  --root runs/exact_controller_exploratory_v1 \
+  --control-root runs/exact_controller_exploratory_controls_v1 \
+  --output-dir artifacts/exact_controller_exploratory_reanalysis_v1 \
+  --pairs gpt2 opt pythia --seeds 3 4 5
+
+PYTHONPATH=src python -m specdec_joint.analyze_rollouts \
+  --benchmarks exact_controller_exploratory=runs/exact_controller_exploratory_fp32_rollouts_v1 \
+  --output artifacts/exact_controller_exploratory_fp32_rollouts_reanalysis_v1
+
+python scripts/build_optimizer_safe_figures.py --root . --output-dir figures
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 PYTHONPATH=src pytest -q
+</code></pre>
+<p>Adapter weights는 Git에 저장하지 않는다. Config, metrics, histories, candidate rows,
+rollout rows, aggregate CSV, manifests는 versioning한다. 모든 run은 새 versioned root를
+사용했고 completed output을 덮어쓰지 않았다.</p></main>
+  <footer>Exploratory controller result · frozen Pareto gate failed · 2026-07-16</footer>
+</body>
+</html>

@@ -241,8 +241,9 @@
   <nav class="site-nav" aria-label="공개 연구 문서">
     <span class="brand">Independent-AR SpecDec</span>
     <div>
-      <a href="./" aria-current="page">실험 증거</a>
-      <a href="ideas/">후속 해결책 설계</a>
+      <a href="./" aria-current="page">모티베이션 증거</a>
+      <a href="methods/">방법 검증 결과</a>
+      <a href="ideas/">후속 아이디어</a>
     </div>
   </nav>
   <main><h1 id="targetdrafter-target">독립 target–drafter 공동학습의 target 품질 비용<a class="headerlink" href="#targetdrafter-target" title="이 절의 고정 링크">&para;</a></h1>
@@ -254,6 +255,13 @@
 공유하지 않는 두 pretrained autoregressive language model</p>
 <p>상태: 짧은 LoRA adaptation에서 얻은 controlled evidence이며 peer-reviewed
 결과가 아님</p>
+<p><strong>2026-07-16 methods update.</strong> 이후 2×2 Adam-state intervention을 seeds 0–4로
+확장한 결과, total harm·state-only exposure·state scrub recovery가 세 pair에서
+각각 5/5 seed 동일 방향으로 재현됐다. Exact same-state controller는 detach 대비
+target safety와 exact AAL을 회수했지만 norm cap·linear gate 대비 Pareto 우위가
+0/3 pair여서 사전 기준상 main method는 <strong>kill</strong>이다. 시각화와 전체 gate는
+<a href="https://bluear7878.github.io/specdec-joint-report/methods/">후속 방법 검증 보고서</a>에
+분리했다.</p>
 </blockquote>
 <h2 id="0">0. 연구 질문과 결론<a class="headerlink" href="#0" title="이 절의 고정 링크">&para;</a></h2>
 <blockquote>
@@ -340,7 +348,8 @@ optimizer는 모두 분리되어 있다.</p>
 <p>여기서 acceptance objective <code>L_A</code>는
 <a href="https://arxiv.org/html/2602.23881#S4.SS2">Samarin et al., <em>LK Losses: Direct Acceptance Rate Optimization for Speculative
 Decoding</em>, arXiv:2602.23881v2 (2026), §4.2</a>의
-<strong>adaptive Hybrid LK</strong>를 그대로 사용한다. 즉 각 draft position <code>k</code>에서</p>
+<strong>adaptive Hybrid LK</strong>를 standalone-AR next-token alignment에 사용한다. Reference의
+multi-position 일반형은</p>
 <div class="math-block">\[
 L_A=\sum_{k=1}^{K}\gamma^{k-1}
 \left[\lambda_k D_{KL}(p^{(k)}_\theta\|q^{(k)}_\phi)
@@ -348,9 +357,12 @@ L_A=\sum_{k=1}^{K}\gamma^{k-1}
 \quad
 \lambda_k=\exp[-\eta\operatorname{sg}(\alpha_k)],
 \]</div>
-<p>이며 <code>α_k</code>는 batch와 sequence context에 걸쳐 평균한 token-distribution overlap이다.
-실험은 LK v2의 주 설정을 따라 <code>η=3</code>, <code>γ=0.8</code>로 고정했다. 이 출처는 <strong>loss의
-정의와 draft-side recipe</strong>를 뒷받침한다. Hybrid LK를 target에도 미분하는 가장 가까운
+<p>이다. 실제 구현은 전체 teacher-forced sequence context를 한 next-token alignment
+tensor로 묶어 singleton list로 전달하므로 <code>K_loss=1</code>이다. 따라서 <code>α_1</code>은 batch와
+sequence context에 걸쳐 평균한 token-distribution overlap이고 <code>η=3</code>은 작동하지만,
+기록된 <code>γ=0.8</code>은 <code>γ^0=1</code>이라 수치에 영향을 주지 않는다. Exact rollout의 <code>K=3</code>
+chain length는 training loss의 position/head 수가 아니다. 이 출처는 <strong>KL/TV adaptive
+mixing과 draft-side recipe</strong>를 뒷받침한다. Hybrid LK를 target에도 미분하는 가장 가까운
 공개 선행은
 <a href="https://sergiu-nistor.com/assets/publications/Halfway_Speculative_Decoding.pdf">Nistor, <em>Halfway Speculative Decoding</em> (2026), §3.2</a>지만,
 그 연구는 target embedding·hidden state를 입력으로 쓰는 EAGLE-3-style head다. 따라서
@@ -375,7 +387,8 @@ g_D &= \nabla_\phi L_A(\operatorname{sg}[p_\theta],q_\phi).
 <blockquote>
 <p><strong>무엇이 reference이고 무엇이 실험 조작인가.</strong> <code>L_CE</code>는 target native LM head의
 전체 vocabulary에서 계산한 표준 teacher-forced next-token cross-entropy다.
-<code>L_A</code>의 수식·position discount·<code>η=3</code>은 Samarin et al.의 Hybrid LK에서 가져왔다.
+<code>L_A</code>의 KL/TV adaptive mixing·일반형 position discount·<code>η=3</code>은 Samarin et al.의
+Hybrid LK에서 가져왔다. 이 panel의 <code>K_loss=1</code>에서는 discount가 비활성이다.
 원 LK recipe는 고정 target에 drafter를 맞추며, target-side
 <code>∇_θ L_A(p_θ, sg[q_φ])</code>는 그 recipe의 필수 요소가 아니다. 이 연구가 직접 조작한
 것은 그 target path의 on/off이고, <code>β=1</code>은 본 연구가 고정한 계수다. <code>sg[·]</code>는
@@ -761,9 +774,14 @@ state를 직접 바꾸며 same-seed detach 대비 target NLL과 broad downstream
   표준 lm-eval wrapper/leaderboard parity를 주장하지 않음</li>
 <li>Rollout prompt와 generation 길이가 작고 FP32 transparent implementation은 serving engine이 아님</li>
 </ul>
-<p>다음 우선순위는 <code>(1)</code> cumulative shadow trajectory 또는 dual target-quality constraint,
-<code>(2)</code> cap <code>ρ∈{0.025,0.05,0.1,0.2}</code> sweep, <code>(3)</code> longer/full fine-tuning,
-<code>(4)</code> instruction/code/multilingual target-quality panel이다.</p>
+<p>후속 stage-gated 실험에서 optimizer-state contributor는 독립 seed에 재현됐지만,
+exact local gate는 simple cap/linear 대비 Pareto 우위를 만들지 못했다. 따라서 사전
+stop rule에 따라 cumulative twin을 추가하지 않았다. 다음 우선순위는 <code>(1)</code> exact
+5-candidate replay보다 싼 state-aware controller, <code>(2)</code> cap schedule의 강한 baseline,
+<code>(3)</code> longer/full fine-tuning과 큰 standalone-AR pair, <code>(4)</code> instruction/code/multilingual
+target-quality·serving throughput panel이다. 상세 결과와 top-tier 판정은
+<a href="https://bluear7878.github.io/specdec-joint-report/methods/">후속 방법 검증 보고서</a>를
+참조한다.</p>
 <h2 id="8">8. 재현성과 산출물<a class="headerlink" href="#8" title="이 절의 고정 링크">&para;</a></h2>
 <p>핵심 코드:</p>
 <ul>
