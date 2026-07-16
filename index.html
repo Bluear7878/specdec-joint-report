@@ -63,6 +63,34 @@
       line-height: 1.78;
       word-break: keep-all;
     }
+    .site-nav {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      min-height: 58px;
+      padding: 0 max(22px, calc((100vw - 1120px) / 2));
+      color: var(--muted);
+      background: color-mix(in srgb, var(--bg) 86%, transparent);
+      border-bottom: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+      backdrop-filter: blur(16px);
+    }
+    .site-nav .brand { color: var(--text); font-weight: 850; letter-spacing: -.02em; }
+    .site-nav div { display: flex; gap: .5rem; }
+    .site-nav a {
+      padding: .36rem .66rem;
+      color: var(--muted);
+      border-radius: 999px;
+      text-decoration: none;
+      font-size: .88rem;
+      font-weight: 700;
+    }
+    .site-nav a:hover, .site-nav a[aria-current="page"] {
+      color: var(--accent);
+      background: var(--accent-soft);
+    }
     main {
       width: min(1120px, calc(100% - 32px));
       margin: 36px auto 80px;
@@ -191,6 +219,9 @@
     }
     @media (max-width: 700px) {
       body { font-size: 15.5px; word-break: normal; }
+      .site-nav { position: static; padding: .55rem .8rem; align-items: flex-start; }
+      .site-nav .brand { display: none; }
+      .site-nav div { width: 100%; justify-content: center; }
       main { width: 100%; margin: 0; border: 0; border-radius: 0; }
       table { font-size: .82rem; }
       main p:has(> img) { width: 100vw; padding: 0 12px .35rem; }
@@ -207,6 +238,13 @@
   </style>
 </head>
 <body>
+  <nav class="site-nav" aria-label="공개 연구 문서">
+    <span class="brand">Independent-AR SpecDec</span>
+    <div>
+      <a href="./" aria-current="page">실험 증거</a>
+      <a href="ideas/">후속 해결책 설계</a>
+    </div>
+  </nav>
   <main><h1 id="targetdrafter-target">독립 target–drafter 공동학습의 target 품질 비용<a class="headerlink" href="#targetdrafter-target" title="이 절의 고정 링크">&para;</a></h1>
 <div class="publication-note">외부 공개용 HTML · 원 실험 artifact와 checkpoint는 공개되지 않음</div>
 

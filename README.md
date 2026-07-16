@@ -1,4 +1,4 @@
-# Independent target–drafter interference report
+# Independent target–drafter interference report and research ideas
 
 Public HTML version of the Korean research report on target-update interference
 when a draft-aware loss is applied to an independent pretrained AR target.
@@ -16,4 +16,13 @@ target NLL in 21/21 seeds and lower downstream macro accuracy in 19/21 seeds.
 The report distinguishes this repeated negative transfer from a universal or
 catastrophic gradient-failure law.
 
-Read the report at <https://bluear7878.github.io/specdec-joint-report/>.
+Public pages:
+
+- Completed evidence report: <https://bluear7878.github.io/specdec-joint-report/>
+- Visually structured follow-up method proposal:
+  <https://bluear7878.github.io/specdec-joint-report/ideas/>
+
+The ideas page clearly separates completed observations from untested proposals.
+Its central visual maps the observed optimizer-state and endpoint evidence to
+design requirements, ranked method candidates, falsifiable hypotheses, and
+stage-gated experiments.

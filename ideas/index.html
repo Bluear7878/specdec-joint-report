@@ -1,0 +1,700 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="독립 pretrained AR target-drafter의 bidirectional acceptance training을 CE-only adaptation 대비 non-inferiority-constrained optimizer control로 재정의한 후속 연구 아이디어와 stage-gated 검증 계획.">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Target-safe bidirectional co-training · 연구 아이디어">
+  <meta property="og:description" content="독립 pretrained AR target-drafter의 bidirectional acceptance training을 CE-only adaptation 대비 non-inferiority-constrained optimizer control로 재정의한 후속 연구 아이디어와 stage-gated 검증 계획.">
+  <meta property="og:url" content="https://bluear7878.github.io/specdec-joint-report/ideas/">
+  <meta property="og:image" content="https://bluear7878.github.io/specdec-joint-report/figures/figure_10_optimizer_state_solution_map.png">
+  <meta property="og:image:alt" content="관찰된 target-update interference에서 optimizer-aware 설계 요구사항과 연구 방법 포트폴리오로 이어지는 개념도">
+  <meta property="og:image:width" content="2880">
+  <meta property="og:image:height" content="1620">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://bluear7878.github.io/specdec-joint-report/figures/figure_10_optimizer_state_solution_map.png">
+  <link rel="canonical" href="https://bluear7878.github.io/specdec-joint-report/ideas/">
+  <title>Target-safe bidirectional co-training · 연구 아이디어</title>
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)']],
+        displayMath: [['\\[', '\\]']]
+      },
+      chtml: {scale: 0.94}
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f4f6fa;
+      --surface: #ffffff;
+      --surface-2: #f8fafc;
+      --text: #172033;
+      --muted: #657087;
+      --line: #dce3ed;
+      --evidence: #c65d21;
+      --evidence-soft: #fff0e6;
+      --proposal: #0f766e;
+      --proposal-soft: #e5f5f2;
+      --controller: #6d4ac7;
+      --controller-soft: #f0ebff;
+      --danger: #b93845;
+      --danger-soft: #fff0f1;
+      --reference: #2854c5;
+      --reference-soft: #eaf0ff;
+      --ink-inverse: #ffffff;
+      --shadow: 0 18px 50px rgba(28, 42, 76, .09);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0d1118;
+        --surface: #151a23;
+        --surface-2: #1b212c;
+        --text: #e8edf5;
+        --muted: #aab5c7;
+        --line: #303846;
+        --evidence: #f3a36f;
+        --evidence-soft: #3b281f;
+        --proposal: #75d5c9;
+        --proposal-soft: #173532;
+        --controller: #b9a2ff;
+        --controller-soft: #2d2546;
+        --danger: #ff9aa4;
+        --danger-soft: #3f242a;
+        --reference: #9ab3ff;
+        --reference-soft: #222d4d;
+        --ink-inverse: #0f1725;
+        --shadow: none;
+      }
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Pretendard, "Noto Sans KR", -apple-system, BlinkMacSystemFont,
+        "Segoe UI", sans-serif;
+      font-size: 16.5px;
+      line-height: 1.72;
+      word-break: keep-all;
+    }
+    .site-nav {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      min-height: 58px;
+      padding: 0 max(22px, calc((100vw - 1220px) / 2));
+      color: var(--muted);
+      background: color-mix(in srgb, var(--bg) 86%, transparent);
+      border-bottom: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+      backdrop-filter: blur(16px);
+    }
+    .site-nav .brand { color: var(--text); font-weight: 850; letter-spacing: -.02em; }
+    .site-nav div { display: flex; gap: .5rem; }
+    .site-nav a {
+      padding: .36rem .66rem;
+      color: var(--muted);
+      border-radius: 999px;
+      text-decoration: none;
+      font-size: .88rem;
+      font-weight: 700;
+    }
+    .site-nav a:hover, .site-nav a[aria-current="page"] { color: var(--proposal); background: var(--proposal-soft); }
+    main {
+      width: min(1220px, calc(100% - 32px));
+      margin: 28px auto 80px;
+      padding: clamp(26px, 5vw, 72px);
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    h1, h2, h3 { line-height: 1.28; letter-spacing: -.028em; }
+    h1 { max-width: 1050px; margin: .3rem 0 1rem; font-size: clamp(2.25rem, 5.8vw, 4.65rem); }
+    h2 {
+      margin: 4.4rem 0 1.2rem;
+      padding-top: 1.2rem;
+      border-top: 1px solid var(--line);
+      font-size: clamp(1.7rem, 3vw, 2.35rem);
+    }
+    h3 { margin: 1.2rem 0 .6rem; font-size: 1.28rem; }
+    .headerlink { margin-left: .35rem; opacity: 0; text-decoration: none; }
+    h2:hover .headerlink, h3:hover .headerlink { opacity: .65; }
+    p { max-width: 900px; }
+    a { color: var(--proposal); text-underline-offset: 3px; }
+    strong { font-weight: 800; }
+    .hero-kicker { margin-bottom: .2rem; color: var(--proposal); font-size: .82rem; font-weight: 900; letter-spacing: .14em; }
+    .status-row { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1rem 0 1.45rem; }
+    .status {
+      padding: .34rem .72rem;
+      color: var(--muted);
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      font-size: .8rem;
+      font-weight: 760;
+    }
+    .status.proposal { color: var(--controller); background: var(--controller-soft); border-color: color-mix(in srgb, var(--controller) 28%, var(--line)); }
+    blockquote {
+      max-width: 1000px;
+      margin: 1.6rem 0;
+      padding: 1.2rem 1.4rem;
+      color: var(--text);
+      background: linear-gradient(125deg, var(--proposal-soft), var(--controller-soft));
+      border-left: 5px solid var(--proposal);
+      border-radius: 0 14px 14px 0;
+      font-size: clamp(1.06rem, 2vw, 1.3rem);
+    }
+    blockquote p { margin: 0; }
+    .metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: .8rem; margin: 1.6rem 0 .7rem; }
+    .metric {
+      display: flex;
+      min-height: 150px;
+      padding: 1.1rem;
+      flex-direction: column;
+      justify-content: space-between;
+      color: inherit;
+      border: 1px solid var(--line);
+      border-top: 4px solid var(--evidence);
+      border-radius: 15px;
+      text-decoration: none;
+      transition: transform .18s ease, box-shadow .18s ease;
+    }
+    .metric:hover { transform: translateY(-3px); box-shadow: 0 10px 25px color-mix(in srgb, var(--evidence) 15%, transparent); }
+    .metric strong { color: var(--evidence); font-size: 2.1rem; letter-spacing: -.04em; }
+    .metric span { font-weight: 800; line-height: 1.3; }
+    .metric small { color: var(--muted); font-size: .73rem; line-height: 1.35; }
+    .metric-guardrail, .figure-note { color: var(--muted); font-size: .85rem; }
+    .objective-banner {
+      display: grid;
+      grid-template-columns: auto 1fr auto 1.25fr;
+      gap: .8rem;
+      align-items: center;
+      margin: 1.8rem 0 2.8rem;
+      padding: 1.1rem 1.3rem;
+      color: #fff;
+      background: #172033;
+      border-radius: 15px;
+    }
+    .objective-banner span { color: #9fdbd4; font-size: .72rem; font-weight: 900; letter-spacing: .12em; }
+    .objective-banner i { color: #aeb8c9; font-size: .85rem; }
+    .objective-banner strong:last-child { color: #c8f2ed; }
+    .toc { margin: 2rem 0 3.2rem; padding: 1.2rem 1.4rem; background: var(--surface-2); border: 1px solid var(--line); border-radius: 14px; }
+    .toc::before { content: "문서 지도"; display: block; margin-bottom: .6rem; color: var(--proposal); font-weight: 850; }
+    .toc ul { margin: .25rem 0; padding-left: 1.3rem; columns: 2; column-gap: 2rem; }
+    .toc li { break-inside: avoid; margin: .22rem 0; }
+    .toc a { text-decoration: none; }
+    .compare-grid, .idea-summary-grid, .move-grid, .boundary-grid { display: grid; gap: 1rem; margin: 1.5rem 0; }
+    .compare-grid { grid-template-columns: 1fr 1fr; }
+    .compare-card { padding: 1.3rem; border: 1px solid var(--line); border-radius: 16px; }
+    .compare-card.naive { background: var(--evidence-soft); border-top: 4px solid var(--evidence); }
+    .compare-card.safe { background: var(--proposal-soft); border-top: 4px solid var(--proposal); }
+    .eyebrow { display: block; margin-bottom: .55rem; color: var(--muted); font-size: .72rem; font-weight: 900; letter-spacing: .1em; }
+    .compare-card > strong { display: block; font-size: 1.18rem; }
+    .mini-flow { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; gap: .5rem; align-items: center; margin: 1rem 0; }
+    .mini-flow span { padding: .65rem; text-align: center; background: var(--surface); border: 1px solid var(--line); border-radius: 9px; font-size: .78rem; font-weight: 750; line-height: 1.35; }
+    .mini-flow b { color: var(--muted); }
+    .compare-card p { margin-bottom: 0; color: var(--muted); font-size: .86rem; }
+    .math-block { margin: 1.35rem 0; overflow-x: auto; text-align: center; }
+    main > p:has(> img) { width: min(1460px, calc(100vw - 32px)); margin: 1.6rem 50% .7rem; transform: translateX(-50%); }
+    main > p:has(> img) img { display: block; width: 100%; height: auto; padding: .35rem; background: #fff; border: 1px solid var(--line); border-radius: 16px; }
+    main > p:has(> img) + p > em { display: block; color: var(--muted); font-size: .86rem; line-height: 1.5; }
+    .evidence-design-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: .8rem; margin: 1.4rem 0; }
+    .evidence-design-grid article { padding: 1rem; background: var(--surface-2); border: 1px solid var(--line); border-radius: 13px; }
+    .observed-tag { display: inline-block; margin-bottom: .6rem; padding: .22rem .5rem; color: var(--evidence); background: var(--evidence-soft); border-radius: 999px; font-size: .66rem; font-weight: 900; letter-spacing: .08em; }
+    .evidence-design-grid strong { display: block; line-height: 1.35; }
+    .evidence-design-grid p, .evidence-design-grid em { color: var(--muted); font-size: .8rem; line-height: 1.45; }
+    .evidence-design-grid em { color: var(--proposal); font-style: normal; font-weight: 750; }
+    .portfolio { position: relative; height: 520px; margin: 2rem 0 .6rem; overflow: hidden; background: linear-gradient(90deg, transparent 49.7%, var(--line) 50%, transparent 50.3%), linear-gradient(transparent 49.7%, var(--line) 50%, transparent 50.3%), var(--surface-2); border: 1px solid var(--line); border-radius: 18px; }
+    .portfolio::before { content: "evidence fit × novelty defensibility"; position: absolute; top: 1rem; left: 1.2rem; color: var(--muted); font-size: .73rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
+    .axis-y { position: absolute; top: 50%; left: .4rem; color: var(--muted); font-size: .75rem; transform: rotate(-90deg) translate(-50%, 0); transform-origin: left top; }
+    .axis-x { position: absolute; right: 1rem; bottom: .5rem; color: var(--muted); font-size: .75rem; }
+    .grid-line { position: absolute; background: color-mix(in srgb, var(--line) 70%, transparent); }
+    .grid-line.h1, .grid-line.h2 { left: 0; width: 100%; height: 1px; }
+    .grid-line.h1 { top: 25%; } .grid-line.h2 { top: 75%; }
+    .grid-line.v1, .grid-line.v2 { top: 0; width: 1px; height: 100%; }
+    .grid-line.v1 { left: 25%; } .grid-line.v2 { left: 75%; }
+    .portfolio-point {
+      position: absolute;
+      left: var(--x);
+      top: var(--y);
+      display: flex;
+      min-width: 142px;
+      padding: .7rem .8rem;
+      align-items: center;
+      gap: .55rem;
+      color: var(--proposal);
+      background: var(--proposal-soft);
+      border: 1px solid color-mix(in srgb, var(--proposal) 32%, var(--line));
+      border-radius: 13px;
+      box-shadow: 0 7px 18px rgba(20, 50, 65, .08);
+      transform: translate(-50%, -50%);
+    }
+    .portfolio-point b { display: grid; width: 30px; height: 30px; flex: 0 0 30px; place-items: center; color: var(--ink-inverse); background: var(--proposal); border-radius: 50%; }
+    .portfolio-point span { color: var(--text); font-size: .76rem; font-weight: 780; line-height: 1.25; }
+    .portfolio-point.main { outline: 3px solid color-mix(in srgb, var(--proposal) 22%, transparent); }
+    .portfolio-point.upside { background: var(--controller-soft); border-color: color-mix(in srgb, var(--controller) 35%, var(--line)); }
+    .portfolio-point.upside b { background: var(--controller); }
+    .portfolio-point.conditional, .portfolio-point.component { opacity: .84; }
+    .portfolio-point.component { background: var(--surface); }
+    .idea-summary-grid { grid-template-columns: repeat(4, 1fr); }
+    .summary-card { padding: 1.1rem; border: 1px solid var(--line); border-radius: 13px; }
+    .summary-card span { color: var(--proposal); font-size: .68rem; font-weight: 900; letter-spacing: .06em; }
+    .summary-card strong { display: block; margin: .45rem 0; line-height: 1.35; }
+    .summary-card p { margin: 0; color: var(--muted); font-size: .82rem; line-height: 1.45; }
+    .summary-card.main { background: var(--proposal-soft); }
+    .summary-card.upside { background: var(--controller-soft); }
+    .method-flow { margin: 1.7rem 0; padding: 1.25rem; background: var(--surface-2); border: 1px solid var(--line); border-radius: 18px; }
+    .flow-node, .lane { display: flex; padding: 1rem; flex-direction: column; text-align: center; border: 1px solid var(--line); border-radius: 13px; }
+    .flow-node small, .lane small { color: var(--muted); font-size: .65rem; font-weight: 900; letter-spacing: .08em; }
+    .flow-node span, .lane span { margin-top: .22rem; color: var(--muted); font-size: .77rem; }
+    .flow-node.start { width: 55%; margin: 0 auto; background: var(--reference-soft); border-color: color-mix(in srgb, var(--reference) 30%, var(--line)); }
+    .flow-split { display: flex; width: 42%; margin: .2rem auto; justify-content: space-between; color: var(--muted); font-size: 1.3rem; }
+    .flow-lanes { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .lane.reference { background: var(--reference-soft); }
+    .lane.joint { background: var(--evidence-soft); }
+    .flow-arrow { color: var(--muted); text-align: center; font-size: 1.25rem; }
+    .lane.dual { background: var(--controller-soft); }
+    .lane.gate { background: var(--proposal-soft); }
+    .flow-node.commit { background: #172033; color: #fff; border-color: #172033; }
+    .flow-node.commit small, .flow-node.commit span { color: #b8c4d8; }
+    .move-grid { grid-template-columns: repeat(3, 1fr); }
+    .move-grid article { padding: 1.1rem; background: var(--surface-2); border: 1px solid var(--line); border-top: 4px solid var(--proposal); border-radius: 14px; }
+    .move-grid small { color: var(--proposal); font-weight: 900; }
+    .move-grid strong { display: block; margin: .3rem 0; font-size: 1.1rem; }
+    .move-grid p { margin: 0; color: var(--muted); font-size: .82rem; }
+    .idea-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1.5rem 0; }
+    .idea-detail-grid article { padding: 1.25rem; border: 1px solid var(--line); border-radius: 15px; }
+    .idea-detail-grid .rank { color: var(--proposal); font-size: .68rem; font-weight: 900; letter-spacing: .07em; }
+    .idea-detail-grid .rank.component { color: var(--muted); }
+    .idea-detail-grid p { color: var(--muted); font-size: .87rem; }
+    .factorial { display: grid; grid-template-columns: 1.15fr 1fr 1fr; gap: 5px; margin: 1.5rem 0; padding: 5px; background: var(--line); border: 1px solid var(--line); border-radius: 15px; overflow: hidden; }
+    .factorial > div { display: flex; min-height: 100px; padding: .9rem; flex-direction: column; justify-content: center; background: var(--surface); }
+    .factorial .corner { color: var(--muted); font-size: .75rem; font-weight: 750; }
+    .factorial .head, .factorial .side { min-height: auto; font-weight: 850; }
+    .factorial .ce { color: var(--reference); background: var(--reference-soft); }
+    .factorial .joint { color: var(--evidence); background: var(--evidence-soft); }
+    .factorial .cell span { color: var(--muted); font-size: .78rem; }
+    .factorial .cell.shield { background: var(--proposal-soft); }
+    .factorial .cell.naive { background: var(--danger-soft); }
+    .roadmap { position: relative; display: grid; gap: .75rem; margin: 1.5rem 0; padding-left: 2rem; }
+    .roadmap::before { content: ""; position: absolute; top: 1rem; bottom: 1rem; left: .65rem; width: 3px; background: linear-gradient(var(--reference), var(--proposal), var(--controller)); border-radius: 3px; }
+    .roadmap article { position: relative; display: grid; grid-template-columns: 90px 190px 1fr; gap: 1rem; align-items: center; padding: 1rem; background: var(--surface-2); border: 1px solid var(--line); border-radius: 13px; }
+    .roadmap article::before { content: ""; position: absolute; left: -1.78rem; width: 12px; height: 12px; background: var(--proposal); border: 4px solid var(--surface); border-radius: 50%; box-shadow: 0 0 0 2px var(--proposal); }
+    .roadmap span { color: var(--proposal); font-size: .68rem; font-weight: 900; letter-spacing: .06em; }
+    .roadmap p { margin: 0; color: var(--muted); font-size: .82rem; }
+    .roadmap em { grid-column: 3; color: var(--controller); font-size: .75rem; font-style: normal; font-weight: 750; }
+    .success-gate { margin: 1.6rem 0; padding: 1.4rem; color: #fff; background: #172033; border-radius: 16px; text-align: center; }
+    .success-gate > span { display: block; margin-bottom: .55rem; color: #9fdbd4; font-size: .7rem; font-weight: 900; letter-spacing: .1em; }
+    .success-gate > strong { display: inline-block; padding: .55rem .8rem; color: #c8f2ed; border: 1px solid #506176; border-radius: 9px; }
+    .success-gate > b { margin: 0 .5rem; color: #fff; }
+    .success-gate p { margin: .8rem auto 0; color: #b9c4d5; font-size: .8rem; }
+    .boundary-grid { grid-template-columns: repeat(3, 1fr); }
+    .boundary-grid article { padding: 1.15rem; border: 1px solid var(--line); border-radius: 14px; }
+    .boundary-grid span { font-weight: 900; }
+    .boundary-grid ul { margin-bottom: 0; padding-left: 1.2rem; color: var(--muted); font-size: .83rem; }
+    .boundary-grid .crowded { background: var(--evidence-soft); }
+    .boundary-grid .moat { background: var(--proposal-soft); }
+    .boundary-grid .claims { background: var(--controller-soft); }
+    .paper-card { margin: 1.6rem 0; padding: clamp(1.2rem, 3vw, 2rem); background: linear-gradient(135deg, var(--proposal-soft), var(--controller-soft)); border: 1px solid var(--line); border-radius: 18px; }
+    .paper-card > span { color: var(--proposal); font-size: .7rem; font-weight: 900; letter-spacing: .1em; }
+    .paper-card h3 { max-width: 900px; font-size: clamp(1.4rem, 3vw, 2.1rem); }
+    .paper-card li { margin: .55rem 0; }
+    code { padding: .12rem .3rem; background: var(--surface-2); border-radius: 5px; font-family: "SFMono-Regular", Consolas, monospace; font-size: .88em; }
+    .local-artifact { color: var(--muted); border-bottom: 1px dotted var(--muted); }
+    footer { width: min(1220px, calc(100% - 32px)); margin: -52px auto 42px; color: var(--muted); text-align: center; font-size: .8rem; }
+    @media (max-width: 920px) {
+      .metric-grid, .evidence-design-grid, .idea-summary-grid { grid-template-columns: 1fr 1fr; }
+      .objective-banner { grid-template-columns: auto 1fr; }
+      .objective-banner i { display: none; }
+      .portfolio-point { min-width: 120px; }
+      .roadmap article { grid-template-columns: 78px 1fr; }
+      .roadmap p, .roadmap em { grid-column: 2; }
+    }
+    @media (max-width: 700px) {
+      body { font-size: 15px; word-break: normal; }
+      .site-nav { position: static; padding: .55rem .8rem; align-items: flex-start; }
+      .site-nav .brand { display: none; }
+      .site-nav div { width: 100%; justify-content: center; }
+      main { width: 100%; margin: 0; padding: 24px 18px 70px; border: 0; border-radius: 0; }
+      h1 { font-size: 2.35rem; }
+      .metric-grid, .compare-grid, .evidence-design-grid, .idea-summary-grid,
+      .move-grid, .idea-detail-grid, .boundary-grid { grid-template-columns: 1fr; }
+      .metric { min-height: 125px; }
+      .toc ul { columns: 1; }
+      .mini-flow { grid-template-columns: 1fr; }
+      .mini-flow b { transform: rotate(90deg); }
+      main > p:has(> img) { width: 100vw; padding: 0 12px; overflow-x: auto; }
+      main > p:has(> img) img { min-width: 880px; }
+      .portfolio { height: 620px; overflow-x: auto; }
+      .portfolio-point { min-width: 105px; padding: .55rem; }
+      .portfolio-point span { font-size: .68rem; }
+      .flow-node.start { width: 100%; }
+      .flow-lanes { grid-template-columns: 1fr; }
+      .flow-split { width: 70%; }
+      .factorial { grid-template-columns: 1fr 1fr; overflow-x: auto; }
+      .factorial .corner { display: none; }
+      .factorial .side { grid-column: 1 / -1; min-height: auto; }
+      .roadmap article { grid-template-columns: 1fr; }
+      .roadmap p, .roadmap em { grid-column: 1; }
+      .success-gate > strong { display: block; }
+      .success-gate > b { display: block; margin: .4rem; }
+    }
+    @media print {
+      body { background: #fff; color: #000; font-size: 10.5pt; }
+      .site-nav { display: none; }
+      main { width: 100%; margin: 0; padding: 0; border: 0; box-shadow: none; }
+      .metric, article, .method-flow, .factorial { break-inside: avoid; }
+      .portfolio { break-inside: avoid; }
+      main > p:has(> img) { width: 100%; margin: 1rem 0; transform: none; }
+      main > p:has(> img) img { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="site-nav" aria-label="공개 연구 문서">
+    <span class="brand">Independent-AR SpecDec</span>
+    <div>
+      <a href="../">실험 증거</a>
+      <a href="./" aria-current="page">후속 해결책 설계</a>
+    </div>
+  </nav>
+  <main><h1 id="acceptance-target-target">Acceptance를 위해 target까지 움직일 때, target 품질은 어떻게 지킬 것인가?<a class="headerlink" href="#acceptance-target-target" title="이 절의 고정 링크">&para;</a></h1>
+<div class="hero-kicker">TARGET-SAFE BIDIRECTIONAL SPECULATIVE CO-TRAINING</div>
+
+<div class="status-row" role="list" aria-label="문서 범위와 상태">
+  <span class="status proposal" role="listitem">연구 제안서 · 제안 방법은 아직 미검증</span>
+  <span class="status" role="listitem">Standalone pretrained AR only</span>
+  <span class="status" role="listitem">MEDUSA/EAGLE out of scope</span>
+</div>
+
+<blockquote>
+<p>두 독립 pretrained autoregressive model의 bidirectional acceptance training을
+단순한 loss-weight tuning이 아니라, <strong>CE-only adaptation 대비 target
+non-inferiority를 제약으로 둔 optimizer-aware control 문제</strong>로 재정의한다.</p>
+</blockquote>
+<div class="metric-grid" role="list" aria-label="이 제안의 출발점이 된 완료된 실험 결과">
+  <a class="metric observed" role="listitem" href="https://bluear7878.github.io/specdec-joint-report/#4-target">
+    <strong>21/21</strong><span>Naive target NLL 악화</span><small>same-seed bidirectional − detach</small>
+  </a>
+  <a class="metric observed" role="listitem" href="https://bluear7878.github.io/specdec-joint-report/#42-full-target-only-downstream-panel">
+    <strong>19/21</strong><span>Full downstream macro 하락</span><small>5/5 pair point means</small>
+  </a>
+  <a class="metric observed" role="listitem" href="https://bluear7878.github.io/specdec-joint-report/#33">
+    <strong>15/15</strong><span>Step-1 Adam moment deflection</span><small>LR=0 · parameter movement 전</small>
+  </a>
+  <a class="metric observed" role="listitem" href="https://bluear7878.github.io/specdec-joint-report/#52">
+    <strong>13/21</strong><span>Norm cap 뒤 residual harm</span><small>cap − detach downstream macro</small>
+  </a>
+</div>
+
+<p class="metric-guardrail">위 숫자는 완료된 실험의 관찰값이다. 반면 이 문서의 방법과
+성공 기준은 <strong>연구 제안</strong>이며 아직 실험 결과가 아니다. Step·token·prompt는
+독립 표본이 아니고 training seed만 inferential unit이다.</p>
+
+<div class="objective-banner" role="group" aria-label="연구 목적">
+  <span>MAXIMIZE</span><strong>acceptance benefit</strong><i>subject to</i>
+  <strong>target ≥ CE-only adaptation − δ</strong>
+</div>
+
+<div class="toc">
+<ul>
+<li><a href="#1">1. 문제를 다시 정의한다</a></li>
+<li><a href="#2">2. 증거가 요구하는 설계</a></li>
+<li><a href="#3">3. 제안 포트폴리오</a></li>
+<li><a href="#4-main-bet-counterfactual-non-inferiority-controller">4. Main bet: Counterfactual Non-Inferiority Controller</a><ul>
+<li><a href="#_1">반증 가능한 가설</a></li>
+<li><a href="#_2">최소 결정 실험</a></li>
+<li><a href="#_3">중단 조건</a></li>
+</ul>
+</li>
+<li><a href="#5-high-upside-bet-risk-aware-who-should-move">5. High-upside bet: Risk-aware “Who Should Move?”</a></li>
+<li><a href="#6">6. 나머지 후보와 역할</a></li>
+<li><a href="#7-22">7. 가장 먼저 할 2×2 원인 실험</a></li>
+<li><a href="#8-stage-gated">8. Stage-gated 연구 로드맵</a></li>
+<li><a href="#9-novelty-boundary">9. Novelty boundary</a></li>
+<li><a href="#10">10. 추천 논문 패키지</a></li>
+</ul>
+</div>
+<h2 id="1">1. 문제를 다시 정의한다<a class="headerlink" href="#1" title="이 절의 고정 링크">&para;</a></h2>
+<p>Exact speculative decoding 자체는 target-side draft loss를 요구하지 않는다. 이 문서는
+target도 acceptance objective를 보게 하는 <strong>실험적 bidirectional extension</strong>을 꼭
+사용해야 할 때의 안전장치를 다룬다.</p>
+<p>같은 parameter와 AdamW state에서 CE-only와 joint 후보를 계산한다고 하자.</p>
+<div class="math-block">\[
+(\theta^0_{t+1},S^0_{t+1})
+=U_{\mathrm{AdamW}}(\theta_t,S_t,g_{CE}),
+\]</div>
+<div class="math-block">\[
+(\theta^\beta_{t+1},S^\beta_{t+1})
+=U_{\mathrm{AdamW}}(\theta_t,S_t,g_{CE}+\beta g_{aux}).
+\]</div>
+<p>우리가 풀어야 할 문제는 loss 두 개의 평균이 아니라 다음 제약 최적화다.</p>
+<div class="math-block">\[
+\max_\beta\;B_{acc}(\theta^\beta_{t+1},\phi_{t+1})
+\quad\text{s.t.}\quad
+L_{safe}(\theta^\beta_{t+1})
+-L_{safe}(\theta^0_{t+1})\le\epsilon.
+\]</div>
+<div class="compare-grid">
+  <div class="compare-card naive">
+    <span class="eyebrow">NAIVE SCALARIZATION</span>
+    <strong>CE + β·acceptance</strong>
+    <div class="mini-flow"><span>합성 gradient</span><b>↓</b><span>공유된 target AdamW history</span><b>↓</b><span>품질은 사후 평가</span></div>
+    <p>고정 β나 norm은 target quality를 명시적 제약으로 다루지 않는다.</p>
+  </div>
+  <div class="compare-card safe">
+    <span class="eyebrow">CONSTRAINED CONTROL</span>
+    <strong>CE-only 반사실을 기준으로 후보 선택</strong>
+    <div class="mini-flow"><span>동일-state AdamW fork</span><b>↓</b><span>target safety test</span><b>↓</b><span>feasible 후보 중 acceptance 최대화</span></div>
+    <p>Parameter와 optimizer state를 하나의 실행 trajectory로 보호한다.</p>
+  </div>
+</div>
+
+<p><code>g_CE</code> tensor 자체가 오염되는 것은 아니다. <code>g_CE</code>와 <code>g_aux</code>는 별도로 계산되며,
+문제는 둘을 합쳐 실행한 <strong>applied update와 Adam state</strong>가 CE-only 반사실에서
+벗어난다는 데 있다.</p>
+<h2 id="2">2. 증거가 요구하는 설계<a class="headerlink" href="#2" title="이 절의 고정 링크">&para;</a></h2>
+<p><img alt="완료된 target-update interference 증거를 optimizer-state-aware 설계 요구사항과 미검증 방법 포트폴리오로 연결한 개념도" src="../figures/figure_10_optimizer_state_solution_map.png"></p>
+<p><em>그림 1. 주황색은 완료된 관찰, 보라색은 설계 요구사항, 청록색은 아직 검증되지 않은
+방법 제안이다. 화살표는 설계 동기를 뜻하며 causal mediation을 뜻하지 않는다.</em></p>
+<div class="evidence-design-grid">
+  <article><span class="observed-tag">OBSERVED</span><strong>LR=0인 step 1부터 15/15 moment 차이</strong><p>Parameter gate만으로는 부족할 수 있다.</p><em>→ parameter와 Adam state를 함께 commit한다.</em></article>
+  <article><span class="observed-tag">OBSERVED</span><strong>First-order 139/150, exact 85/150</strong><p>Raw cosine sign은 finite AdamW step을 대체하지 못했다.</p><em>→ same-state post-Adam 반사실을 본다.</em></article>
+  <article><span class="observed-tag">OBSERVED</span><strong>NLL 21/21 · macro 19/21 endpoint harm</strong><p>한 step의 안전만으로 누적 안전을 주장할 수 없다.</p><em>→ persistent CE-only trajectory를 둔다.</em></article>
+  <article><span class="observed-tag">OBSERVED</span><strong>Cap 뒤에도 13/21 residual harm</strong><p>고정 global norm은 quality constraint가 아니다.</p><em>→ violation에 반응하는 controller가 필요하다.</em></article>
+</div>
+
+<p>Pythia–Mamba에서는 local CE alignment가 도움 방향인 경우에도 endpoint가 나빴다.
+따라서 negative cosine은 필요조건이 아니다. Current-step shadow는 joint optimizer
+history에 조건부인 반사실이고, cumulative detach 비교의 mediation decomposition도 아니다.</p>
+<h2 id="3">3. 제안 포트폴리오<a class="headerlink" href="#3" title="이 절의 고정 링크">&para;</a></h2>
+<div class="portfolio" role="img" aria-label="관찰 증거와의 직접 연결이 세로축, 선행연구 대비 차별화 가능성이 가로축인 정성적 아이디어 지도. Counterfactual controller가 우상단, Who Should Move가 차별화는 가장 높지만 위험도도 높게 배치됨.">
+  <span class="axis-y">Evidence fit ↑</span><span class="axis-x">Defensible novelty →</span>
+  <div class="grid-line h1"></div><div class="grid-line h2"></div><div class="grid-line v1"></div><div class="grid-line v2"></div>
+  <div class="portfolio-point main" style="--x:78%;--y:18%"><b>#1</b><span>Counterfactual<br>controller</span></div>
+  <div class="portfolio-point upside" style="--x:88%;--y:40%"><b>#2</b><span>Who Should<br>Move?</span></div>
+  <div class="portfolio-point" style="--x:58%;--y:31%"><b>#3</b><span>Adam-metric<br>projection</span></div>
+  <div class="portfolio-point" style="--x:67%;--y:59%"><b>#4</b><span>Safe acceptance<br>transport</span></div>
+  <div class="portfolio-point conditional" style="--x:42%;--y:72%"><b>#5</b><span>Layer/token<br>router</span></div>
+  <div class="portfolio-point component" style="--x:20%;--y:29%"><b>C</b><span>Moment<br>firewall</span></div>
+</div>
+
+<p class="figure-note">정성적 research judgment이며 측정된 성능 점수가 아니다. 위치는
+새 선행연구나 pilot 결과에 따라 바뀔 수 있다.</p>
+
+<div class="idea-summary-grid">
+  <article class="summary-card main"><span>#1 · MAIN BET</span><strong>Counterfactual Non-Inferiority Controller</strong><p>현재 증거와 가장 직접적으로 연결되고 구현 가능성이 높다.</p></article>
+  <article class="summary-card upside"><span>#2 · HIGH UPSIDE</span><strong>Risk-aware “Who Should Move?”</strong><p>두 독립 모델이라는 구조를 가장 독창적으로 활용하지만 최적화 위험이 크다.</p></article>
+  <article class="summary-card"><span>#3 · EFFICIENT VARIANT</span><strong>Adam-Metric Projection</strong><p>Exact fork를 연속적인 저비용 안전 영역으로 근사한다.</p></article>
+  <article class="summary-card conditional"><span>#4–5 · CONDITIONAL</span><strong>Transport와 Router</strong><p>Probability mass 또는 layer heterogeneity가 확인될 때만 확장한다.</p></article>
+</div>
+
+<h2 id="4-main-bet-counterfactual-non-inferiority-controller">4. Main bet: Counterfactual Non-Inferiority Controller<a class="headerlink" href="#4-main-bet-counterfactual-non-inferiority-controller" title="이 절의 고정 링크">&para;</a></h2>
+<div class="method-flow" role="img" aria-label="Persistent CE-only twin과 bidirectional trajectory를 분리한 뒤, bidirectional 쪽에서 same-state CE-only와 여러 CE+aux 후보를 fork하고 local safety gate와 cumulative dual을 통과한 parameter와 Adam state를 함께 적용하는 흐름">
+  <div class="flow-node start"><small>A · MATCHED START</small><strong>독립 target θ₀ / drafter φ₀</strong><span>shared parameter·adapter·optimizer 없음</span></div>
+  <div class="flow-split"><b>↙</b><b>↘</b></div>
+  <div class="flow-lanes">
+    <div class="lane reference"><small>B1 · MOVING REFERENCE</small><strong>Persistent CE-only twin</strong><span>θ̄ₜ, S̄ₜ · 처음부터 누적</span></div>
+    <div class="lane joint"><small>B2 · JOINT TRAJECTORY</small><strong>Same-state candidate forks</strong><span>CE-only · CE+α·aux candidates</span></div>
+  </div>
+  <div class="flow-arrow">↓</div>
+  <div class="flow-lanes controls">
+    <div class="lane dual"><small>SLOW LAYER</small><strong>Cumulative dual</strong><span>CE-only twin 대비 quality debt</span></div>
+    <div class="lane gate"><small>FAST LAYER</small><strong>Exact local safety gate</strong><span>feasible α 중 acceptance 최대</span></div>
+  </div>
+  <div class="flow-arrow">↓</div>
+  <div class="flow-node commit"><small>ATOMIC COMMIT</small><strong>선택한 parameter와 Adam state를 함께 적용</strong><span>untouched target NLL · full macro · FP32 exact AAL로 release 판단</span></div>
+</div>
+
+<p>Fast layer는 예를 들어</p>
+<div class="math-block">\[
+\alpha\in\{0,0.125,0.25,0.5,1\}
+\]</div>
+<p>각 후보를 동일한 <code>(θ_t, S_t)</code>에서 실제 AdamW로 fork한 뒤,</p>
+<div class="math-block">\[
+c_{local}(\alpha)=
+L_T^{safe}(\theta^+_\alpha)
+-L_T^{safe}(\theta^+_{CE})-\epsilon
+\]</div>
+<p>을 만족하는 후보 중 acceptance proxy가 가장 좋은 것을 고른다.
+<code>α=0</code>을 포함하면 calibration batch에서 feasible fallback이 존재한다.</p>
+<p>Slow layer는 동일 minibatch를 따라가는 CE-only twin과의 누적 차이를 추적한다.</p>
+<div class="math-block">\[
+c_{cum,t}=L_T^{safe}(\theta_t)-L_T^{safe}(\bar\theta_t)-\delta,
+\qquad
+\lambda_{t+1}=[\lambda_t+\eta_\lambda c_{cum,t}]_+.
+\]</div>
+<h3 id="_1">반증 가능한 가설<a class="headerlink" href="#_1" title="이 절의 고정 링크">&para;</a></h3>
+<ul>
+<li>Exact gate는 first-order/cosine gate보다 current-step violation을 더 잘 줄인다.</li>
+<li>Persistent twin을 더하면 local-safe controller보다 endpoint NLL·macro를 더 잘 보호한다.</li>
+<li>Detach 대비 target non-inferiority를 만족하면서 naive joint AAL gain의 유의미한 일부가 남는다.</li>
+</ul>
+<h3 id="_2">최소 결정 실험<a class="headerlink" href="#_2" title="이 절의 고정 링크">&para;</a></h3>
+<ul>
+<li><code>5 model pairs × 3 seeds</code>: exact gate와 first-order gate를 동일 compute로 비교</li>
+<li>이후 pair당 최소 5 seed: local-only와 local+cumulative controller 비교</li>
+<li>Gate용 safety data와 최종 WikiText-2/downstream test를 분리</li>
+<li><code>α_t</code>, <code>λ_t</code>, local/cumulative violation, target NLL, full macro, FP32 exact AAL 보고</li>
+</ul>
+<h3 id="_3">중단 조건<a class="headerlink" href="#_3" title="이 절의 고정 링크">&para;</a></h3>
+<ul>
+<li>One-step violation은 줄지만 endpoint가 계속 detach보다 나쁘다.</li>
+<li>Controller가 거의 항상 <code>α=0</code>을 선택해 acceptance 이득이 사라진다.</li>
+<li>Untouched downstream macro가 안전하지 않은데 WikiText CE만 안전하다.</li>
+</ul>
+<h2 id="5-high-upside-bet-risk-aware-who-should-move">5. High-upside bet: Risk-aware “Who Should Move?”<a class="headerlink" href="#5-high-upside-bet-risk-aware-who-should-move" title="이 절의 고정 링크">&para;</a></h2>
+<p>한 token에서 target과 drafter 분포를 <code>p_θ, q_φ</code>라 하면 overlap은</p>
+<div class="math-block">\[
+A(p,q)=\sum_v\min(p_v,q_v)
+\]</div>
+<p>로 쓸 수 있다. 기존 bidirectional scalarization은 두 모델을 모두 움직이지만,
+target 품질 비용과 drafter 비용은 비대칭이다. 이를 다음 문제로 바꾼다.</p>
+<div class="math-block">\[
+\max_{\Delta p,\Delta q}
+\Delta A(p,q)
+-\lambda_D C_D(\Delta q)
+-\lambda_T C_T(\Delta p)
+\quad\text{s.t.}\quad
+C_Q(\Delta p)\le\epsilon.
+\]</div>
+<div class="move-grid">
+  <article><small>LOW TARGET RISK</small><strong>Drafter + target</strong><p>Overlap gain/quality cost 비율이 높을 때 target도 제한적으로 이동</p></article>
+  <article><small>HIGH TARGET RISK</small><strong>Drafter only</strong><p>정답 margin이나 held-out CE가 민감한 token에서는 target path 차단</p></article>
+  <article><small>NO USEFUL GAIN</small><strong>Neither</strong><p>두 모델을 움직여도 exact acceptance 이득이 작으면 update를 쓰지 않음</p></article>
+</div>
+
+<p>핵심 novelty는 generic multi-task weighting이 아니라, <strong>parameter를 공유하지 않는 두
+모델 사이에서 누가 acceptance를 위해 움직일지를 명시적으로 배분</strong>하는 데 있다.
+Target-side update 전체가 나쁜 것이 아니라 위험 대비 이득이 낮은 token까지 같은
+<code>β</code>로 움직이는 것이 문제라는 가설이다.</p>
+<p>최소 pilot은 <code>drafter-only / always-bidirectional / token-risk allocator</code>를 비교하고,
+target non-inferiority와 exact AAL을 동시에 측정한다. Allocator가 항상 drafter-only로
+수렴하거나, target 이동을 허용한 gain이 target checkpoint drift에만 의존하면 중단한다.</p>
+<h2 id="6">6. 나머지 후보와 역할<a class="headerlink" href="#6" title="이 절의 고정 링크">&para;</a></h2>
+<div class="idea-detail-grid">
+  <article>
+    <span class="rank">#3 · EFFICIENT VARIANT</span>
+    <h3>Adam-Metric Target-Priority Projection</h3>
+    <p>CE-only와 joint의 실제 Adam update를 <code>d₀, d₁</code>이라 하고
+    <code>r = d₁ − d₀</code>를 held-out target descent half-space와 CE-only Adam metric의
+    trust region에 투영한다.</p>
+    <p><strong>가설:</strong> Raw PCGrad보다 executed update를 더 잘 보호한다.</p>
+    <p><strong>위험:</strong> MAdam과 priority-constrained optimization에 가까워 단독
+    novelty는 제한적이다. #1의 저비용 근사형으로 두는 편이 안전하다.</p>
+  </article>
+  <article>
+    <span class="rank">#4 · DISTRIBUTIONAL</span>
+    <h3>Quality-Constrained Acceptance Transport</h3>
+    <p>Target 전체를 draft 쪽으로 당기지 않고, CE-only target 대비 KL budget과 정답
+    margin을 지키면서 overlap을 늘리는 <code>p′</code>를 구해 distill한다.</p>
+    <p><strong>가설:</strong> 품질상 여유가 있는 probability mass만 acceptance에 사용한다.</p>
+    <p><strong>위험:</strong> Token-level KL/margin이 sequence-level downstream 안전을
+    보장하지 않으므로 #1의 empirical gate가 필요하다.</p>
+  </article>
+  <article>
+    <span class="rank">#5 · CONDITIONAL</span>
+    <h3>Post-Adam Layer/Token Router</h3>
+    <p>LoRA block 또는 token별 CE-only/joint update와 moment를 비교하고,
+    acceptance-beneficial하면서 target-safe한 위치만 joint branch를 채택한다.</p>
+    <p><strong>Pilot gate:</strong> 같은 run 안에 safe/useful과 unsafe block이 seed와
+    architecture를 넘어 안정적으로 공존할 때만 진행한다.</p>
+    <p><strong>위험:</strong> 일반 subspace routing 선행과 겹치기 쉽다.</p>
+  </article>
+  <article>
+    <span class="rank component">COMPONENT · NOT MAIN CLAIM</span>
+    <h3>Dual-Moment Firewall</h3>
+    <p>Target CE와 auxiliary의 <code>(m, v)</code>를 분리하고 controller가 승인한 auxiliary
+    update만 결합한다.</p>
+    <p><strong>역할:</strong> Optimizer-state causality를 확인하는 ablation 및 #1의
+    방화벽 구성요소.</p>
+    <p><strong>위험:</strong> AdaTask·MTAdam·MAdam 때문에 moment separation 단독
+    기여는 약하다.</p>
+  </article>
+</div>
+
+<h2 id="7-22">7. 가장 먼저 할 2×2 원인 실험<a class="headerlink" href="#7-22" title="이 절의 고정 링크">&para;</a></h2>
+<p>Optimizer state가 harm의 원인인지 marker인지 확인하려면 parameter increment와
+저장할 Adam state를 교차한다.</p>
+<div class="factorial" role="table" aria-label="Parameter update와 저장하는 Adam state를 교차한 2 곱하기 2 실험">
+  <div class="corner" role="columnheader">Applied parameter ↓<br>Persisted state →</div>
+  <div class="head ce" role="columnheader">CE-only state</div>
+  <div class="head joint" role="columnheader">Joint state</div>
+  <div class="side ce" role="rowheader">CE-only update</div>
+  <div class="cell baseline" role="cell"><strong>Reference</strong><span>CE parameter · CE state</span></div>
+  <div class="cell isolate" role="cell"><strong>State-only exposure</strong><span>CE parameter · joint state</span></div>
+  <div class="side joint" role="rowheader">Joint update</div>
+  <div class="cell shield" role="cell"><strong>Moment shield</strong><span>joint parameter · CE state</span></div>
+  <div class="cell naive" role="cell"><strong>Naive joint</strong><span>joint parameter · joint state</span></div>
+</div>
+
+<p><code>joint parameter + CE-only state</code>가 naive보다 endpoint를 크게 회복하면 moment
+trajectory가 핵심 contributor라는 강한 근거가 된다. 반대로 네 cell 차이가 거의
+parameter update만 따라가면 moment firewall은 메인 방법에서 제거한다. 이는 mediation
+decomposition을 자동으로 제공하지 않으며 matched seed·minibatch가 필요하다.</p>
+<h2 id="8-stage-gated">8. Stage-gated 연구 로드맵<a class="headerlink" href="#8-stage-gated" title="이 절의 고정 링크">&para;</a></h2>
+<div class="roadmap">
+  <article><span>STAGE 0</span><strong>Protocol lock</strong><p>δ, safety/calibration stream, untouched test, seed, FP32 rollout을 결과 전에 고정한다.</p><em>Comparator가 기존 detach를 재현하지 못하면 중단</em></article>
+  <article><span>STAGE 1</span><strong>Mechanism kill tests</strong><p>2×2 moment factorial, exact-vs-linear gate, layer heterogeneity를 짧은 panel에서 검사한다.</p><em>추가 정보가 Pareto를 개선하지 않으면 복잡한 구성 제거</em></article>
+  <article><span>STAGE 2</span><strong>Controller pilot</strong><p>Small three pairs × 3 seeds에서 local gate와 cumulative dual을 구현한다.</p><em>Target safety와 acceptance proxy가 함께 남을 때만 확대</em></article>
+  <article><span>STAGE 3</span><strong>Confirmatory panel</strong><p>5 pairs, pair당 ≥5 seeds, longer adaptation, full macro와 FP32 exact AAL을 실행한다.</p><em>Detach non-inferiority + exact AAL improvement 동시 충족</em></article>
+  <article><span>STAGE 4</span><strong>External validity</strong><p>Instruction/code/multilingual, full fine-tuning, 1B–8B 현실 모델쌍으로 범위를 넓힌다.</p><em>100-step LoRA 밖에서도 effect와 method가 유지되는지 확인</em></article>
+</div>
+
+<div class="success-gate">
+  <span>PRIMARY SUCCESS GATE</span>
+  <strong>Detach 대비 target non-inferiority</strong>
+  <b>+</b>
+  <strong>FP32 exact AAL improvement</strong>
+  <p>Teacher-forced overlap만 좋아지는 것은 성공이 아니다. Training seed 기반 interval과
+  사전 고정 margin을 사용하며, transparent latency를 production throughput으로 부르지 않는다.</p>
+</div>
+
+<h2 id="9-novelty-boundary">9. Novelty boundary<a class="headerlink" href="#9-novelty-boundary" title="이 절의 고정 링크">&para;</a></h2>
+<div class="boundary-grid">
+  <article class="crowded"><span>이미 crowded</span><ul><li>Raw gradient projection/conflict control</li><li>Generic primal-dual learning</li><li>Validation-driven loss weighting</li><li>Task별 Adam moments 분리</li></ul></article>
+  <article class="moat"><span>방어 가능한 차별점</span><ul><li>Moving CE-only adaptation reference</li><li>Same-state post-Adam parameter+state comparator</li><li>Independent pretrained AR pair의 acceptance objective</li><li>Local conditional safety + cumulative non-inferiority</li><li>Target safety와 exact AAL의 공동 release gate</li></ul></article>
+  <article class="claims"><span>주장하지 않을 것</span><ul><li>모든 architecture의 필연적 harm</li><li>Deep-network finite-run formal guarantee</li><li><code>g_CE</code> tensor 자체의 corruption</li><li>MEDUSA/EAGLE 또는 scratch pretraining 일반화</li><li>Cross-swap의 유일한 causal decomposition</li></ul></article>
+</div>
+
+<p>가장 가까운 인접 연구인
+<a href="https://sergiu-nistor.com/assets/publications/Halfway_Speculative_Decoding.pdf">Halfway Speculative Decoding</a>은
+target을 약한 draft 쪽으로 이동시키는 품질 위험을 다루지만 EAGLE-3형 target-conditioned
+head 설정이다. <a href="https://arxiv.org/abs/2602.23881">LK Losses</a>는 direct-acceptance loss의
+중요한 출발점이지만 기본적으로 고정 target에 대해 drafter를 정렬한다.</p>
+<p>Generic optimizer 측에서는 <a href="https://proceedings.neurips.cc/paper/2020/file/3fe78a8acf5fda99de95303940a2420c-Paper.pdf">PCGrad</a>,
+<a href="https://arxiv.org/abs/2211.15055">AdaTask</a>,
+<a href="https://arxiv.org/abs/2606.03904">MAdam</a>,
+<a href="https://arxiv.org/abs/2606.29521">Priority-Constrained Descent</a>을 반드시 비교해야 한다.
+Validation branch와 동적 weighting의 가까운 선행은
+<a href="https://proceedings.neurips.cc/paper_files/paper/2023/hash/60f9118a849e8e9a0c67e2a36ad80ebf-Abstract-Conference.html">ForkMerge</a>와
+<a href="https://openreview.net/forum?id=KKeCMim5VN">Auto-Lambda</a>다. 따라서 “moment를 나눈다”나
+“validation으로 β를 고른다”만으로는 충분한 novelty가 아니다.</p>
+<h2 id="10">10. 추천 논문 패키지<a class="headerlink" href="#10" title="이 절의 고정 링크">&para;</a></h2>
+<div class="paper-card">
+  <span>WORKING TITLE</span>
+  <h3>DraftShield: Counterfactual Non-Inferiority Training for Independent-AR Speculative Co-training</h3>
+  <ol>
+    <li><strong>Mechanism:</strong> target-side acceptance loss가 applied update와 Adam trajectory에 일으키는 negative transfer를 여러 독립 model pair에서 규명</li>
+    <li><strong>Method:</strong> same-state exact gate와 persistent CE-only dual controller로 target non-inferiority를 직접 최적화</li>
+    <li><strong>Evaluation:</strong> target NLL·full downstream macro·FP32 exact AAL의 사전 고정 Pareto gate</li>
+  </ol>
+</div>
+
+<p>가장 현실적인 main bet은 #1이다. #2는 가장 높은 novelty upside를 가지므로 #1의 안전
+controller 위에서 token별 movement allocation으로 확장하는 순서가 좋다. #3–5와 moment
+firewall은 원인 실험이 지지할 때만 넣어, 방법을 불필요하게 복잡하게 만들지 않는다.</p>
+<p>이 문서는 아이디어와 반증 가능한 가설을 정리한 연구 설계안이다. 제안 방법이 target
+non-inferiority나 acceptance improvement를 이미 달성했다는 뜻이 아니다.</p></main>
+  <footer>Research proposal · methods are not experimental results · 2026-07-16</footer>
+</body>
+</html>
