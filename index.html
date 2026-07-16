@@ -337,6 +337,25 @@ target 품질을 반복적으로 낮췄고</strong>, 현재의 norm cap도 detac
 <p>Target distribution을 <code>p_θ</code>, 독립 drafter를 <code>q_φ</code>라 한다. 둘은 tokenizer-compatible
 token ID만 공유한다. Target과 draft의 backbone, representation, LM head, LoRA,
 optimizer는 모두 분리되어 있다.</p>
+<p>여기서 acceptance objective <code>L_A</code>는
+<a href="https://arxiv.org/html/2602.23881#S4.SS2">Samarin et al., <em>LK Losses: Direct Acceptance Rate Optimization for Speculative
+Decoding</em>, arXiv:2602.23881v2 (2026), §4.2</a>의
+<strong>adaptive Hybrid LK</strong>를 그대로 사용한다. 즉 각 draft position <code>k</code>에서</p>
+<div class="math-block">\[
+L_A=\sum_{k=1}^{K}\gamma^{k-1}
+\left[\lambda_k D_{KL}(p^{(k)}_\theta\|q^{(k)}_\phi)
++(1-\lambda_k)\operatorname{TV}(p^{(k)}_\theta,q^{(k)}_\phi)\right],
+\quad
+\lambda_k=\exp[-\eta\operatorname{sg}(\alpha_k)],
+\]</div>
+<p>이며 <code>α_k</code>는 batch와 sequence context에 걸쳐 평균한 token-distribution overlap이다.
+실험은 LK v2의 주 설정을 따라 <code>η=3</code>, <code>γ=0.8</code>로 고정했다. 이 출처는 <strong>loss의
+정의와 draft-side recipe</strong>를 뒷받침한다. Hybrid LK를 target에도 미분하는 가장 가까운
+공개 선행은
+<a href="https://sergiu-nistor.com/assets/publications/Halfway_Speculative_Decoding.pdf">Nistor, <em>Halfway Speculative Decoding</em> (2026), §3.2</a>지만,
+그 연구는 target embedding·hidden state를 입력으로 쓰는 EAGLE-3-style head다. 따라서
+아래의 <strong>두 독립 pretrained AR 모델</strong>에서의 target-side 경로는 그 아이디어를 독립-model
+setting으로 옮겨 검증하는 실험적 확장이다.</p>
 <p>비교는 다음과 같다.</p>
 <div class="math-block">\[
 \begin{aligned}
@@ -354,16 +373,13 @@ g_D &= \nabla_\phi L_A(\operatorname{sg}[p_\theta],q_\phi).
 \end{aligned}
 \]</div>
 <blockquote>
-<p><strong>Loss provenance.</strong> <code>L_CE</code>는 target의 native LM head 전체 vocabulary에서 계산하는
-표준 teacher-forced next-token cross-entropy다. <code>L_A</code>는
-<a href="https://arxiv.org/html/2602.23881">LK Losses v2</a>가 제안한 direct-acceptance
-<strong>Hybrid LK</strong> objective이며, adaptive KL–TV 혼합의 정확한 정의는
-<a href="#21-hybrid-lk-objective">§2.1</a>에 둔다. 위 draft 식은 고정 target에 drafter를
-맞추는 원 논문의 방향을 따른다. 반면 bidirectional 식의
-<code>∇_θ L_A(p_θ, sg[q_φ])</code>는 동일 loss를 target에도 미분한 <strong>본 연구의 실험적
-extension</strong>이지, LK Losses의 필수 recipe나 exact speculative decoding의 요건이
-아니다. Confirmatory panel은 Hybrid LK <code>η=3</code>, target-side <code>β=1</code>로 고정했다.
-<code>sg[·]</code>는 stop-gradient다.</p>
+<p><strong>무엇이 reference이고 무엇이 실험 조작인가.</strong> <code>L_CE</code>는 target native LM head의
+전체 vocabulary에서 계산한 표준 teacher-forced next-token cross-entropy다.
+<code>L_A</code>의 수식·position discount·<code>η=3</code>은 Samarin et al.의 Hybrid LK에서 가져왔다.
+원 LK recipe는 고정 target에 drafter를 맞추며, target-side
+<code>∇_θ L_A(p_θ, sg[q_φ])</code>는 그 recipe의 필수 요소가 아니다. 이 연구가 직접 조작한
+것은 그 target path의 on/off이고, <code>β=1</code>은 본 연구가 고정한 계수다. <code>sg[·]</code>는
+stop-gradient이며, 자세한 구현 정의는 <a href="#21-hybrid-lk-objective">§2.1</a>에 둔다.</p>
 </blockquote>
 <p>같은 seed의 두 arm은 minibatch 순서, optimizer, learning-rate schedule, token exposure,
 draft update rule/coefficient를 맞췄다. 유일하게 직접 조작한 것은 target-side <code>L_A</code>
