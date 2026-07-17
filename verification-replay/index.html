@@ -1,0 +1,1275 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="독립 pretrained AR target–drafter의 seed-99 비파괴 shadow에서 verified replay data와 accepted-FKL/rejected-RKL mixed loss를 2×2로 검증했다. 구조 검사는 통과했지만 주 방법은 0/3 pair에서 ablation superiority 기준을 넘지 못해 KILL됐다.">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Verification Replay v0.6 — 구조는 통과, 방법은 KILL">
+  <meta property="og:description" content="Target-assisted verified replay × mixed loss의 2×2 independent-AR shadow audit. GPT-2의 작은 이득은 기준 미달이었고 OPT/Pythia는 악화했다.">
+  <meta property="og:url" content="https://bluear7878.github.io/specdec-joint-report/verification-replay/">
+  <meta property="og:image" content="https://bluear7878.github.io/specdec-joint-report/artifacts/asds_v0_6_verification_replay_analysis_v2/asds_v0_6_factorial_effects.png">
+  <meta property="og:image:alt" content="Verification Replay v0.6의 pair별 data, loss, ablation, baseline, cross-fit exact AAL 효과">
+  <meta property="og:image:width" content="1890">
+  <meta property="og:image:height" content="1007">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="canonical" href="https://bluear7878.github.io/specdec-joint-report/verification-replay/">
+  <title>Verification Replay v0.6 — Independent-AR shadow audit</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #eef2f5;
+      --paper: #fcfbf8;
+      --paper-2: #f6f7f5;
+      --ink: #15222e;
+      --muted: #62707d;
+      --line: #d9dfe2;
+      --navy: #18354d;
+      --navy-2: #102838;
+      --blue: #2c67d6;
+      --blue-soft: #e8efff;
+      --teal: #167c72;
+      --teal-soft: #e4f4f0;
+      --orange: #d97809;
+      --orange-soft: #fff0da;
+      --red: #b73f43;
+      --red-soft: #fdebed;
+      --green: #21805a;
+      --green-soft: #e6f4ed;
+      --shadow: 0 24px 70px rgba(25, 46, 65, .11);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0d1419;
+        --paper: #141d24;
+        --paper-2: #19242c;
+        --ink: #e9eff3;
+        --muted: #a9b5bd;
+        --line: #33424b;
+        --navy: #acc9e0;
+        --navy-2: #09151e;
+        --blue: #91b1ff;
+        --blue-soft: #1c2d4d;
+        --teal: #68d3c4;
+        --teal-soft: #173832;
+        --orange: #ffb35f;
+        --orange-soft: #402d1a;
+        --red: #ff9ca1;
+        --red-soft: #402326;
+        --green: #75d4a8;
+        --green-soft: #17362b;
+        --shadow: none;
+      }
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 3% 3%, color-mix(in srgb, var(--blue) 9%, transparent), transparent 26rem),
+        var(--bg);
+      color: var(--ink);
+      font-family: Pretendard, "Noto Sans KR", -apple-system, BlinkMacSystemFont,
+        "Segoe UI", sans-serif;
+      font-size: 16.5px;
+      line-height: 1.66;
+      word-break: keep-all;
+    }
+    a { color: var(--blue); text-underline-offset: 3px; }
+    code {
+      padding: .12rem .32rem;
+      background: color-mix(in srgb, var(--paper-2) 82%, var(--blue-soft));
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: .87em;
+    }
+    .site-nav {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      min-height: 58px;
+      padding: .42rem max(22px, calc((100vw - 1260px) / 2));
+      background: color-mix(in srgb, var(--bg) 88%, transparent);
+      border-bottom: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+      backdrop-filter: blur(18px);
+    }
+    .brand { color: var(--ink); font-weight: 900; letter-spacing: -.025em; }
+    .site-nav div { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .3rem; }
+    .site-nav a {
+      padding: .35rem .62rem;
+      color: var(--muted);
+      border-radius: 999px;
+      text-decoration: none;
+      font-size: .82rem;
+      font-weight: 760;
+    }
+    .site-nav a:hover,
+    .site-nav a[aria-current="page"] { color: var(--blue); background: var(--blue-soft); }
+    main {
+      width: min(1260px, calc(100% - 32px));
+      margin: 28px auto 86px;
+      overflow: hidden;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 26px;
+      box-shadow: var(--shadow);
+    }
+    h1, h2, h3 { margin-bottom: .7rem; line-height: 1.19; letter-spacing: -.036em; }
+    h1 { margin-top: .6rem; font-size: clamp(2.45rem, 6.6vw, 5.8rem); }
+    h2 { margin-top: 0; font-size: clamp(1.85rem, 3.7vw, 3rem); }
+    h3 { font-size: 1.19rem; letter-spacing: -.02em; }
+    p { max-width: 890px; }
+    .hero {
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(0, 1.55fr) minmax(280px, .65fr);
+      gap: clamp(1.6rem, 4vw, 4.5rem);
+      padding: clamp(30px, 6vw, 82px);
+      overflow: hidden;
+      color: #f5f8fb;
+      background:
+        radial-gradient(circle at 88% 22%, rgba(103, 164, 255, .32), transparent 18rem),
+        radial-gradient(circle at 65% 115%, rgba(26, 154, 136, .27), transparent 28rem),
+        linear-gradient(135deg, #102839 0%, #183d59 58%, #102b3d 100%);
+    }
+    .hero::after {
+      position: absolute;
+      right: -82px;
+      bottom: -110px;
+      width: 300px;
+      height: 300px;
+      border: 1px solid rgba(255,255,255,.13);
+      border-radius: 50%;
+      box-shadow: 0 0 0 42px rgba(255,255,255,.025), 0 0 0 92px rgba(255,255,255,.018);
+      content: "";
+    }
+    .hero-copy, .hero-verdict { position: relative; z-index: 1; }
+    .eyebrow {
+      display: inline-flex;
+      gap: .45rem;
+      align-items: center;
+      margin: 0;
+      color: #b9d4e8;
+      font-size: .79rem;
+      font-weight: 850;
+      letter-spacing: .105em;
+      text-transform: uppercase;
+    }
+    .eyebrow::before { width: 28px; height: 2px; background: #69c9b9; content: ""; }
+    .hero .lead { max-width: 760px; color: #d7e5ee; font-size: 1.08rem; }
+    .scope-line {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .45rem;
+      margin-top: 1.45rem;
+    }
+    .scope-line span {
+      padding: .32rem .62rem;
+      color: #c9dae5;
+      background: rgba(255,255,255,.07);
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: 999px;
+      font-size: .76rem;
+      font-weight: 720;
+    }
+    .hero-verdict {
+      align-self: center;
+      padding: 1.4rem;
+      background: rgba(5, 17, 25, .34);
+      border: 1px solid rgba(255,255,255,.18);
+      border-radius: 20px;
+      backdrop-filter: blur(8px);
+    }
+    .verdict-label {
+      display: inline-block;
+      padding: .27rem .58rem;
+      color: #ffb6b9;
+      background: rgba(183, 63, 67, .25);
+      border: 1px solid rgba(255, 154, 161, .4);
+      border-radius: 999px;
+      font-size: .72rem;
+      font-weight: 900;
+      letter-spacing: .08em;
+    }
+    .hero-verdict strong {
+      display: block;
+      margin: .4rem 0 0;
+      font-size: clamp(3rem, 6vw, 5.4rem);
+      line-height: 1;
+      letter-spacing: -.07em;
+    }
+    .hero-verdict p { margin: .6rem 0 0; color: #d2e0e9; font-size: .9rem; line-height: 1.45; }
+    .kpi-strip {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      border-bottom: 1px solid var(--line);
+      background: var(--paper-2);
+    }
+    .kpi {
+      padding: 1.1rem clamp(.8rem, 2.4vw, 1.7rem);
+      border-right: 1px solid var(--line);
+    }
+    .kpi:last-child { border-right: 0; }
+    .kpi strong { display: block; font-size: 1.48rem; line-height: 1.15; letter-spacing: -.035em; }
+    .kpi span { display: block; margin-top: .25rem; color: var(--muted); font-size: .76rem; }
+    section { padding: clamp(42px, 6vw, 80px) clamp(22px, 6vw, 78px); }
+    section + section { border-top: 1px solid var(--line); }
+    .section-kicker {
+      margin: 0 0 .55rem;
+      color: var(--blue);
+      font-size: .75rem;
+      font-weight: 900;
+      letter-spacing: .115em;
+      text-transform: uppercase;
+    }
+    .section-intro { margin-bottom: 2rem; color: var(--muted); font-size: 1.02rem; }
+    .takeaway {
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(250px, .5fr);
+      gap: 1rem;
+      margin-top: 1.8rem;
+    }
+    .takeaway-main {
+      padding: clamp(1.35rem, 3vw, 2.2rem);
+      color: var(--navy);
+      background: linear-gradient(135deg, var(--blue-soft), var(--teal-soft));
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      font-size: clamp(1.15rem, 2.1vw, 1.48rem);
+      font-weight: 760;
+      line-height: 1.48;
+    }
+    .takeaway-side {
+      padding: 1.25rem;
+      color: var(--red);
+      background: var(--red-soft);
+      border: 1px solid color-mix(in srgb, var(--red) 30%, var(--line));
+      border-radius: 18px;
+    }
+    .takeaway-side strong { display: block; font-size: 1.6rem; }
+    .takeaway-side span { display: block; color: var(--muted); font-size: .82rem; }
+    .factorial-shell {
+      display: grid;
+      grid-template-columns: 120px repeat(2, minmax(0, 1fr));
+      gap: .65rem;
+      margin-top: 2rem;
+    }
+    .factorial-head, .factorial-side {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: .76rem;
+      font-weight: 850;
+      letter-spacing: .045em;
+      text-align: center;
+      text-transform: uppercase;
+    }
+    .factorial-head { padding: .45rem; }
+    .factorial-side {
+      padding: .8rem;
+      background: var(--paper-2);
+      border-radius: 12px;
+      writing-mode: horizontal-tb;
+    }
+    .cell {
+      min-width: 0;
+      padding: 1.15rem;
+      background: var(--paper-2);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+    }
+    .cell.primary {
+      background: linear-gradient(145deg, var(--orange-soft), var(--paper));
+      border: 2px solid var(--orange);
+    }
+    .cell-top { display: flex; justify-content: space-between; gap: .6rem; align-items: center; }
+    .cell-top strong { font-size: 1.03rem; }
+    .cell-id {
+      color: var(--muted);
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: .75rem;
+      font-weight: 800;
+    }
+    .main-chip {
+      padding: .19rem .45rem;
+      color: var(--orange);
+      background: var(--orange-soft);
+      border: 1px solid color-mix(in srgb, var(--orange) 42%, transparent);
+      border-radius: 999px;
+      font-size: .65rem;
+      font-weight: 900;
+    }
+    .triple {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: .4rem;
+      margin-top: .85rem;
+    }
+    .triple span {
+      min-width: 0;
+      padding: .55rem .35rem;
+      color: var(--muted);
+      background: color-mix(in srgb, var(--paper) 84%, transparent);
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      font-size: .68rem;
+      text-align: center;
+    }
+    .triple b { display: block; color: var(--ink); font-size: .91rem; }
+    .factorial-note {
+      grid-column: 2 / -1;
+      margin: 0;
+      color: var(--muted);
+      font-size: .75rem;
+    }
+    .pair-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: .85rem;
+      margin: 2rem 0;
+    }
+    .pair-card {
+      position: relative;
+      min-width: 0;
+      padding: 1.25rem;
+      overflow: hidden;
+      background: var(--paper-2);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+    }
+    .pair-card::before {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 5px;
+      background: var(--pair);
+      content: "";
+    }
+    .pair-card.gpt { --pair: var(--blue); }
+    .pair-card.opt { --pair: var(--teal); }
+    .pair-card.pythia { --pair: var(--orange); }
+    .pair-card h3 { margin-top: .3rem; }
+    .pair-card .sub { min-height: 2.5rem; color: var(--muted); font-size: .76rem; }
+    .pair-score { display: flex; align-items: end; gap: .5rem; margin: 1rem 0 .75rem; }
+    .pair-score strong { font-size: 2.15rem; line-height: 1; letter-spacing: -.06em; }
+    .pair-score span { color: var(--muted); font-size: .72rem; }
+    .delta-list { display: grid; gap: .38rem; }
+    .delta-list div { display: flex; justify-content: space-between; gap: 1rem; font-size: .8rem; }
+    .delta-list span { color: var(--muted); }
+    .positive { color: var(--blue); }
+    .negative { color: var(--red); }
+    .pair-verdict {
+      margin: .9rem 0 0;
+      padding-top: .7rem;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: .77rem;
+      line-height: 1.45;
+    }
+    .effect-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: .9rem;
+      margin: 2rem 0;
+    }
+    .effect-card {
+      min-width: 0;
+      padding: 1.15rem;
+      background: var(--paper-2);
+      border: 1px solid var(--line);
+      border-radius: 15px;
+    }
+    .effect-card h3 { margin: 0; }
+    .effect-card > p { margin: .3rem 0 1rem; color: var(--muted); font-size: .76rem; }
+    .dotline {
+      display: grid;
+      grid-template-columns: 64px minmax(100px, 1fr) 62px;
+      gap: .55rem;
+      align-items: center;
+      margin: .65rem 0;
+      font-size: .73rem;
+    }
+    .dotline > span:first-child { color: var(--muted); }
+    .dotline > b { text-align: right; font-variant-numeric: tabular-nums; }
+    .track {
+      position: relative;
+      height: 8px;
+      background:
+        linear-gradient(to right,
+          color-mix(in srgb, var(--red-soft) 72%, transparent) 0 44.4%,
+          color-mix(in srgb, var(--paper) 72%, transparent) 44.4% 88.9%,
+          color-mix(in srgb, var(--green-soft) 80%, transparent) 88.9% 100%);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+    }
+    .track::before, .track::after {
+      position: absolute;
+      top: -4px;
+      width: 1px;
+      height: 14px;
+      content: "";
+    }
+    .track::before { left: 44.4%; background: var(--red); opacity: .6; }
+    .track::after { left: 66.7%; background: var(--ink); opacity: .72; }
+    .goal {
+      position: absolute;
+      top: -4px;
+      left: 88.9%;
+      width: 1px;
+      height: 14px;
+      background: var(--green);
+      opacity: .8;
+    }
+    .dot {
+      position: absolute;
+      top: 50%;
+      left: var(--x);
+      width: 11px;
+      height: 11px;
+      background: var(--pair);
+      border: 2px solid var(--paper);
+      border-radius: 50%;
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--pair) 70%, #000);
+      transform: translate(-50%, -50%);
+    }
+    .dot.gpt { --pair: var(--blue); }
+    .dot.opt { --pair: var(--teal); }
+    .dot.pythia { --pair: var(--orange); }
+    .axis-note {
+      display: flex;
+      justify-content: space-between;
+      margin: .8rem 62px 0 64px;
+      color: var(--muted);
+      font-size: .62rem;
+    }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .8rem;
+      color: var(--muted);
+      font-size: .73rem;
+    }
+    .legend i {
+      display: inline-block;
+      width: 9px;
+      height: 9px;
+      margin-right: .3rem;
+      border-radius: 50%;
+    }
+    .figure {
+      margin: 2rem 0 0;
+      padding: .55rem;
+      overflow-x: auto;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+    }
+    .figure img {
+      display: block;
+      width: 100%;
+      min-width: 760px;
+      height: auto;
+      margin: 0 auto;
+    }
+    .caption { margin: .55rem .35rem 0; color: var(--muted); font-size: .76rem; line-height: 1.45; }
+    .gate-flow {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: .65rem;
+      margin: 2rem 0;
+    }
+    .gate {
+      position: relative;
+      min-height: 155px;
+      padding: 1rem;
+      background: var(--paper-2);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+    }
+    .gate:not(:last-child)::after {
+      position: absolute;
+      top: 50%;
+      right: -.55rem;
+      z-index: 2;
+      width: .45rem;
+      height: .45rem;
+      border-top: 2px solid var(--muted);
+      border-right: 2px solid var(--muted);
+      content: "";
+      transform: rotate(45deg);
+    }
+    .gate.pass { border-top: 5px solid var(--green); }
+    .gate.fail { border-top: 5px solid var(--red); }
+    .gate.secondary { opacity: .72; }
+    .gate .order { color: var(--muted); font-size: .67rem; font-weight: 850; letter-spacing: .07em; }
+    .status {
+      display: inline-block;
+      margin: .5rem 0;
+      padding: .23rem .52rem;
+      border-radius: 999px;
+      font-size: .68rem;
+      font-weight: 900;
+      letter-spacing: .04em;
+    }
+    .status.pass { color: var(--green); background: var(--green-soft); }
+    .status.fail { color: var(--red); background: var(--red-soft); }
+    .gate p { margin: .2rem 0 0; color: var(--muted); font-size: .76rem; line-height: 1.43; }
+    .stop-rule {
+      padding: 1rem 1.2rem;
+      color: var(--red);
+      background: var(--red-soft);
+      border-left: 5px solid var(--red);
+      border-radius: 0 12px 12px 0;
+      font-weight: 720;
+    }
+    .crossfit-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: .8rem;
+      margin: 2rem 0;
+    }
+    .cross-card {
+      padding: 1.05rem;
+      background: var(--paper-2);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+    }
+    .cross-card h3 { margin: 0 0 .7rem; }
+    .cross-row {
+      display: grid;
+      grid-template-columns: 48px 1fr 64px;
+      gap: .5rem;
+      align-items: center;
+      margin: .42rem 0;
+      color: var(--muted);
+      font-size: .72rem;
+    }
+    .cross-row b { color: var(--ink); text-align: right; }
+    .cross-bar { position: relative; height: 6px; background: var(--line); border-radius: 999px; }
+    .cross-bar::before {
+      position: absolute;
+      top: 0; bottom: 0; left: 50%;
+      width: 1px;
+      background: var(--ink);
+      content: "";
+      opacity: .5;
+    }
+    .cross-fill {
+      position: absolute;
+      top: 0;
+      left: var(--left);
+      width: var(--width);
+      height: 100%;
+      background: var(--color);
+      border-radius: 999px;
+    }
+    .mechanism-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(270px, .95fr);
+      gap: 1rem;
+      margin: 2rem 0;
+    }
+    .mechanism-card {
+      padding: 1.25rem;
+      background: var(--paper-2);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+    }
+    .exposure-pair { display: grid; grid-template-columns: 74px 1fr; gap: .8rem; margin: .9rem 0; }
+    .exposure-pair > strong { font-size: .8rem; }
+    .bar-set { display: grid; gap: .35rem; }
+    .stack-line { display: grid; grid-template-columns: 50px 1fr 62px; gap: .45rem; align-items: center; }
+    .stack-line > span { color: var(--muted); font-size: .67rem; }
+    .stackbar { display: flex; height: 12px; overflow: hidden; border-radius: 999px; }
+    .accepted { width: var(--accept); background: var(--teal); }
+    .rejected { flex: 1; background: color-mix(in srgb, var(--orange) 76%, var(--red)); }
+    .stack-line b { font-size: .67rem; text-align: right; }
+    .interpretation {
+      margin-top: 1.25rem;
+      padding: 1rem;
+      background: var(--orange-soft);
+      border: 1px solid color-mix(in srgb, var(--orange) 30%, var(--line));
+      border-radius: 12px;
+      font-size: .82rem;
+    }
+    .interpretation strong { color: var(--orange); }
+    .action-table { display: grid; gap: .55rem; margin-top: 1rem; }
+    .action-row {
+      display: grid;
+      grid-template-columns: 66px repeat(4, 1fr);
+      gap: .35rem;
+      align-items: center;
+      font-size: .67rem;
+    }
+    .action-row > span:first-child { color: var(--muted); font-weight: 780; }
+    .action-pill {
+      padding: .38rem .22rem;
+      background: var(--blue-soft);
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+    }
+    .callout-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(300px, .8fr);
+      gap: 1rem;
+      margin-top: 2rem;
+    }
+    .limit-card, .scope-card {
+      padding: clamp(1.2rem, 3vw, 2rem);
+      border-radius: 17px;
+    }
+    .limit-card {
+      color: var(--ink);
+      background: var(--orange-soft);
+      border: 1px solid color-mix(in srgb, var(--orange) 36%, var(--line));
+    }
+    .scope-card { background: var(--paper-2); border: 1px solid var(--line); }
+    .big-counts { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; margin: 1.2rem 0; }
+    .big-counts div {
+      padding: .8rem .45rem;
+      background: color-mix(in srgb, var(--paper) 72%, transparent);
+      border: 1px solid color-mix(in srgb, var(--orange) 25%, var(--line));
+      border-radius: 10px;
+      text-align: center;
+    }
+    .big-counts strong { display: block; color: var(--orange); font-size: 1.45rem; }
+    .big-counts span { color: var(--muted); font-size: .65rem; }
+    .scope-card ul { margin: .7rem 0 0; padding-left: 1.15rem; }
+    .scope-card li { margin: .5rem 0; color: var(--muted); font-size: .82rem; }
+    .next-method {
+      padding: clamp(1.3rem, 3vw, 2.2rem);
+      color: #f2f6f8;
+      background: linear-gradient(135deg, #122e42, #164557);
+      border-radius: 20px;
+    }
+    .next-method h3 { margin-top: 0; color: #fff; font-size: clamp(1.45rem, 3vw, 2.05rem); }
+    .next-method > p { color: #cfdee6; }
+    .method-flow {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: .55rem;
+      margin: 1.4rem 0;
+    }
+    .method-step {
+      position: relative;
+      min-height: 125px;
+      padding: .9rem;
+      background: rgba(255,255,255,.07);
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: 12px;
+    }
+    .method-step:not(:last-child)::after {
+      position: absolute;
+      top: 50%;
+      right: -.5rem;
+      z-index: 2;
+      color: #83d2c4;
+      content: "→";
+      font-size: 1.1rem;
+      font-weight: 900;
+    }
+    .method-step b { display: block; color: #9edfd3; font-size: .74rem; letter-spacing: .05em; }
+    .method-step span { display: block; margin-top: .45rem; color: #e2ebf0; font-size: .78rem; line-height: 1.42; }
+    .hypothesis-tag {
+      display: inline-block;
+      padding: .25rem .55rem;
+      color: #ffd79f;
+      background: rgba(217,120,9,.18);
+      border: 1px solid rgba(255,179,95,.4);
+      border-radius: 999px;
+      font-size: .68rem;
+      font-weight: 900;
+      letter-spacing: .06em;
+    }
+    .next-rule {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: .6rem;
+      margin-top: 1rem;
+    }
+    .next-rule div {
+      padding: .75rem;
+      color: #cfe0e8;
+      background: rgba(0,0,0,.12);
+      border-radius: 9px;
+      font-size: .72rem;
+    }
+    details {
+      margin-top: 1rem;
+      padding: .2rem 1rem;
+      background: var(--paper-2);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+    }
+    summary { padding: .75rem 0; color: var(--blue); cursor: pointer; font-weight: 820; }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; min-width: 820px; border-collapse: collapse; font-size: .76rem; }
+    th, td { padding: .62rem; border: 1px solid var(--line); text-align: right; }
+    th:first-child, td:first-child { text-align: left; }
+    th { color: var(--blue); background: var(--blue-soft); }
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: .8rem;
+      margin-top: 1rem;
+    }
+    .gallery a {
+      display: block;
+      padding: .45rem;
+      overflow: hidden;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+    }
+    .gallery img { display: block; width: 100%; height: auto; }
+    footer {
+      width: min(1260px, calc(100% - 32px));
+      margin: -56px auto 40px;
+      color: var(--muted);
+      text-align: center;
+      font-size: .77rem;
+    }
+    @media (max-width: 980px) {
+      .hero { grid-template-columns: 1fr; }
+      .hero-verdict { max-width: 440px; }
+      .pair-grid, .crossfit-grid { grid-template-columns: 1fr; }
+      .effect-grid { grid-template-columns: 1fr; }
+      .gate-flow, .method-flow { grid-template-columns: repeat(2, 1fr); }
+      .gate:nth-child(2)::after, .method-step:nth-child(2)::after { display: none; }
+      .mechanism-grid, .callout-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 700px) {
+      body { font-size: 15px; word-break: normal; }
+      .site-nav { position: static; padding: .5rem .65rem; }
+      .brand { display: none; }
+      .site-nav div { width: 100%; justify-content: center; }
+      main { width: 100%; margin: 0; border: 0; border-radius: 0; }
+      .hero { padding: 34px 20px 46px; }
+      .kpi-strip { grid-template-columns: repeat(2, 1fr); }
+      .kpi:nth-child(2) { border-right: 0; }
+      .kpi:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+      section { padding: 44px 18px; }
+      .takeaway { grid-template-columns: 1fr; }
+      .factorial-shell { grid-template-columns: 84px repeat(2, minmax(185px, 1fr)); overflow-x: auto; }
+      .triple { grid-template-columns: 1fr; }
+      .gate-flow, .method-flow, .next-rule, .gallery { grid-template-columns: 1fr; }
+      .gate:not(:last-child)::after, .method-step:not(:last-child)::after { display: none; }
+      .big-counts { grid-template-columns: 1fr; }
+      .figure img { min-width: 840px; }
+      .effect-card { padding: .9rem; }
+      .dotline { grid-template-columns: 54px minmax(80px, 1fr) 56px; gap: .35rem; }
+      .axis-note { margin-left: 54px; margin-right: 56px; }
+      footer { margin-top: 24px; }
+    }
+    @media print {
+      body { background: #fff; color: #111; font-size: 10pt; }
+      .site-nav { display: none; }
+      main { width: 100%; margin: 0; border: 0; box-shadow: none; }
+      .hero { color: #fff; print-color-adjust: exact; }
+      section { break-inside: avoid; }
+      .figure img { min-width: 0; }
+      footer { margin: 1rem 0; width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="site-nav" aria-label="공개 연구 문서">
+    <span class="brand">Independent-AR SpecDec</span>
+    <div>
+      <a href="../">모티베이션</a>
+      <a href="../methods/">방법 검증</a>
+      <a href="../coordinate-arr/">Coordinate ARR</a>
+      <a href="../temporal-teacher-arr/">Temporal Teacher</a>
+      <a href="../optimizer-horizon/">Optimizer Horizon</a>
+      <a href="./" aria-current="page">Verification Replay</a>
+      <a href="../ideas/">아이디어</a>
+    </div>
+  </nav>
+
+  <main>
+    <header class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">ASDS v0.6 · verification-error replay</p>
+        <h1>재현된 차이.<br>전달되지 않은 이득.</h1>
+        <p class="lead">
+          Target-assisted verified replay와 accepted-FKL/rejected-RKL mixed loss를
+          독립 pretrained AR drafter에 함께 넣었다. 구조와 treatment는 유효했지만,
+          고정 main <strong>replay + mixed</strong>는 3개 pair 어느 곳에서도
+          사전 정의한 ablation superiority를 만들지 못했다.
+        </p>
+        <div class="scope-line">
+          <span>non-mutating shadow</span>
+          <span>engineering seed 99</span>
+          <span>FP32 eager exact AAL</span>
+          <span>selection seeds 6–8 sealed</span>
+        </div>
+      </div>
+      <aside class="hero-verdict" aria-label="최종 판정">
+        <span class="verdict-label">FROZEN DECISION · KILL</span>
+        <strong>0 / 3</strong>
+        <p>pair가 <code>G_ablation ≥ .02</code>를 통과했다.<br>
+          판정: <code>kill_v0_6_no_ablation_superiority</code></p>
+      </aside>
+    </header>
+
+    <div class="kpi-strip" aria-label="실험 규모">
+      <div class="kpi"><strong>3</strong><span>independent target–drafter pairs</span></div>
+      <div class="kpi"><strong>6 × 5</strong><span>candidates × efficacy steps per pair</span></div>
+      <div class="kpi"><strong>3,240</strong><span>32-token exact endpoint rows</span></div>
+      <div class="kpi"><strong>489 PASS</strong><span>final handoff regression suite</span></div>
+    </div>
+
+    <section id="verdict">
+      <p class="section-kicker">01 · Bottom line</p>
+      <h2>“조금 좋아진다”가 아니라, pair에 따라 부호가 갈렸다</h2>
+      <p class="section-intro">
+        GPT-2에서는 모든 primary contrast가 작게 양수였지만 <code>+.02</code> 기준보다
+        작았다. OPT와 Pythia에서는 고정 main이 악화했고, Pythia에서는 mixed loss
+        자체의 simple effect가 <code>−.0503 AAL</code>이었다.
+      </p>
+      <div class="takeaway">
+        <div class="takeaway-main">
+          Verified replay가 학습 신호를 실제 verification state로 옮겼다는 것만으로는
+          충분하지 않았다. <strong>rejection-heavy 상태에서 고정 1:1 mixed loss를
+          그대로 적용하면 architecture-dependent negative effect가 남거나 커질 수 있다.</strong>
+        </div>
+        <div class="takeaway-side">
+          <strong>Structural PASS</strong>
+          <span>실패는 candidate 미생성, state mutation, grid 누락 또는 update 크기 0 때문이 아니다.</span>
+        </div>
+      </div>
+
+      <div class="pair-grid" aria-label="pair별 핵심 결과">
+        <article class="pair-card gpt">
+          <h3>GPT-2 ← DistilGPT-2</h3>
+          <div class="sub">약한 양의 신호, 그러나 모든 main 기준 미달</div>
+          <div class="pair-score"><strong>2.5550</strong><span>RM mean exact AAL</span></div>
+          <div class="delta-list">
+            <div><span>vs best H4 ablation</span><b class="positive">+0.0022</b></div>
+            <div><span>vs H1 / no-update floor</span><b class="positive">+0.0161</b></div>
+            <div><span>prompt-fold cross-fit</span><b class="positive">+0.0074</b></div>
+          </div>
+          <p class="pair-verdict">방향은 긍정적이지만 사전 최소 효과 <code>+.02</code>에 못 미쳤다.</p>
+        </article>
+        <article class="pair-card opt">
+          <h3>OPT-350M ← OPT-125M</h3>
+          <div class="sub">Replay data와 fixed main 모두 음의 효과</div>
+          <div class="pair-score"><strong>2.3310</strong><span>RM mean exact AAL</span></div>
+          <div class="delta-list">
+            <div><span>vs best H4 ablation</span><b class="negative">−0.0157</b></div>
+            <div><span>vs H1 / no-update floor</span><b class="negative">−0.0216</b></div>
+            <div><span>prompt-fold cross-fit</span><b class="negative">−0.0031</b></div>
+          </div>
+          <p class="pair-verdict">Worst-floor <code>−.02</code>도 baseline 비교에서 넘었다.</p>
+        </article>
+        <article class="pair-card pythia">
+          <h3>Pythia-410M ← Pythia-70M</h3>
+          <div class="sub">Rejection-heavy exposure에서 mixed loss가 크게 악화</div>
+          <div class="pair-score"><strong>1.8887</strong><span>RM mean exact AAL</span></div>
+          <div class="delta-list">
+            <div><span>vs best H4 ablation</span><b class="negative">−0.0503</b></div>
+            <div><span>vs H1 / no-update floor</span><b class="negative">−0.0405</b></div>
+            <div><span>prompt-fold cross-fit</span><b class="negative">−0.0307</b></div>
+          </div>
+          <p class="pair-verdict">Replay+LK <code>1.9390</code> 대비 replay+mixed <code>1.8887</code>.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="design">
+      <p class="section-kicker">02 · Frozen 2×2</p>
+      <h2>바꾼 것은 data source와 loss family뿐이다</h2>
+      <p class="section-intro">
+        네 H4 cell은 같은 pre-step drafter parameter와 full AdamW state에서 시작해,
+        같은 4 Adam step과 48 loss position을 사용했다. 괄호 없는 수치는
+        GPT-2 / OPT / Pythia의 5-step mean exact AAL이다.
+      </p>
+      <div class="factorial-shell" role="group" aria-label="data source와 loss family의 2×2 factorial">
+        <div></div>
+        <div class="factorial-head">Hybrid LK · η=3</div>
+        <div class="factorial-head">Accepted FKL / Rejected RKL · γ=.8</div>
+
+        <div class="factorial-side">Local static<br>gold-prefix anchors</div>
+        <article class="cell">
+          <div class="cell-top"><strong>Local + LK</strong><span class="cell-id">LL</span></div>
+          <div class="triple">
+            <span>GPT-2<b>2.5528</b></span><span>OPT<b>2.3284</b></span><span>Pythia<b>1.9155</b></span>
+          </div>
+        </article>
+        <article class="cell">
+          <div class="cell-top"><strong>Local + mixed</strong><span class="cell-id">LM</span></div>
+          <div class="triple">
+            <span>GPT-2<b>2.5518</b></span><span>OPT<b>2.3466</b></span><span>Pythia<b>1.8960</b></span>
+          </div>
+        </article>
+
+        <div class="factorial-side">Target-assisted<br>verified replay anchors</div>
+        <article class="cell">
+          <div class="cell-top"><strong>Replay + LK</strong><span class="cell-id">RL</span></div>
+          <div class="triple">
+            <span>GPT-2<b>2.5482</b></span><span>OPT<b>2.3368</b></span><span>Pythia<b>1.9390</b></span>
+          </div>
+        </article>
+        <article class="cell primary">
+          <div class="cell-top">
+            <strong>Replay + mixed</strong>
+            <span class="main-chip">FROZEN MAIN · RM</span>
+          </div>
+          <div class="triple">
+            <span>GPT-2<b>2.5550</b></span><span>OPT<b>2.3310</b></span><span>Pythia<b>1.8887</b></span>
+          </div>
+        </article>
+        <p class="factorial-note">
+          H1 carrier와 true no-update는 bridge/floor comparator다. H1/H0와 H4가 compute-matched라는 주장은 하지 않는다.
+        </p>
+      </div>
+    </section>
+
+    <section id="effects">
+      <p class="section-kicker">03 · Primary effects</p>
+      <h2>네 질문 모두 같은 패턴을 보였다</h2>
+      <p class="section-intro">
+        아래 dot plot의 범위는 AAL <code>−.06 … +.03</code>이다.
+        세로선은 worst floor <code>−.02</code>, zero, success threshold <code>+.02</code> 순이다.
+      </p>
+      <div class="legend" aria-label="pair 색상">
+        <span><i style="background:var(--blue)"></i>GPT-2</span>
+        <span><i style="background:var(--teal)"></i>OPT</span>
+        <span><i style="background:var(--orange)"></i>Pythia</span>
+      </div>
+      <div class="effect-grid">
+        <article class="effect-card">
+          <h3>Data effect · RM − LM</h3>
+          <p>같은 mixed loss에서 verified replay가 local data보다 나은가?</p>
+          <div class="dotline"><span>GPT-2</span><div class="track"><i class="goal"></i><i class="dot gpt" style="--x:70.3%"></i></div><b>+.0032</b></div>
+          <div class="dotline"><span>OPT</span><div class="track"><i class="goal"></i><i class="dot opt" style="--x:49.3%"></i></div><b>−.0157</b></div>
+          <div class="dotline"><span>Pythia</span><div class="track"><i class="goal"></i><i class="dot pythia" style="--x:58.6%"></i></div><b>−.0073</b></div>
+          <div class="axis-note"><span>−.06</span><span>−.02</span><span>0</span><span>+.02</span><span>+.03</span></div>
+        </article>
+        <article class="effect-card">
+          <h3>Loss effect · RM − RL</h3>
+          <p>같은 replay data에서 mixed loss가 Hybrid LK보다 나은가?</p>
+          <div class="dotline"><span>GPT-2</span><div class="track"><i class="goal"></i><i class="dot gpt" style="--x:74.2%"></i></div><b>+.0068</b></div>
+          <div class="dotline"><span>OPT</span><div class="track"><i class="goal"></i><i class="dot opt" style="--x:60.2%"></i></div><b>−.0059</b></div>
+          <div class="dotline"><span>Pythia</span><div class="track"><i class="goal"></i><i class="dot pythia" style="--x:10.8%"></i></div><b>−.0503</b></div>
+          <div class="axis-note"><span>−.06</span><span>−.02</span><span>0</span><span>+.02</span><span>+.03</span></div>
+        </article>
+        <article class="effect-card">
+          <h3>Ablation superiority</h3>
+          <p>RM − best(LL, LM, RL): 고정 main이 모든 H4 대안을 이기는가?</p>
+          <div class="dotline"><span>GPT-2</span><div class="track"><i class="goal"></i><i class="dot gpt" style="--x:69.1%"></i></div><b>+.0022</b></div>
+          <div class="dotline"><span>OPT</span><div class="track"><i class="goal"></i><i class="dot opt" style="--x:49.3%"></i></div><b>−.0157</b></div>
+          <div class="dotline"><span>Pythia</span><div class="track"><i class="goal"></i><i class="dot pythia" style="--x:10.8%"></i></div><b>−.0503</b></div>
+          <div class="axis-note"><span>−.06</span><span>−.02</span><span>0</span><span>+.02</span><span>+.03</span></div>
+        </article>
+        <article class="effect-card">
+          <h3>Current baseline gain</h3>
+          <p>RM − max(carrier H1, no-update): 현재 fallback보다 실질적으로 나은가?</p>
+          <div class="dotline"><span>GPT-2</span><div class="track"><i class="goal"></i><i class="dot gpt" style="--x:84.6%"></i></div><b>+.0161</b></div>
+          <div class="dotline"><span>OPT</span><div class="track"><i class="goal"></i><i class="dot opt" style="--x:42.6%"></i></div><b>−.0216</b></div>
+          <div class="dotline"><span>Pythia</span><div class="track"><i class="goal"></i><i class="dot pythia" style="--x:21.7%"></i></div><b>−.0405</b></div>
+          <div class="axis-note"><span>−.06</span><span>−.02</span><span>0</span><span>+.02</span><span>+.03</span></div>
+        </article>
+      </div>
+      <figure class="figure">
+        <img src="../artifacts/asds_v0_6_verification_replay_analysis_v2/asds_v0_6_factorial_effects.png"
+          alt="GPT-2, OPT, Pythia의 data, loss, ablation, baseline, cross-fit exact AAL 차이를 표시한 분석기 막대 그래프">
+        <figcaption class="caption">
+          원 fail-loud analyzer가 생성한 authoritative figure. 빨간 점선은 <code>+.02</code>,
+          회색 점선은 <code>−.02</code>다. Step·prompt·sampling seed는 반복 측정이며 pseudo-CI를 만들지 않았다.
+        </figcaption>
+      </figure>
+    </section>
+
+    <section id="gate">
+      <p class="section-kicker">04 · Ordered gate</p>
+      <h2>첫 efficacy gate에서 멈췄다</h2>
+      <p class="section-intro">
+        사전 순서는 structural → ablation superiority → baseline gain → fold transfer였다.
+        뒤의 값도 완결성 때문에 보고하지만, 앞 gate 실패를 rescue할 수 없다.
+      </p>
+      <div class="gate-flow" aria-label="순서가 고정된 gate 결과">
+        <article class="gate pass">
+          <span class="order">01 · STRUCTURAL</span><br>
+          <span class="status pass">PASS</span>
+          <p>Archive/hash chain, four-cell eligibility, nonmutation, order identity,
+            3,240 exact-row grid와 greedy identity가 통과했다.</p>
+        </article>
+        <article class="gate fail">
+          <span class="order">02 · ABLATION</span><br>
+          <span class="status fail">FAIL · STOP</span>
+          <p><code>G_ablation ≥ .02</code>: <strong>0/3</strong>.<br>
+            data와 loss simple effect 동시 통과도 <strong>0/3</strong>.</p>
+        </article>
+        <article class="gate fail secondary">
+          <span class="order">03 · BASELINE</span><br>
+          <span class="status fail">DESCRIPTIVE FAIL</span>
+          <p><code>G_floor ≥ .02</code>: <strong>0/3</strong>.<br>
+            OPT/Pythia는 worst floor도 위반했다.</p>
+        </article>
+        <article class="gate fail secondary">
+          <span class="order">04 · TRANSFER</span><br>
+          <span class="status fail">DESCRIPTIVE FAIL</span>
+          <p><code>H_CF ≥ .02</code>: <strong>0/3</strong>.<br>
+            Pythia B→A는 <code>−.0751</code>.</p>
+        </article>
+      </div>
+      <p class="stop-rule">
+        최종 결정은 <code>kill_v0_6_no_ablation_superiority</code>. Candidate를 carrier에
+        commit하지 않았고, selection seeds 6–8을 열지 않았다.
+      </p>
+
+      <div class="crossfit-grid" aria-label="prompt-fold cross-fit 결과">
+        <article class="cross-card">
+          <h3>GPT-2 · H<sub>CF</sub> +.0074</h3>
+          <div class="cross-row"><span>A→B</span><div class="cross-bar"><i class="cross-fill" style="--left:50%;--width:2.0%;--color:var(--blue)"></i></div><b>+.0030</b></div>
+          <div class="cross-row"><span>B→A</span><div class="cross-bar"><i class="cross-fill" style="--left:50%;--width:7.9%;--color:var(--blue)"></i></div><b>+.0119</b></div>
+        </article>
+        <article class="cross-card">
+          <h3>OPT · H<sub>CF</sub> −.0031</h3>
+          <div class="cross-row"><span>A→B</span><div class="cross-bar"><i class="cross-fill" style="--left:49.96%;--width:.04%;--color:var(--teal)"></i></div><b>−.0001</b></div>
+          <div class="cross-row"><span>B→A</span><div class="cross-bar"><i class="cross-fill" style="--left:45.9%;--width:4.1%;--color:var(--teal)"></i></div><b>−.0061</b></div>
+        </article>
+        <article class="cross-card">
+          <h3>Pythia · H<sub>CF</sub> −.0307</h3>
+          <div class="cross-row"><span>A→B</span><div class="cross-bar"><i class="cross-fill" style="--left:50%;--width:9.1%;--color:var(--orange)"></i></div><b>+.0137</b></div>
+          <div class="cross-row"><span>B→A</span><div class="cross-bar"><i class="cross-fill" style="--left:0%;--width:50%;--color:var(--orange)"></i></div><b>−.0751</b></div>
+        </article>
+      </div>
+      <figure class="figure">
+        <img src="../artifacts/asds_v0_6_verification_replay_analysis_v2/asds_v0_6_fold_transfer.png"
+          alt="각 pair의 prompt fold A에서 B, B에서 A로 transfer한 replay mixed main 대비 best fixed alternative 효과">
+        <figcaption class="caption">
+          Source fold에서 고른 best-fixed alternative를 반대 fold에서 RM과 비교했다.
+          이는 selector efficacy가 아니라 state-dependent ranking의 transfer audit이다.
+        </figcaption>
+      </figure>
+    </section>
+
+    <section id="mechanism">
+      <p class="section-kicker">05 · Mechanism clue</p>
+      <h2>업데이트 크기는 비슷했지만, verification exposure는 달랐다</h2>
+      <p class="section-intro">
+        모든 efficacy packet은 48 proposal positions를 가졌다. Pythia에서는 accepted
+        positions가 약 5개뿐이라 mixed loss의 rejected-RKL component가 훨씬 자주 활성화됐다.
+      </p>
+      <div class="mechanism-grid">
+        <article class="mechanism-card">
+          <h3>Realized accepted / rejected positions</h3>
+          <div class="exposure-pair">
+            <strong>GPT-2</strong>
+            <div class="bar-set">
+              <div class="stack-line"><span>local</span><div class="stackbar"><i class="accepted" style="--accept:49.6%"></i><i class="rejected"></i></div><b>23.8 / 24.2</b></div>
+              <div class="stack-line"><span>replay</span><div class="stackbar"><i class="accepted" style="--accept:45.4%"></i><i class="rejected"></i></div><b>21.8 / 26.2</b></div>
+            </div>
+          </div>
+          <div class="exposure-pair">
+            <strong>OPT</strong>
+            <div class="bar-set">
+              <div class="stack-line"><span>local</span><div class="stackbar"><i class="accepted" style="--accept:49.6%"></i><i class="rejected"></i></div><b>23.8 / 24.2</b></div>
+              <div class="stack-line"><span>replay</span><div class="stackbar"><i class="accepted" style="--accept:50.4%"></i><i class="rejected"></i></div><b>24.2 / 23.8</b></div>
+            </div>
+          </div>
+          <div class="exposure-pair">
+            <strong>Pythia</strong>
+            <div class="bar-set">
+              <div class="stack-line"><span>local</span><div class="stackbar"><i class="accepted" style="--accept:10.8%"></i><i class="rejected"></i></div><b>5.2 / 42.8</b></div>
+              <div class="stack-line"><span>replay</span><div class="stackbar"><i class="accepted" style="--accept:11.3%"></i><i class="rejected"></i></div><b>5.4 / 42.6</b></div>
+            </div>
+          </div>
+          <p class="interpretation">
+            <strong>Inference, not decomposition.</strong> Pythia의 큰 negative loss effect는
+            rejection-heavy binary partition에서 fixed 1:1 FKL/RKL geometry가 잘못
+            calibrated됐다는 가설과 양립한다. 이 panel만으로 RKL을 유일 원인으로
+            식별한 것은 아니다.
+          </p>
+        </article>
+
+        <article class="mechanism-card">
+          <h3>Matched H4 LoRA update norm</h3>
+          <p style="color:var(--muted);font-size:.78rem">
+            같은 pair 안에서 네 H4 action의 크기는 근접했다. loss/data cell별
+            utility 차이를 “한 cell만 거의 업데이트하지 않았다”로 설명할 수 없다.
+          </p>
+          <div class="action-table" aria-label="pair와 candidate별 mean update norm">
+            <div class="action-row">
+              <span></span><b>Local LK</b><b>Local mix</b><b>Replay LK</b><b>Replay mix</b>
+            </div>
+            <div class="action-row">
+              <span>GPT-2</span><i class="action-pill">.0971</i><i class="action-pill">.0990</i><i class="action-pill">.0955</i><i class="action-pill">.0954</i>
+            </div>
+            <div class="action-row">
+              <span>OPT</span><i class="action-pill">.1033</i><i class="action-pill">.1022</i><i class="action-pill">.1088</i><i class="action-pill">.1074</i>
+            </div>
+            <div class="action-row">
+              <span>Pythia</span><i class="action-pill">.0588</i><i class="action-pill">.0569</i><i class="action-pill">.0584</i><i class="action-pill">.0573</i>
+            </div>
+          </div>
+          <p class="pair-verdict">
+            Eligibility는 4/4 H4 cell × 5/5 efficacy step × 3/3 pair에서 통과했고,
+            candidate exact ranks는 각 pair 5/5 step에서 non-constant였다.
+          </p>
+        </article>
+      </div>
+      <figure class="figure">
+        <img src="../artifacts/asds_v0_6_verification_replay_analysis_v2/asds_v0_6_exposure_and_action.png"
+          alt="pair별 local과 replay의 accepted rejected position, 네 H4 candidate의 mean update norm">
+        <figcaption class="caption">
+          왼쪽은 realized verification exposure, 오른쪽은 H4 LoRA update norm이다.
+          이 그림의 step 평균은 descriptive repeated measurement이며 architecture-level CI가 아니다.
+        </figcaption>
+      </figure>
+    </section>
+
+    <section id="scope">
+      <p class="section-kicker">06 · Scope & EOS</p>
+      <h2>이 결과가 말하는 것과 말하지 않는 것</h2>
+      <div class="callout-grid">
+        <article class="limit-card">
+          <h3>Fixed-32 EOS limitation</h3>
+          <p>
+            v0.5 endpoint와 비교 가능성을 위해 EOS를 terminal stop이 아닌 일반 common-support
+            token으로 처리했다. 따라서 이 결과는 EOS-stopped serving이나 Draft-OPD의
+            reference rollout estimand가 아니다.
+          </p>
+          <p><code>fixed_32_token_endpoint_aligned_nonterminal</code></p>
+          <div class="big-counts">
+            <div><strong>33</strong><span>exact rows with post-EOS tokens</span></div>
+            <div><strong>485</strong><span>generated tokens after first EOS</span></div>
+            <div><strong>16</strong><span>replay post-EOS loss positions</span></div>
+          </div>
+          <p style="font-size:.76rem;color:var(--muted)">
+            Exact generated EOS occurrences 33, replay emitted EOS 3, post-EOS replay anchor
+            blocks 4. 모두 descriptive audit이며 gate에 사용하지 않았다.
+          </p>
+        </article>
+        <article class="scope-card">
+          <h3>정확한 주장 경계</h3>
+          <ul>
+            <li>독립 pretrained AR pair의 seed-99 <strong>non-mutating draft-action shadow</strong>다.</li>
+            <li>Target carrier를 바꾸지 않았으므로 cumulative target-quality protection을 입증하지 않는다.</li>
+            <li>Training seed만 inferential unit이다. Step·prompt·corpus·sampling seed는 replicate가 아니다.</li>
+            <li>세 pair를 IID architecture population으로 pooling하지 않는다.</li>
+            <li>Transparent FP32 evaluator latency는 production serving throughput이 아니다.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section id="next">
+      <p class="section-kicker">07 · Evidence-based next hypothesis</p>
+      <h2>v0.7은 binary rejection loss를 exact acceptance mass로 바꾼다</h2>
+      <div class="next-method">
+        <span class="hypothesis-tag">PROPOSED · NOT YET VALIDATED</span>
+        <h3>One-step CE-Guarded Acceptance-Mass Joint Update</h3>
+        <p>
+          v0.6의 가장 큰 negative effect는 rejection-heavy Pythia에서 fixed 1:1
+          accepted-FKL/rejected-RKL을 적용할 때 나타났다. 다음 가설은 sampled binary
+          partition을 완전히 제거하고, 각 replay 위치의 exact shared mass
+          <code>A_k = Σ_v min(p_k(v), q_k(v))</code>를 target과 draft가 함께 높이는
+          one-step objective다.
+        </p>
+        <div class="method-flow" aria-label="제안하는 v0.7 흐름">
+          <article class="method-step">
+            <b>01 · VERIFIED REPLAY</b>
+            <span>Target-assisted 네 block-start full prefix는 유지하되 sampled accept/reject mask는 loss에 쓰지 않음</span>
+          </article>
+          <article class="method-step">
+            <b>02 · EXACT MASS OBJECTIVE</b>
+            <span>네 replay anchor에서 exact common-support shared mass gradient를 계산해 평균</span>
+          </article>
+          <article class="method-step">
+            <b>03 · ONE ADAM CANDIDATE</b>
+            <span>네 gradient 평균으로 Adam을 한 번만 진행; draft move는 live-H1 update norm 1× 안으로 제한</span>
+          </article>
+          <article class="method-step">
+            <b>04 · CE-GUARDED COMMIT</b>
+            <span>Target CE guard와 draft trust radius를 모두 통과할 때만 두 독립 state를 commit, 아니면 no-update fallback</span>
+          </article>
+        </div>
+        <div class="next-rule">
+          <div><strong>Draft lane:</strong> 네 replay gradient를 평균해 Adam 1 step. Candidate move가 live-H1 1× trust radius를 넘으면 축소하거나 true no-update로 돌아간다.</div>
+          <div><strong>Target lane:</strong> 같은 acceptance-mass objective의 CE-conflicting component를 projection하고, auxiliary를 CE-only Adam moment에 넣지 않는다. Held-out CE bisection guard로 허용 step을 다시 줄인다.</div>
+          <div><strong>Independence / gate:</strong> target과 draft parameter·optimizer는 계속 분리한다. Seed-99 same-state shadow에서 target CE non-inferiority와 cross-fold exact AAL을 통과하기 전 selection seed를 열지 않는다.</div>
+        </div>
+      </div>
+      <p class="section-intro" style="margin-top:1.3rem">
+        이 방향은 v0.6이 보여준 <strong>rejection exposure 차이 + matched action magnitude +
+        architecture-dependent mixed-loss effect</strong>에 맞춰, 불연속 binary partition과
+        네 번의 sequential Adam accumulation을 동시에 제거한다. Target은 여전히
+        drafter-aware하고 draft는 target-aware하지만, target CE update와 Adam state를
+        우선 보호한다. 아직 방법 성능의 증거가 아니며 별도 prospective freeze와 반증
+        실험이 필요하다.
+      </p>
+    </section>
+
+    <section id="details">
+      <p class="section-kicker">08 · Audit details</p>
+      <h2>수치와 원 분석 그림</h2>
+      <details>
+        <summary>Pair-level fixed estimands 전체 보기</summary>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Pair</th><th>G_data</th><th>G_loss</th><th>G_ablation</th>
+                <th>G_floor</th><th>H_A→B</th><th>H_B→A</th><th>H_CF</th><th>Nonconstant</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>GPT-2 ← DistilGPT-2</td><td>+.003231</td><td>+.006763</td><td>+.002182</td><td>+.016114</td><td>+.002986</td><td>+.011881</td><td>+.007434</td><td>5/5</td></tr>
+              <tr><td>OPT-350M ← OPT-125M</td><td>−.015673</td><td>−.005850</td><td>−.015673</td><td>−.021625</td><td>−.000055</td><td>−.006095</td><td>−.003075</td><td>5/5</td></tr>
+              <tr><td>Pythia-410M ← Pythia-70M</td><td>−.007300</td><td>−.050279</td><td>−.050279</td><td>−.040488</td><td>+.013721</td><td>−.075059</td><td>−.030669</td><td>5/5</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </details>
+      <details>
+        <summary>Step × candidate utility와 원 figure gallery</summary>
+        <div class="gallery">
+          <a href="../artifacts/asds_v0_6_verification_replay_analysis_v2/asds_v0_6_candidate_state_heatmap.png">
+            <img src="../artifacts/asds_v0_6_verification_replay_analysis_v2/asds_v0_6_candidate_state_heatmap.png"
+              alt="GPT-2, OPT, Pythia의 step과 candidate별 no-update 대비 exact AAL heatmap">
+          </a>
+          <a href="../artifacts/asds_v0_6_verification_replay_analysis_v2/asds_v0_6_fold_transfer.png">
+            <img src="../artifacts/asds_v0_6_verification_replay_analysis_v2/asds_v0_6_fold_transfer.png"
+              alt="pair별 prompt-fold transfer figure">
+          </a>
+        </div>
+        <p class="caption">
+          Heatmap은 step-wise volatility와 non-constant rank를 보여준다. 특히 Pythia는
+          step 60의 양수와 step 80/100의 큰 음수가 공존해, 한 diagnostic step을 독립
+          효능 근거로 선택할 수 없다.
+        </p>
+      </details>
+      <details>
+        <summary>Freeze와 provenance</summary>
+        <p style="color:var(--muted);font-size:.82rem">
+          Utility-blind Stage 0 structural receipt와 executable freeze receipt를 먼저
+          materialize한 뒤 100-step shadow를 실행했다. Revision 1 preflight는 utility
+          생성 전에 scalar BF16 hash와 OPT terminal-EOS policy에서 fail-loud했고,
+          v2는 scalar byte hash를 고치고 fixed-32 nonterminal EOS policy를 명시적으로
+          freeze한 fresh root다. Revision 1 row는 utility evidence에 포함되지 않는다.
+        </p>
+        <p style="color:var(--muted);font-size:.82rem">
+          독립 exact-row 재계산 audit의 최대 절대 차이는 <code>7.64e-16</code>이었다.
+          Post-result handoff에서는 pre-executable flag를 기대하던 test-only fixture를
+          최종 executable contract로 맞춘 뒤 전체 <code>489 passed</code>를 다시 확인했다.
+          Frozen protocol·manifest·analyzer·trainer·launcher·lock hash는 변하지 않았다.
+        </p>
+      </details>
+    </section>
+  </main>
+
+  <footer>
+    Independent pretrained AR target/drafter · engineering seed 99 ·
+    visual report generated from the frozen v0.6 analysis · 2026-07-17 UTC
+  </footer>
+</body>
+</html>

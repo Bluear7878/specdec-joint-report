@@ -248,6 +248,7 @@
       <a href="arr/">ARR v0.1</a>
       <a href="coordinate-arr/">Coordinate ARR v0.2</a>
       <a href="temporal-teacher-arr/">Temporal Teacher v0.3</a>
+      <a href="verification-replay/">Verification Replay v0.6</a>
       <a href="ideas/">아이디어</a>
     </div>
   </nav>
@@ -255,6 +256,12 @@
 <div class="publication-note">외부 공개용 HTML · 원 실험 artifact와 checkpoint는 공개되지 않음</div>
 
 <blockquote>
+<p><strong>2026-07-17 Verification Replay v0.6 update.</strong> Target-assisted verified
+replay와 accepted-FKL/rejected-RKL mixed loss를 2×2 shadow로 검증했다. 구조는
+통과했지만 fixed main의 ablation superiority는 <code>0/3</code> pair여서
+<strong><code>kill_v0_6_no_ablation_superiority</code></strong>로 판정했다.
+<a href="verification-replay/">시각 중심 결과 보고서</a>에서 pair별 효과, gate,
+verification exposure와 fixed-32 EOS 한계를 볼 수 있다.</p>
 <p>Target-update interference under bidirectional acceptance loss · 2026-07-16</p>
 <p>범위: parameter, embedding, hidden state, LM head, adapter, optimizer를 전혀
 공유하지 않는 두 pretrained autoregressive language model</p>
