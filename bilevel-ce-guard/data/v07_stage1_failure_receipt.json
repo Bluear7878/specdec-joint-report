@@ -1,0 +1,127 @@
+{
+  "decision": "kill_v0_7_structural",
+  "freeze_authorized_before_stage1": true,
+  "freeze_test_count": 588,
+  "input_sha256": {
+    "artifacts/bilevel_ce_guard_v0_7_freeze_v3.json": "4420463cbe555a067aeb15b94c8132a8ad3241b83dfabf23105a5f476791a41a",
+    "artifacts/bilevel_ce_guard_v0_7_pythia_step20_failure_trace_v1.json": "ce707f4f8206863fffce270407d588177c5576ccb540c382b84f06d85eecd436",
+    "artifacts/bilevel_ce_guard_v0_7_pythia_step20_failure_trace_v2.json": "537bab19b9526d70d2e5816de046ca1a817221147608569fa1ecfc986290f2ce",
+    "artifacts/bilevel_ce_guard_v0_7_stage0_structural_v3.json": "eb9b027bd262f513b8880088e8b05f5640ce3a657a1e0314cc4f7d88de039ddb",
+    "runs/bilevel_ce_guard_v0_7_seed99_shadow_v3/gpt2/seed99/.completed": "5acf199f912a5d971a797327265c81946756b01e6a056e0eb1b7b14694ee8263",
+    "runs/bilevel_ce_guard_v0_7_seed99_shadow_v3/gpt2/seed99/config.json": "aca2c6845e4f15207378c282bd1efeab0768deaa05d0eb4c3e704cfaba2151c9",
+    "runs/bilevel_ce_guard_v0_7_seed99_shadow_v3/gpt2/seed99/history.jsonl": "ab33aa6a2abe6fdc13e2bae1160d2704ece69cc59591741d41b6ce864b67aa8b",
+    "runs/bilevel_ce_guard_v0_7_seed99_shadow_v3/gpt2/seed99/metrics.json": "ac470929fed1958483e05afed6b9de74ac0b9489d8cea4e4c2b8d182db482fc7",
+    "runs/bilevel_ce_guard_v0_7_seed99_shadow_v3/gpt2/seed99/v07_candidate_snapshots.jsonl": "f148b10a79dd5dcae4f11dbe03038fcee27a7b8daf3f15c1f1810efd4ff3ba94",
+    "runs/bilevel_ce_guard_v0_7_seed99_shadow_v3/gpt2/seed99/v07_stage1_archives.jsonl": "3772564df8712dcd920a9a5f5814412d588caaf1dd00bca29751595dd5cbac96",
+    "runs/bilevel_ce_guard_v0_7_seed99_shadow_v3/gpt2/seed99/v07_stage1_diagnostics.jsonl": "45cbf380b204895c987211ffbfbbc4d7eb32d075b2853bd64649abca177ad015",
+    "runs/bilevel_ce_guard_v0_7_seed99_shadow_v3/gpt2/seed99/v07_stage1_efficacy_mechanism.jsonl": "402fd6571e040549d3b73c024346cd9e12152f66294d23fc3484eb5c57bdd41f",
+    "runs/bilevel_ce_guard_v0_7_seed99_shadow_v3/gpt2/seed99/v07_stage1_trust.jsonl": "d6c9352292412bec0a70ce2ce593f2090cf0cbc777e3c0f4e82477563524e64a",
+    "runs/bilevel_ce_guard_v0_7_seed99_shadow_v3/opt/seed99/.completed": "5acf199f912a5d971a797327265c81946756b01e6a056e0eb1b7b14694ee8263",
+    "runs/bilevel_ce_guard_v0_7_seed99_shadow_v3/opt/seed99/config.json": "12022b7c268f078594fcfa6991ef0a54a43401bd22a29335243b3eb458784e96",
+    "runs/bilevel_ce_guard_v0_7_seed99_shadow_v3/opt/seed99/history.jsonl": "8c34e157306f234d91216c5c24f12f93bfbbe9998ae29a811136e2188e7f09ce",
+    "runs/bilevel_ce_guard_v0_7_seed99_shadow_v3/opt/seed99/metrics.json": "2dbb6ddeb8f4ba58f52e4f3e46a620cf2d0a39ec99fe20ea9e738718eaacbb3a",
+    "runs/bilevel_ce_guard_v0_7_seed99_shadow_v3/opt/seed99/v07_candidate_snapshots.jsonl": "38896b32e2d07451df75f046b6db60a38213d675262db577d7181bfa6a8e28b7",
+    "runs/bilevel_ce_guard_v0_7_seed99_shadow_v3/opt/seed99/v07_stage1_archives.jsonl": "526466c0eb654e5ddb3e7b058ca497d7788ad683d322e2eb0594f9ffcc89997e",
+    "runs/bilevel_ce_guard_v0_7_seed99_shadow_v3/opt/seed99/v07_stage1_diagnostics.jsonl": "5ca2d0649906fae6f8e95e03e026fc623d8458f73611269ca8d8d2bc29b31e10",
+    "runs/bilevel_ce_guard_v0_7_seed99_shadow_v3/opt/seed99/v07_stage1_efficacy_mechanism.jsonl": "93aa14c519f85a1bb51a08c95ac8f96a3837213b8e2af56e4a6d46cfb519a0b5",
+    "runs/bilevel_ce_guard_v0_7_seed99_shadow_v3/opt/seed99/v07_stage1_trust.jsonl": "31785fef3d55407f0319961c20eb113372920b9339beac53f164c4d2eb0677a2",
+    "runs/bilevel_ce_guard_v0_7_seed99_shadow_v3/pythia/seed99.stderr.log": "30e39cad8726653e5ba567602b242517b0f84caef32034d143069b07fb96431b",
+    "runs/bilevel_ce_guard_v0_7_seed99_shadow_v3/pythia/seed99/config.json": "93cb7bda0a899f8fd52568a25714c8bab38fe0d49ad034a14fdbdd3cd5a253e0",
+    "runs/bilevel_ce_guard_v0_7_seed99_shadow_v3/pythia/seed99/history.jsonl": "4bff0e4b1b4d59a258bdb32d88518da9389d45103d7ec3d203bf43a0845650d0",
+    "runs/bilevel_ce_guard_v0_7_seed99_shadow_v3/pythia/seed99/v07_stage1_archives.jsonl": "60a498698cc1b4993f731f5518c517df9669f4378f47779be9c7a42a3ee12a75",
+    "runs/bilevel_ce_guard_v0_7_seed99_shadow_v3/pythia/seed99/v07_stage1_diagnostics.jsonl": "27405ffa95528935c1c5c9b1f70043e75b47c2dfd59e9fa7ebb395d71381abb5",
+    "runs/bilevel_ce_guard_v0_7_seed99_shadow_v3/pythia/seed99/v07_stage1_trust.jsonl": "7df10780220d6c27168d4d3e3f8d3085583767d99ec5fc897dae32376036e3b8"
+  },
+  "interpretation": {
+    "micro_kernel_root_cause_uniquely_identified": false,
+    "partial_gpt_opt_scope": "mechanism evidence, not AAL or target quality",
+    "stage0_pass_scope": "three observed utility-blind states only",
+    "threshold_relaxation_authorized": false
+  },
+  "method": "bilevel_ce_guarded_joint_training_v0_7",
+  "ordered_first_failure": "stage1_full_hybrid_response_hvp_equivalence",
+  "pair_counts": {
+    "gpt2": {
+      "archive_rows": 6,
+      "complete": true,
+      "diagnostic_rows": 6,
+      "history_rows": 100,
+      "mechanism_rows": 5,
+      "snapshot_rows": 60,
+      "trust_rows": 6
+    },
+    "opt": {
+      "archive_rows": 6,
+      "complete": true,
+      "diagnostic_rows": 6,
+      "history_rows": 100,
+      "mechanism_rows": 5,
+      "snapshot_rows": 60,
+      "trust_rows": 6
+    },
+    "pythia": {
+      "archive_rows": 2,
+      "complete": false,
+      "diagnostic_rows": 1,
+      "history_rows": 19,
+      "mechanism_rows": 0,
+      "snapshot_rows": 0,
+      "trust_rows": 1
+    }
+  },
+  "partial_mechanism_summary": {
+    "gpt2": {
+      "aggregate_ratio": 655.065144377151,
+      "atomic_fallback_count": 1,
+      "carrier_seconds": 1.0469494378194213,
+      "draft_nonfallback_count": 4,
+      "max_ratio": 1020.178306868291,
+      "mean_ratio": 700.5332320345249,
+      "mechanism_seconds": 685.8200846407562,
+      "peak_memory_bytes": 2476306432,
+      "positive_correction_count": 4
+    },
+    "opt": {
+      "aggregate_ratio": 294.83038698446165,
+      "atomic_fallback_count": 2,
+      "carrier_seconds": 2.433491381816566,
+      "draft_nonfallback_count": 3,
+      "max_ratio": 477.315822681312,
+      "mean_ratio": 305.1114381362448,
+      "mechanism_seconds": 717.4672058243304,
+      "peak_memory_bytes": 3984481280,
+      "positive_correction_count": 3
+    }
+  },
+  "pythia_failure": {
+    "captured_failure_frame": {
+      "all_hvp_finite": true,
+      "equivalence_cosine": 0.9996316200983336,
+      "equivalence_difference_norm": 0.0005427831869218872,
+      "equivalence_dot": 0.00039731527166181243,
+      "equivalence_error": 0.027196889947755834,
+      "full_hvp_norm": 0.019957546174013005,
+      "response_hvp_norm": 0.019915358586372733,
+      "step": 20
+    },
+    "cosine_threshold": 0.999,
+    "exception": "full Hybrid/response HVP equivalence failed",
+    "failed_subgate": "relative_error",
+    "relative_error_threshold": 0.001,
+    "relative_error_threshold_multiple": 27.19688994775583,
+    "step": 20,
+    "trace_frames_bit_identical": true,
+    "trace_reproduction_count": 2
+  },
+  "schema": "bilevel-ce-guard-v0.7-structural-failure-analysis-v1",
+  "stage0_structural_pass": true,
+  "stage1_root_complete": false,
+  "utility": {
+    "candidate_commit_count": 0,
+    "efficacy_claim_authorized": false,
+    "exact_root_exists": false,
+    "exact_rows": 0,
+    "quality_rows": 0,
+    "selection_seeds_6_7_8_opened": false
+  }
+}

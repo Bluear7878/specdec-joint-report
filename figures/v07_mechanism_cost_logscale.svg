@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="650" viewBox="0 0 1200 650" role="img" aria-labelledby="title desc">
+<title id="title">Transparent shadow mechanism cost</title>
+<desc id="desc">All 12 candidates and structural audits versus the carrier step; log scale.</desc>
+<style>
+  .bg { fill:#fbfcff; } .panel { fill:#fff; stroke:#d8dfec; stroke-width:1.5; }
+  .title { font:700 30px system-ui,sans-serif; fill:#14213d; }
+  .sub { font:500 16px system-ui,sans-serif; fill:#59657a; }
+  .label { font:600 17px system-ui,sans-serif; fill:#24324a; }
+  .small { font:500 14px system-ui,sans-serif; fill:#59657a; }
+  .tick { font:500 13px system-ui,sans-serif; fill:#667085; }
+  .grid { stroke:#dfe5ef; stroke-width:1; } .axis { stroke:#8390a5; stroke-width:1.5; }
+</style>
+<rect class="bg" width="1200" height="650" rx="22"/>
+<rect class="panel" x="24" y="24" width="1152" height="602" rx="18"/>
+<text class="title" x="62" y="76">Transparent shadow mechanism cost</text>
+<text class="sub" x="62" y="106">All 12 candidates and structural audits versus the carrier step; log scale.</text>
+<line class="grid" x1="150" y1="540.0" x2="1080" y2="540.0"/><text class="tick" x="130" y="545.0" text-anchor="end">1×</text><line class="grid" x1="150" y1="426.39909346701614" x2="1080" y2="426.39909346701614"/><text class="tick" x="130" y="431.39909346701614" text-anchor="end">10×</text><line class="grid" x1="150" y1="312.7981869340323" x2="1080" y2="312.7981869340323"/><text class="tick" x="130" y="317.7981869340323" text-anchor="end">100×</text><line class="grid" x1="150" y1="199.1972804010485" x2="1080" y2="199.1972804010485"/><text class="tick" x="130" y="204.1972804010485" text-anchor="end">1000×</text><line x1="150" y1="426.39909346701614" x2="1080" y2="426.39909346701614" stroke="#d14343" stroke-width="2.5" stroke-dasharray="9 7"/><text class="small" x="1075" y="416.39909346701614" text-anchor="end" fill="#d14343">frozen maximum = 10×</text><rect x="280" y="220.0675287110207" width="70" height="319.9324712889793" rx="8" fill="#2463eb"/><text x="315" y="208.0675287110207" text-anchor="middle" font-family="system-ui,sans-serif" font-size="18" font-weight="800" fill="#2463eb">655×</text><text class="tick" x="315" y="564.0" text-anchor="middle">sum ratio</text><rect x="380" y="198.21166934465913" width="70" height="341.78833065534087" rx="8" fill="#e64b3c"/><text x="415" y="186.21166934465913" text-anchor="middle" font-family="system-ui,sans-serif" font-size="18" font-weight="800" fill="#e64b3c">1020×</text><text class="tick" x="415" y="564.0" text-anchor="middle">max step</text><text class="label" x="350" y="600" text-anchor="middle">GPT</text><rect x="700" y="259.4543545052692" width="70" height="280.5456454947308" rx="8" fill="#2463eb"/><text x="735" y="247.45435450526918" text-anchor="middle" font-family="system-ui,sans-serif" font-size="18" font-weight="800" fill="#2463eb">295×</text><text class="tick" x="735" y="564.0" text-anchor="middle">sum ratio</text><rect x="800" y="235.68522915446982" width="70" height="304.3147708455302" rx="8" fill="#e64b3c"/><text x="835" y="223.68522915446982" text-anchor="middle" font-family="system-ui,sans-serif" font-size="18" font-weight="800" fill="#e64b3c">477×</text><text class="tick" x="835" y="564.0" text-anchor="middle">max step</text><text class="label" x="770" y="600" text-anchor="middle">OPT</text>
+</svg>

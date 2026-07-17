@@ -1,0 +1,621 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="서로 독립된 pretrained AR target과 drafter를 위한 Bilevel CE-Guard v0.7의 frozen 실험. Stage 0은 통과했지만 Pythia step 20의 재현 가능한 HVP 구조 불일치로 exact utility 전에 KILL됐다.">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Bilevel CE-Guard v0.7 — utility 전에 structural KILL">
+  <meta property="og:description" content="Pythia step-20 full/response HVP 상대오차 2.72%, 두 번 bit-identical 재현. GPT/OPT partial shadow는 보존했지만 exact AAL·quality는 실행하지 않았다.">
+  <meta property="og:url" content="https://bluear7878.github.io/specdec-joint-report/bilevel-ce-guard/">
+  <meta property="og:image" content="https://bluear7878.github.io/specdec-joint-report/figures/v07_failure_gate_waterfall.svg">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="canonical" href="https://bluear7878.github.io/specdec-joint-report/bilevel-ce-guard/">
+  <title>Bilevel CE-Guard v0.7 — structural KILL</title>
+  <script>
+    window.MathJax = {
+      tex: {inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']]},
+      chtml: {scale: .94}
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #eef2f6;
+      --paper: #fffdf9;
+      --paper-2: #f5f7f9;
+      --ink: #142033;
+      --muted: #5f6c7e;
+      --line: #d8dee8;
+      --navy: #173550;
+      --blue: #2463eb;
+      --blue-soft: #e9f0ff;
+      --green: #167a55;
+      --green-soft: #e4f4ec;
+      --red: #b83f45;
+      --red-soft: #fdebed;
+      --orange: #c96b0a;
+      --orange-soft: #fff0dc;
+      --gray-soft: #edf0f4;
+      --shadow: 0 26px 70px rgba(28, 48, 72, .11);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0d141a;
+        --paper: #141d25;
+        --paper-2: #19242e;
+        --ink: #edf2f6;
+        --muted: #a9b5c1;
+        --line: #34434e;
+        --navy: #b7d3ea;
+        --blue: #91b2ff;
+        --blue-soft: #1d2d4c;
+        --green: #79d3aa;
+        --green-soft: #18372b;
+        --red: #ff9ca2;
+        --red-soft: #422428;
+        --orange: #ffb263;
+        --orange-soft: #412d19;
+        --gray-soft: #222e38;
+        --shadow: none;
+      }
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 8% 0, color-mix(in srgb, var(--blue) 10%, transparent), transparent 34rem),
+        radial-gradient(circle at 92% 20%, color-mix(in srgb, var(--red) 7%, transparent), transparent 30rem),
+        var(--bg);
+      color: var(--ink);
+      font-family: Pretendard, "Noto Sans KR", -apple-system, BlinkMacSystemFont,
+        "Segoe UI", sans-serif;
+      font-size: 16.5px;
+      line-height: 1.68;
+      word-break: keep-all;
+    }
+    a { color: var(--blue); text-underline-offset: 3px; }
+    code {
+      padding: .12rem .32rem;
+      background: var(--gray-soft);
+      border-radius: 5px;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: .88em;
+    }
+    .site-nav {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      min-height: 60px;
+      padding: .4rem max(20px, calc((100vw - 1160px) / 2));
+      background: color-mix(in srgb, var(--bg) 88%, transparent);
+      border-bottom: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+      backdrop-filter: blur(16px);
+    }
+    .brand { color: var(--ink); font-weight: 850; letter-spacing: -.02em; }
+    .site-nav div { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .25rem; }
+    .site-nav a {
+      padding: .35rem .62rem;
+      color: var(--muted);
+      border-radius: 999px;
+      text-decoration: none;
+      font-size: .84rem;
+      font-weight: 750;
+    }
+    .site-nav a:hover, .site-nav a[aria-current="page"] {
+      color: var(--blue);
+      background: var(--blue-soft);
+    }
+    main {
+      width: min(1160px, calc(100% - 28px));
+      margin: 34px auto 72px;
+    }
+    .paper {
+      padding: clamp(24px, 5vw, 66px);
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+    }
+    h1, h2, h3 { line-height: 1.25; letter-spacing: -.025em; }
+    h1 { margin: .45rem 0 .9rem; font-size: clamp(2.35rem, 6vw, 4.6rem); }
+    h2 {
+      margin: 4rem 0 1.2rem;
+      padding-top: 1.1rem;
+      border-top: 1px solid var(--line);
+      font-size: clamp(1.55rem, 3vw, 2.15rem);
+    }
+    h3 { margin: 2.3rem 0 .75rem; font-size: 1.3rem; }
+    p { margin: .8rem 0 1.05rem; }
+    .eyebrow {
+      color: var(--blue);
+      font-size: .84rem;
+      font-weight: 850;
+      letter-spacing: .11em;
+      text-transform: uppercase;
+    }
+    .lead {
+      max-width: 870px;
+      color: var(--muted);
+      font-size: clamp(1.06rem, 2.1vw, 1.3rem);
+      line-height: 1.65;
+    }
+    .verdict {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      margin: .8rem 0 1.4rem;
+      padding: .46rem .78rem;
+      color: var(--red);
+      background: var(--red-soft);
+      border: 1px solid color-mix(in srgb, var(--red) 30%, transparent);
+      border-radius: 999px;
+      font-weight: 850;
+    }
+    .verdict::before { content: ""; width: .62rem; height: .62rem; background: var(--red);
+      border-radius: 50%; box-shadow: 0 0 0 .28rem color-mix(in srgb, var(--red) 14%, transparent); }
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: .85rem;
+      margin: 1.6rem 0 2.2rem;
+    }
+    .metric {
+      min-height: 128px;
+      padding: 1rem 1.05rem;
+      background: var(--paper-2);
+      border: 1px solid var(--line);
+      border-radius: 15px;
+    }
+    .metric .value { display: block; margin: .15rem 0 .2rem; font-size: 1.75rem;
+      line-height: 1.2; font-weight: 900; letter-spacing: -.03em; }
+    .metric .label { color: var(--muted); font-size: .87rem; }
+    .metric.pass .value { color: var(--green); }
+    .metric.fail .value { color: var(--red); }
+    .metric.neutral .value { color: var(--blue); }
+    .answer {
+      margin: 1.4rem 0 2.2rem;
+      padding: 1.2rem 1.35rem;
+      background: linear-gradient(115deg, var(--red-soft), color-mix(in srgb, var(--paper) 72%, var(--red-soft)));
+      border: 1px solid color-mix(in srgb, var(--red) 28%, var(--line));
+      border-left: 5px solid var(--red);
+      border-radius: 13px;
+    }
+    .answer strong { color: var(--red); }
+    .toc {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: .55rem;
+      margin: 2.2rem 0 1rem;
+      padding: 1.05rem;
+      background: var(--paper-2);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+    }
+    .toc a {
+      padding: .55rem .65rem;
+      color: var(--muted);
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      text-decoration: none;
+      font-size: .9rem;
+      font-weight: 700;
+    }
+    .toc a:hover { color: var(--blue); border-color: var(--blue); }
+    .scope-grid, .cause-grid, .next-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+      margin: 1.25rem 0;
+    }
+    .card {
+      padding: 1.1rem 1.2rem;
+      background: var(--paper-2);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+    }
+    .card h3 { margin: 0 0 .55rem; font-size: 1.06rem; }
+    .card p:last-child, .card ul:last-child { margin-bottom: 0; }
+    .card.pass { background: var(--green-soft); border-color: color-mix(in srgb, var(--green) 28%, var(--line)); }
+    .card.fail { background: var(--red-soft); border-color: color-mix(in srgb, var(--red) 28%, var(--line)); }
+    .card.warn { background: var(--orange-soft); border-color: color-mix(in srgb, var(--orange) 30%, var(--line)); }
+    table {
+      display: block;
+      width: 100%;
+      margin: 1.2rem 0 1.7rem;
+      overflow-x: auto;
+      border-collapse: collapse;
+      font-size: .92rem;
+    }
+    th, td { padding: .67rem .75rem; border: 1px solid var(--line); vertical-align: top; }
+    th { background: var(--paper-2); text-align: left; white-space: nowrap; }
+    tr:nth-child(even) td { background: color-mix(in srgb, var(--paper-2) 55%, transparent); }
+    .pass-text { color: var(--green); font-weight: 800; }
+    .fail-text { color: var(--red); font-weight: 850; }
+    figure {
+      margin: 1.7rem 0 2rem;
+      padding: .75rem;
+      background: #fbfcff;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+    }
+    figure img { display: block; width: 100%; height: auto; border-radius: 10px; }
+    figcaption { padding: .7rem .45rem .25rem; color: #5f6c7e; font-size: .88rem; }
+    .method-flow {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr auto 1fr;
+      align-items: stretch;
+      gap: .7rem;
+      margin: 1.5rem 0;
+    }
+    .flow-node {
+      padding: 1.15rem 1rem;
+      background: var(--blue-soft);
+      border: 1px solid color-mix(in srgb, var(--blue) 30%, var(--line));
+      border-radius: 13px;
+    }
+    .flow-node strong { display: block; margin-bottom: .35rem; color: var(--blue); }
+    .arrow { align-self: center; color: var(--muted); font-size: 1.7rem; font-weight: 900; }
+    .formula {
+      margin: 1.2rem 0;
+      padding: 1rem 1.2rem;
+      overflow-x: auto;
+      background: var(--paper-2);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+    }
+    .not-run {
+      padding: 1.15rem 1.25rem;
+      background: var(--gray-soft);
+      border: 1px dashed var(--muted);
+      border-radius: 13px;
+    }
+    .downloads {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: .75rem;
+    }
+    .downloads a {
+      display: block;
+      padding: .85rem .95rem;
+      background: var(--blue-soft);
+      border: 1px solid color-mix(in srgb, var(--blue) 24%, var(--line));
+      border-radius: 10px;
+      text-decoration: none;
+      font-size: .9rem;
+      font-weight: 750;
+    }
+    .footnote { color: var(--muted); font-size: .88rem; }
+    footer {
+      margin-top: 3.5rem;
+      padding-top: 1.3rem;
+      color: var(--muted);
+      border-top: 1px solid var(--line);
+      font-size: .88rem;
+    }
+    @media (max-width: 850px) {
+      .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .toc, .downloads { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .method-flow { grid-template-columns: 1fr; }
+      .arrow { transform: rotate(90deg); justify-self: center; }
+    }
+    @media (max-width: 600px) {
+      .site-nav { align-items: flex-start; flex-direction: column; }
+      .metric-grid, .toc, .scope-grid, .cause-grid, .next-grid, .downloads {
+        grid-template-columns: 1fr;
+      }
+      .paper { border-radius: 17px; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="site-nav" aria-label="공개 연구 문서">
+    <span class="brand">Independent-AR SpecDec</span>
+    <div>
+      <a href="../">모티베이션</a>
+      <a href="../methods/">방법 검증</a>
+      <a href="../verification-replay/">v0.6</a>
+      <a href="./" aria-current="page">Bilevel CE-Guard v0.7</a>
+      <a href="../ideas/">아이디어</a>
+    </div>
+  </nav>
+
+  <main>
+    <article class="paper">
+      <header>
+        <div class="eyebrow">Authoritative negative result · 2026-07-18</div>
+        <h1>Bilevel CE-Guard v0.7</h1>
+        <p class="lead">독립 pretrained AR target과 drafter를 draft-response bilevel
+          update로 함께 고려하되 target CE와 Adam state를 보호하려 했다.
+          구조 preflight는 통과했지만, evolved Pythia state에서 수치 계약이
+          결정론적으로 깨져 utility를 열기 전에 중단했다.</p>
+        <div class="verdict">kill_v0_7_structural</div>
+
+        <div class="metric-grid" aria-label="핵심 결과">
+          <div class="metric pass"><span class="label">Stage 0 구조</span>
+            <span class="value">3 / 3 PASS</span><span class="label">utility-blind</span></div>
+          <div class="metric fail"><span class="label">Pythia step 20</span>
+            <span class="value">2.72%</span><span class="label">HVP rel. error · 기준 0.1%</span></div>
+          <div class="metric neutral"><span class="label">Postmortem replay</span>
+            <span class="value">2 / 2 동일</span><span class="label">bit-identical scalar</span></div>
+          <div class="metric fail"><span class="label">Exact utility</span>
+            <span class="value">0 rows</span><span class="label">의도적으로 미실행</span></div>
+        </div>
+
+        <div class="answer">
+          <strong>결론부터:</strong> v0.7은 “효능이 나빴다”가 아니라
+          <strong>효능을 평가할 자격을 얻지 못했다.</strong> GPT와 OPT shadow가
+          완주했어도 Pythia의 frozen structural gate 실패를 사후에 제외하거나
+          tolerance를 낮추지 않았다.
+        </div>
+
+        <nav class="toc" aria-label="목차">
+          <a href="#scope">1. 범위</a>
+          <a href="#method">2. 방법</a>
+          <a href="#stage0">3. Stage 0</a>
+          <a href="#failure">4. Stage 1 실패</a>
+          <a href="#partial">5. 부분 evidence</a>
+          <a href="#cause">6. 원인 범위</a>
+          <a href="#next">7. 다음 방향</a>
+          <a href="#limits">8. 한계</a>
+          <a href="#data">9. Data</a>
+        </nav>
+      </header>
+
+      <section id="scope">
+        <h2>1. 포함하는 설정</h2>
+        <div class="scope-grid">
+          <div class="card pass">
+            <h3>이 연구가 묻는 것</h3>
+            <p>두 모델이 완전히 독립일 때, target이 현재 draft logits를 직접
+              쫓지 않고 <em>가상 draft 학습 반응</em>을 개선하도록 만들 수 있는가?</p>
+          </div>
+          <div class="card">
+            <h3>범위 밖</h3>
+            <p>MEDUSA/EAGLE native head, shared backbone·embedding·hidden state,
+              scratch foundation pretraining, flow/diffusion loss는 포함하지 않는다.</p>
+          </div>
+        </div>
+        <table>
+          <thead><tr><th>Panel</th><th>Target</th><th>Drafter</th><th>공유</th></tr></thead>
+          <tbody>
+            <tr><td>GPT</td><td>GPT-2</td><td>DistilGPT-2</td><td>token ID compatibility만</td></tr>
+            <tr><td>OPT</td><td>OPT-350M</td><td>OPT-125M</td><td>token ID compatibility만</td></tr>
+            <tr><td>Pythia</td><td>Pythia-410M</td><td>Pythia-70M</td><td>token ID compatibility만</td></tr>
+          </tbody>
+        </table>
+        <p>Backbone, representation, LM head, rank-8 LoRA, gradient, optimizer와
+          scheduler는 모두 분리했다. Base weight는 고정하고 FP32 eager,
+          WikiText-103, sequence length 64, AdamW로 짧은 adaptation을 수행했다.</p>
+      </section>
+
+      <section id="method">
+        <h2>2. 방법: drafter 자체가 아니라 draft response를 움직인다</h2>
+        <div class="method-flow" aria-label="v0.7 method flow">
+          <div class="flow-node"><strong>① Target carrier</strong>
+            Native CE-only AdamW step. Auxiliary는 target moment·weight decay·scheduler에
+            들어가지 않는다.</div>
+          <div class="arrow" aria-hidden="true">→</div>
+          <div class="flow-node"><strong>② Virtual draft response</strong>
+            Full Hybrid-LK gradient와 현재 draft Adam state로 one-step candidate를
+            함수형으로 만든다.</div>
+          <div class="arrow" aria-hidden="true">→</div>
+          <div class="flow-node"><strong>③ CE-safe correction</strong>
+            Outer shared mass의 response HVP를 CE-conflict projection, radius와
+            held-out CE guard로 제한한다.</div>
+        </div>
+        <div class="formula">
+          \[
+          \phi^+(\theta_{\rm CE}) =
+          {\rm AdamW}_D\!\left(\phi,S_D,
+          \nabla_\phi L_{\rm HybridLK}^{I}(p_{\theta_{\rm CE}},q_\phi)\right)
+          \]
+          \[
+          h_{\rm proj}=h-
+          \frac{\min(0,\langle h,g_{\rm CE}\rangle)}
+          {\|g_{\rm CE}\|_2^2+10^{-30}}g_{\rm CE}.
+          \]
+        </div>
+        <p>Main target correction은 CE-only applied step의 0.1배 반지름 안에서
+          고정된 \(\lambda\) grid를 평가한다. Draft trust나 target CE guard 중 하나라도
+          실패하면 두 leg를 함께 <code>(CE-only, live-H1)</code>로 되돌린다.
+          Stage 1에서는 이 후보들을 carrier에 적용하지 않았다.</p>
+      </section>
+
+      <section id="stage0">
+        <h2>3. Utility-blind Stage 0은 통과했다</h2>
+        <table>
+          <thead><tr><th>Pair · step 10</th><th>Full HVP norm</th>
+            <th>Response norm</th><th>Cosine</th><th>Relative error</th></tr></thead>
+          <tbody>
+            <tr><td>GPT</td><td>8.6113e-5</td><td>8.6112e-5</td>
+              <td>0.9999999444</td><td>3.3361e-4</td></tr>
+            <tr><td>OPT</td><td>2.7022e-3</td><td>2.7022e-3</td>
+              <td>1.0000000000</td><td>0</td></tr>
+            <tr><td>Pythia</td><td>3.6389e-2</td><td>3.6389e-2</td>
+              <td>0.9999999639</td><td>2.6896e-4</td></tr>
+          </tbody>
+        </table>
+        <p>Direct/functional response, functional/materialized AdamW, CPU FP64 toy
+          oracle, CE projection, target Adam isolation, RNG/nonmutation과 atomic fallback이
+          통과했다. 실제 pretrained FP32 finite difference는 conditioning descriptor로만
+          남겼다. 이것은 세 <em>관측 state</em>의 구조 PASS이지, 이후 trajectory나
+          utility 보장이 아니다.</p>
+      </section>
+
+      <section id="failure">
+        <h2>4. Stage 1: Pythia step 20에서 fail loud</h2>
+        <figure>
+          <img src="../figures/v07_failure_gate_waterfall.svg"
+            alt="Stage 0과 freeze는 통과하지만 Pythia Stage 1에서 중단되고 exact는 실행하지 않은 ordered gate">
+          <figcaption>사전 고정 순서의 첫 실패가 최종 판정이다. GPT/OPT completion은
+            Pythia structural KILL을 rescue하지 않는다.</figcaption>
+        </figure>
+        <table>
+          <thead><tr><th>Pythia step 20 trace</th><th>관측</th><th>Frozen 기준</th><th>판정</th></tr></thead>
+          <tbody>
+            <tr><td>Full/response cosine</td><td>0.9996316201</td><td>≥ 0.999</td>
+              <td class="pass-text">PASS</td></tr>
+            <tr><td>Full HVP norm</td><td>0.0199575462</td><td>finite, nonzero</td>
+              <td class="pass-text">PASS</td></tr>
+            <tr><td>Response HVP norm</td><td>0.0199153586</td><td>finite, nonzero</td>
+              <td class="pass-text">PASS</td></tr>
+            <tr><td>Difference norm</td><td>0.0005427832</td><td>보고값</td><td>—</td></tr>
+            <tr><td>Relative norm error</td><td><strong>0.0271968899</strong></td>
+              <td>≤ 0.001</td><td class="fail-text">FAIL · 27.2×</td></tr>
+          </tbody>
+        </table>
+        <figure>
+          <img src="../figures/v07_hvp_equivalence_trajectory.svg"
+            alt="GPT, OPT, Pythia의 full response HVP relative error trajectory와 0.001 threshold">
+          <figcaption>Stage-0 step 10에서는 세 pair가 통과했지만 evolved Pythia
+            step 20에서 relative error가 2.72%로 상승했다. 두 postmortem replay는
+            모든 scalar를 bit-for-bit 동일하게 재현했다.</figcaption>
+        </figure>
+        <table>
+          <thead><tr><th>Pair</th><th>Carrier</th><th>Diagnostics</th><th>Snapshots</th><th>상태</th></tr></thead>
+          <tbody>
+            <tr><td>GPT</td><td>100/100</td><td>6/6</td><td>60/60</td><td class="pass-text">complete</td></tr>
+            <tr><td>OPT</td><td>100/100</td><td>6/6</td><td>60/60</td><td class="pass-text">complete</td></tr>
+            <tr><td>Pythia</td><td>19/100</td><td>1/6</td><td>0/60</td><td class="fail-text">step-20 KILL</td></tr>
+          </tbody>
+        </table>
+        <div class="not-run"><strong>Exact는 미실행:</strong> 예정된 exact AAL
+          12,960행과 sealed quality NLL 180행은 모두 0행이다. Teacher-forced overlap,
+          guard CE 또는 GPT/OPT partial rows로 이 빈 utility를 대체하지 않았다.</div>
+      </section>
+
+      <section id="partial">
+        <h2>5. GPT/OPT partial mechanism evidence</h2>
+        <p>아래는 candidate가 얼마나 자주 non-fallback action을 만들었는지의
+          shadow 진단이다. Acceptance나 target quality 성능이 아니다.</p>
+        <figure>
+          <img src="../figures/v07_partial_nondegeneracy.svg"
+            alt="GPT와 OPT의 positive target correction 및 draft nonfallback count">
+          <figcaption>GPT는 target/draft 4/5, OPT는 3/5였다. Pythia가 없으므로
+            frozen 2/3-pair gate를 계산할 수 없다.</figcaption>
+        </figure>
+        <figure>
+          <img src="../figures/v07_mechanism_cost_logscale.svg"
+            alt="GPT와 OPT의 mechanism carrier wall time ratio log scale">
+          <figcaption>전체 12-candidate shadow와 구조 audit 비용이다. GPT의
+            aggregate/max는 655×/1020×, OPT는 295×/477×로 frozen 10× ceiling을
+            크게 넘었다. Production main-only latency로 해석하지 않는다.</figcaption>
+        </figure>
+      </section>
+
+      <section id="cause">
+        <h2>6. 무엇이 확인됐고, 무엇은 아직 모르는가</h2>
+        <div class="cause-grid">
+          <div class="card fail">
+            <h3>확인된 것</h3>
+            <ul>
+              <li>상대오차 gate가 27.2배 초과했다.</li>
+              <li>두 replay의 8개 failure-frame field가 완전히 동일하다.</li>
+              <li>Full과 response가 별도 forward·별도 reduction graph를 쓴다.</li>
+              <li>현재 bridge는 response-vs-response만 검사한다.</li>
+            </ul>
+          </div>
+          <div class="card warn">
+            <h3>유일하게 식별되지 않은 것</h3>
+            <ul>
+              <li>FP32 reduction/backward ordering의 기여</li>
+              <li>TV tie 또는 sign-boundary의 기여</li>
+              <li>TF32/CUDA kernel의 체계적 근사</li>
+              <li>실제 pretrained graph의 FP64 closure</li>
+            </ul>
+          </div>
+        </div>
+        <p>고정된 TV sign cell에서는
+          \(\mathrm{TV}(p,q)=\frac12\sum_i s_i(p_i-q_i)\)가 target-only와
+          draft-only 항으로 분리돼 mixed partial은 0이다. 하지만 \(p_i=q_i\)
+          boundary에서는 classical Hessian이 정의되지 않는다. 현재 trace는
+          deterministic discrepancy를 입증하지만 단일 micro-kernel 원인을
+          입증하지 않는다.</p>
+      </section>
+
+      <section id="next">
+        <h2>7. 근거 기반 다음 방향: canonical cross-derivative firewall</h2>
+        <p>Tolerance를 완화하거나 Pythia를 제외하지 않는다. 먼저 한 번의 common
+          forward에서 component를 만들고 algebra closure를 검증한다.</p>
+        <div class="method-flow" aria-label="proposed v0.8 flow">
+          <div class="flow-node"><strong>Common forward</strong>
+            Shared logits, schedule, survival로
+            <code>L_response</code>, <code>L_TV</code>,
+            <code>L_full=L_response+L_TV</code>를 만든다.</div>
+          <div class="arrow" aria-hidden="true">→</div>
+          <div class="flow-node"><strong>Full draft response</strong>
+            <code>g_full=grad_phi L_full</code>과 현재 draft Adam state로
+            <code>v_Adam</code>을 계산한다.</div>
+          <div class="arrow" aria-hidden="true">→</div>
+          <div class="flow-node"><strong>Cross-path firewall</strong>
+            Fixed-sign TV의 target→draft mixed path를 명시적으로 0으로 두고
+            response HVP만 CE projection/guard에 넣는다.</div>
+        </div>
+        <div class="next-grid">
+          <div class="card pass">
+            <h3>보존해야 할 것</h3>
+            <p>Hard-TV forward 값, full draft 1차 gradient, functional/materialized
+              Adam candidate, <code>v_Adam</code>, CE-first target state.</p>
+          </div>
+          <div class="card fail">
+            <h3>금지할 rescue</h3>
+            <p>Architecture별 tolerance·epsilon, failed pair 제외, response surrogate만
+              사후 교체, exact 결과를 보고 threshold 재조정.</p>
+          </div>
+        </div>
+        <p>Separate/common forward × duplicated/canonical reduction 2×2,
+          \(h_{\rm full}\), \(h_{\rm response}\), \(h_{\rm TV}\) closure, TV tie/ULP
+          통계, TF32-off·captured-logit FP64, 세 아키텍처의 evolved
+          step {10,20,40}를 utility 전에 통과해야 한다. 비용은 main-only forward reuse로
+          다시 측정하고 최대 10×를 넘으면 별도로 KILL한다.</p>
+      </section>
+
+      <section id="limits">
+        <h2>8. 해석 한계</h2>
+        <ul>
+          <li>Engineering training seed는 99 하나다. Pair·step·prompt는 독립 replicate가 아니다.</li>
+          <li>100-step LoRA adaptation을 scratch foundation pretraining으로 일반화하지 않는다.</li>
+          <li>Stage-1 shadow candidate는 적용되지 않아 cumulative co-adaptation을 입증하지 않는다.</li>
+          <li>FP64 oracle는 작은 smooth primitive이며 실제 Pythia graph의 magnitude oracle가 아니다.</li>
+          <li>Selection seed 6–8은 열지 않았고 utility claim은 없다.</li>
+        </ul>
+      </section>
+
+      <section id="data">
+        <h2>9. 공개 검증 자료와 참고 문헌</h2>
+        <div class="downloads">
+          <a href="data/v07_stage1_failure_receipt.json">Failure receipt · JSON</a>
+          <a href="data/v07_hvp_trajectory.csv">HVP trajectory · CSV</a>
+          <a href="data/v07_partial_mechanism.csv">Partial mechanism · CSV</a>
+        </div>
+        <h3>인접 연구</h3>
+        <ul>
+          <li><a href="https://proceedings.mlr.press/v202/leviathan23a.html">Leviathan et al. (2023)</a> — exact speculative decoding</li>
+          <li><a href="https://arxiv.org/abs/2602.23881">Samarin et al. (2026), LK Losses</a> — acceptance-oriented draft loss</li>
+          <li><a href="https://proceedings.mlr.press/v235/liu24y.html">Online Speculative Decoding</a> — fixed-target online draft adaptation</li>
+          <li><a href="https://arxiv.org/abs/2403.00858">Direct Alignment of Draft Model</a> — draft-only alignment</li>
+          <li><a href="https://arxiv.org/abs/2605.29343">Draft-OPD</a> — target-assisted on-policy draft replay</li>
+          <li><a href="https://sergiu-nistor.com/assets/publications/Halfway_Speculative_Decoding.pdf">Halfway Speculative Decoding</a> — EAGLE-style joint target/head training</li>
+          <li><a href="https://proceedings.mlr.press/v80/franceschi18a.html">Franceschi et al. (2018)</a> — differentiating optimization dynamics</li>
+          <li><a href="https://papers.neurips.cc/paper_files/paper/2020/file/3fe78a8acf5fda99de95303940a2420c-Paper.pdf">PCGrad</a> — conflicting-gradient projection</li>
+        </ul>
+        <p class="footnote">이 페이지는 peer-reviewed 결과가 아닌 research snapshot이다.
+          Model adapter tensor는 공개 저장소에 포함하지 않았고, receipt·aggregate
+          CSV와 시각화만 공개한다.</p>
+      </section>
+
+      <footer>
+        Independent-AR speculative joint-training research · Bilevel CE-Guard v0.7 ·
+        ordered decision: <code>kill_v0_7_structural</code>
+      </footer>
+    </article>
+  </main>
+</body>
+</html>

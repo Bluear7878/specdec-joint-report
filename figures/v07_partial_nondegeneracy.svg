@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="650" viewBox="0 0 1200 650" role="img" aria-labelledby="title desc">
+<title id="title">Partial Stage-1 nondegeneracy</title>
+<desc id="desc">Shadow target corrections and replay-HLK draft trust; these are not utility metrics.</desc>
+<style>
+  .bg { fill:#fbfcff; } .panel { fill:#fff; stroke:#d8dfec; stroke-width:1.5; }
+  .title { font:700 30px system-ui,sans-serif; fill:#14213d; }
+  .sub { font:500 16px system-ui,sans-serif; fill:#59657a; }
+  .label { font:600 17px system-ui,sans-serif; fill:#24324a; }
+  .small { font:500 14px system-ui,sans-serif; fill:#59657a; }
+  .tick { font:500 13px system-ui,sans-serif; fill:#667085; }
+  .grid { stroke:#dfe5ef; stroke-width:1; } .axis { stroke:#8390a5; stroke-width:1.5; }
+</style>
+<rect class="bg" width="1200" height="650" rx="22"/>
+<rect class="panel" x="24" y="24" width="1152" height="602" rx="18"/>
+<text class="title" x="62" y="76">Partial Stage-1 nondegeneracy</text>
+<text class="sub" x="62" y="106">Shadow target corrections and replay-HLK draft trust; these are not utility metrics.</text>
+<line class="grid" x1="120" y1="535" x2="1110" y2="535"/><text class="tick" x="102" y="540" text-anchor="end">0/5</text><line class="grid" x1="120" y1="465" x2="1110" y2="465"/><text class="tick" x="102" y="470" text-anchor="end">1/5</text><line class="grid" x1="120" y1="395" x2="1110" y2="395"/><text class="tick" x="102" y="400" text-anchor="end">2/5</text><line class="grid" x1="120" y1="325" x2="1110" y2="325"/><text class="tick" x="102" y="330" text-anchor="end">3/5</text><line class="grid" x1="120" y1="255" x2="1110" y2="255"/><text class="tick" x="102" y="260" text-anchor="end">4/5</text><line class="grid" x1="120" y1="185" x2="1110" y2="185"/><text class="tick" x="102" y="190" text-anchor="end">5/5</text><text class="label" x="280" y="580" text-anchor="middle">GPT</text><rect x="214" y="255" width="56" height="280" rx="8" fill="#2463eb"/><text x="242" y="243" text-anchor="middle" font-family="system-ui,sans-serif" font-size="18" font-weight="800" fill="#2463eb">4/5</text><text class="tick" x="242" y="557" text-anchor="middle">target</text><rect x="290" y="255" width="56" height="280" rx="8" fill="#f59e0b"/><text x="318" y="243" text-anchor="middle" font-family="system-ui,sans-serif" font-size="18" font-weight="800" fill="#f59e0b">4/5</text><text class="tick" x="318" y="557" text-anchor="middle">draft</text><text class="label" x="600" y="580" text-anchor="middle">OPT</text><rect x="534" y="325" width="56" height="210" rx="8" fill="#2463eb"/><text x="562" y="313" text-anchor="middle" font-family="system-ui,sans-serif" font-size="18" font-weight="800" fill="#2463eb">3/5</text><text class="tick" x="562" y="557" text-anchor="middle">target</text><rect x="610" y="325" width="56" height="210" rx="8" fill="#f59e0b"/><text x="638" y="313" text-anchor="middle" font-family="system-ui,sans-serif" font-size="18" font-weight="800" fill="#f59e0b">3/5</text><text class="tick" x="638" y="557" text-anchor="middle">draft</text><text class="label" x="920" y="580" text-anchor="middle">Pythia</text><rect x="838" y="220" width="164" height="315" rx="12" fill="#eef1f6" stroke="#9aa6b8" stroke-dasharray="8 7"/><text class="label" x="920" y="368" text-anchor="middle" fill="#7b8798">not observed</text><text class="small" x="920" y="398" text-anchor="middle">step-20 structural KILL</text><line x1="120" y1="255" x2="1110" y2="255" stroke="#d14343" stroke-width="2.5" stroke-dasharray="9 7"/><text class="small" x="1105" y="245" text-anchor="end" fill="#d14343">pair criterion = 4/5</text>
+</svg>
