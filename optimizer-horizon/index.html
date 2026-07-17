@@ -1,0 +1,694 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="세 independent pretrained AR target-drafter pair의 seed-99 비파괴 shadow에서 동일 drafter/full-Adam pre-state의 H=1/4/8 update action headroom과 full-vocabulary selector score를 32-token FP32 exact AAL로 검증했다. 구조 검사는 통과했지만 H-step action headroom의 frozen conjunction이 실패했다.">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Optimizer-Horizon Headroom v0.5: ACTION-SPACE KILL">
+  <meta property="og:description" content="세 independent pretrained AR target-drafter pair의 seed-99 비파괴 shadow에서 동일 drafter/full-Adam pre-state의 H=1/4/8 update action headroom과 full-vocabulary selector score를 32-token FP32 exact AAL로 검증했다. 구조 검사는 통과했지만 H-step action headroom의 frozen conjunction이 실패했다.">
+  <meta property="og:url" content="https://bluear7878.github.io/specdec-joint-report/optimizer-horizon/">
+  <meta property="og:image" content="https://bluear7878.github.io/specdec-joint-report/artifacts/asds_v0_5_action_headroom_analysis_v3/asds_v0_5_action_headroom.png">
+  <meta property="og:image:alt" content="Optimizer-Horizon Headroom v0.5의 action-space와 score-validity engineering dashboard">
+      <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://bluear7878.github.io/specdec-joint-report/artifacts/asds_v0_5_action_headroom_analysis_v3/asds_v0_5_action_headroom.png">
+  <link rel="canonical" href="https://bluear7878.github.io/specdec-joint-report/optimizer-horizon/">
+  <title>Optimizer-Horizon Headroom v0.5: ACTION-SPACE KILL</title>
+  <script>
+    window.MathJax = {
+      tex: {inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']]},
+      chtml: {scale: 0.94}
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f4f6fa; --surface: #fff; --text: #172033; --muted: #657087;
+      --line: #dce3ed; --blue: #315fa8; --blue-soft: #eaf1fb;
+      --green: #16815d; --green-soft: #e8f6ef; --red: #b93845;
+      --red-soft: #fff0f1; --amber: #b66a16; --code: #f2f4f8;
+      --shadow: 0 18px 50px rgba(28,42,76,.09);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0d1118; --surface: #151a23; --text: #e8edf5; --muted: #aab5c7;
+        --line: #303846; --blue: #9db8f4; --blue-soft: #202c43;
+        --green: #76d7b4; --green-soft: #17352d; --red: #ff9aa4;
+        --red-soft: #3f242a; --amber: #f3b56c; --code: #222936; --shadow: none;
+      }
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; background: var(--bg); color: var(--text); font-family:
+      Pretendard,"Noto Sans KR",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      font-size: 16.5px; line-height: 1.72; word-break: keep-all; }
+    .site-nav { position: sticky; top: 0; z-index: 20; display: flex;
+      justify-content: space-between; align-items: center; min-height: 58px;
+      padding: 0 max(22px,calc((100vw - 1220px)/2)); background:
+      color-mix(in srgb,var(--bg) 87%,transparent); border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(16px); }
+    .brand { font-weight: 850; }
+    .site-nav div { display: flex; flex-wrap: wrap; justify-content: flex-end;
+      gap: .45rem; }
+    .site-nav a { padding: .36rem .66rem; color: var(--muted); border-radius: 999px;
+      text-decoration: none; font-size: .87rem; font-weight: 750; }
+    .site-nav a:hover,.site-nav a[aria-current="page"] { color: var(--blue);
+      background: var(--blue-soft); }
+    main { width: min(1220px,calc(100% - 32px)); margin: 30px auto 80px;
+      padding: clamp(26px,5vw,72px); background: var(--surface); border: 1px solid var(--line);
+      border-radius: 24px; box-shadow: var(--shadow); overflow: hidden; }
+    h1,h2,h3 { line-height: 1.28; letter-spacing: -.028em; }
+    h1 { max-width: 1050px; margin: .2rem 0 1rem; font-size: clamp(2.2rem,5.5vw,4.3rem); }
+    h2 { margin: 4rem 0 1.1rem; padding-top: 1.1rem; border-top: 1px solid var(--line);
+      font-size: clamp(1.65rem,3vw,2.3rem); }
+    h3 { margin: 1.6rem 0 .65rem; font-size: 1.28rem; }
+    .headerlink { margin-left: .35rem; opacity: 0; text-decoration: none; }
+    h2:hover .headerlink,h3:hover .headerlink { opacity: .65; }
+    p { max-width: 940px; }
+    a { color: var(--blue); text-underline-offset: 3px; }
+    blockquote { max-width: 1000px; margin: 1.6rem 0; padding: 1.15rem 1.35rem;
+      background: linear-gradient(125deg,var(--green-soft),var(--blue-soft));
+      border-left: 5px solid var(--green); border-radius: 0 14px 14px 0; }
+    blockquote p { margin: 0; }
+    .toc { margin: 2rem 0 3rem; padding: 1.2rem 1.4rem; background: var(--blue-soft);
+      border: 1px solid var(--line); border-radius: 14px; }
+    .toc::before { content: "검증 지도"; display: block; margin-bottom: .55rem;
+      color: var(--blue); font-weight: 850; }
+    .toc ul { margin: .25rem 0; padding-left: 1.3rem; columns: 2; column-gap: 2rem; }
+    .toc li { break-inside: avoid; margin: .22rem 0; }
+    .toc a { text-decoration: none; }
+    table { display: block; width: 100%; margin: 1.25rem 0 2rem; overflow-x: auto;
+      border-collapse: collapse; font-size: .91rem; }
+    th,td { min-width: 115px; padding: .72rem .78rem; border: 1px solid var(--line);
+      text-align: left; vertical-align: top; }
+    th { color: var(--blue); background: var(--blue-soft); font-weight: 800; }
+    tr:nth-child(even) td { background: color-mix(in srgb,var(--blue-soft) 32%,transparent); }
+    main > p:has(> img) { width: min(1500px,calc(100vw - 30px)); margin: 1.8rem 50% .75rem;
+      transform: translateX(-50%); }
+    main > p:has(> img) img { display: block; width: 100%; height: auto; padding: .35rem;
+      background: #fff; border: 1px solid var(--line); border-radius: 16px; }
+    main > p:has(> img) + p > em { display: block; color: var(--muted); font-size: .86rem; }
+    .math-block { margin: 1.35rem 0; overflow-x: auto; text-align: center; }
+    code { padding: .12rem .3rem; background: var(--code); border-radius: 5px;
+      font-family: "SFMono-Regular",Consolas,monospace; font-size: .88em; }
+    pre { padding: 1rem; overflow-x: auto; background: var(--code); border: 1px solid var(--line);
+      border-radius: 12px; }
+    pre code { padding: 0; }
+    .local-artifact { color: var(--muted); border-bottom: 1px dotted var(--muted); }
+    footer { width: min(1220px,calc(100% - 32px)); margin: -50px auto 38px;
+      color: var(--muted); text-align: center; font-size: .8rem; }
+    @media (max-width: 700px) {
+      body { font-size: 15px; word-break: normal; }
+      .site-nav { position: static; padding: .5rem .7rem; } .brand { display: none; }
+      .site-nav div { width: 100%; justify-content: center; }
+      main { width: 100%; margin: 0; padding: 24px 18px 70px; border: 0; border-radius: 0; }
+      h1 { font-size: 2.25rem; } .toc ul { columns: 1; }
+      main > p:has(> img) { width: 100vw; padding: 0 10px; overflow-x: auto; }
+      main > p:has(> img) img { min-width: 900px; }
+    }
+  
+    .executive-scorecard { margin: 1.4rem 0 2.5rem; padding: clamp(18px,3vw,30px);
+      border: 1px solid var(--line); border-radius: 20px; background:
+      linear-gradient(145deg,color-mix(in srgb,var(--blue-soft) 72%,var(--surface)),
+      color-mix(in srgb,var(--green-soft) 52%,var(--surface))); }
+    .decision-strip { display: grid; grid-template-columns: max-content 1fr;
+      align-items: center; gap: 1rem; }
+    .decision-strip p { margin: 0; }
+    .status-chip,.status-inline { display: inline-flex; align-items: center;
+      justify-content: center; width: fit-content; padding: .28rem .68rem;
+      border-radius: 999px; font-size: .78rem; font-weight: 900;
+      letter-spacing: .035em; white-space: nowrap; }
+    .status-pass { color: var(--green); background: var(--green-soft);
+      border: 1px solid color-mix(in srgb,var(--green) 45%,transparent); }
+    .status-fail,.status-kill { color: var(--red); background: var(--red-soft);
+      border: 1px solid color-mix(in srgb,var(--red) 42%,transparent); }
+    .status-mixed { color: var(--amber); background:
+      color-mix(in srgb,var(--amber) 13%,var(--surface)); border: 1px solid
+      color-mix(in srgb,var(--amber) 45%,transparent); }
+    .status-neutral { color: var(--muted); background: var(--code);
+      border: 1px solid var(--line); }
+    .audit-provenance { display: grid; grid-template-columns: repeat(4,minmax(0,1fr));
+      gap: .55rem; margin: 1.2rem 0; }
+    .audit-provenance span { padding: .65rem .75rem; color: var(--muted);
+      background: color-mix(in srgb,var(--surface) 88%,transparent);
+      border: 1px solid var(--line); border-radius: 10px; font-size: .78rem; }
+    .audit-provenance strong { display: block; color: var(--text); font-size: 1rem; }
+    .score-heading { margin: 1.15rem 0 .65rem; padding: 0; border: 0;
+      color: var(--muted); font-size: .84rem; letter-spacing: .04em;
+      text-transform: uppercase; }
+    .score-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr));
+      gap: .72rem; }
+    .score-grid-three { grid-template-columns: repeat(3,minmax(0,1fr)); }
+    .score-card { min-width: 0; padding: .9rem; background: var(--surface);
+      border: 1px solid var(--line); border-top: 4px solid var(--red);
+      border-radius: 13px; }
+    .score-card.pass { border-top-color: var(--green); }
+    .score-card.neutral { border-top-color: var(--muted); }
+    .score-card > span { display: block; color: var(--muted); font-size: .76rem;
+      font-weight: 800; text-transform: uppercase; letter-spacing: .035em; }
+    .score-card > strong { display: block; margin: .22rem 0; color: var(--red);
+      font-size: .95rem; }
+    .score-card.pass > strong { color: var(--green); }
+    .score-card.neutral > strong { color: var(--muted); }
+    .score-card p { margin: .2rem 0 0; color: var(--muted); font-size: .78rem;
+      line-height: 1.45; word-break: normal; }
+    .pair-order { margin: .9rem 0 0; color: var(--muted); font-size: .78rem; }
+    .table-shell { width: 100%; margin: 1.25rem 0 2rem; overflow-x: auto;
+      border-radius: 12px; }
+    .table-shell table { margin: 0; }
+    .math-block { padding: 1rem .8rem; background: var(--code);
+      border: 1px solid var(--line); border-radius: 12px; }
+    mjx-container { max-width: 100%; overflow-x: auto; overflow-y: hidden; }
+    .mermaid { margin: 1.4rem 0 2rem; padding: 1.1rem; overflow-x: auto;
+      color: #172033; background: #fff; border: 1px solid var(--line);
+      border-radius: 14px; text-align: center; }
+    .mermaid svg { display: block; min-width: 720px; max-width: 100%;
+      height: auto; margin: 0 auto; }
+    main > p:has(> img) img { box-shadow: 0 12px 32px rgba(28,42,76,.08); }
+    @media (max-width: 900px) {
+      .audit-provenance,.score-grid { grid-template-columns: repeat(2,1fr); }
+    }
+    @media (max-width: 620px) {
+      .decision-strip { grid-template-columns: 1fr; }
+      .audit-provenance,.score-grid { grid-template-columns: 1fr; }
+    }
+
+  </style>
+  <script type="module">
+    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+    mermaid.initialize({startOnLoad: true, securityLevel: "strict", theme: "neutral"});
+  </script>
+</head>
+<body>
+  <nav class="site-nav" aria-label="공개 연구 문서">
+    <span class="brand">Independent-AR SpecDec</span>
+    <div>
+      <a href="../">모티베이션</a>
+      <a href="../methods/">이전 방법 검증</a>
+      <a href="../safemove/">SafeMove v0.2</a>
+      <a href="../arr/">ARR v0.1</a>
+      <a href="../coordinate-arr/">Coordinate ARR v0.2</a>
+      <a href="../temporal-teacher-arr/">Temporal Teacher v0.3</a>
+      <a href="./" aria-current="page">Optimizer Horizon v0.5</a>
+      <a href="../ideas/">아이디어</a>
+    </div>
+  </nav>
+  <main><h1 id="optimizer-horizon-headroom-v05">Optimizer-Horizon Headroom v0.5 최종 보고서<a class="headerlink" href="#optimizer-horizon-headroom-v05" title="이 절의 고정 링크">&para;</a></h1>
+<section class="executive-scorecard" aria-label="Optimizer-Horizon v0.5 판정">
+  <div class="decision-strip">
+    <span class="status-chip status-kill">ACTION-SPACE KILL</span>
+    <p><strong>구조 검사는 통과했지만 H-step action headroom의 frozen conjunction이 실패했다.</strong> Engineering seed 99의 비파괴 shadow이며
+    selection seeds 6–8은 계속 봉인한다.</p>
+  </div>
+  <div class="audit-provenance">
+    <span><strong>180</strong> candidate rows</span>
+    <span><strong>5,400</strong> exact rows</span>
+    <span><strong>32</strong> generated tokens</span>
+    <span><strong>FP32 eager</strong> serial full-prefix</span>
+  </div>
+  <h2 class="score-heading">Action-space gate</h2>
+  <div class="score-grid"><article class="score-card pass"><span>Long − best short</span><span class="status-inline status-pass">PASS</span><p>+0.021 / +0.059 / +0.042</p></article><article class="score-card pass"><span>Oracle − live H1</span><span class="status-inline status-pass">PASS</span><p>+0.040 / +0.071 / +0.087</p></article><article class="score-card fail"><span>Prompt-fold cross-fit</span><span class="status-inline status-fail">FAIL</span><p>+0.002 / -0.024 / +0.011</p></article><article class="score-card pass"><span>Resolvable ranks</span><span class="status-inline status-pass">PASS</span><p>5/5 / 4/5 / 5/5</p></article></div>
+  <h2 class="score-heading">Score-validity gate</h2>
+  <div class="score-grid score-grid-three"><article class="score-card neutral"><span>U_FV Spearman</span><span class="status-inline status-neutral">NOT EVALUATED</span><p>+0.225 / +0.287 / +0.110</p></article><article class="score-card neutral"><span>Selected − live H1</span><span class="status-inline status-neutral">NOT EVALUATED</span><p>+0.021 / +0.050 / +0.036</p></article><article class="score-card neutral"><span>Oracle regret</span><span class="status-inline status-neutral">NOT EVALUATED</span><p>0.019 / 0.020 / 0.052</p></article></div>
+  <p class="pair-order">각 수치 순서: GPT-2 / OPT / Pythia. Prompt·sampling seed·step은
+  독립 replicate가 아니다.</p>
+</section>
+
+<blockquote>
+<p><strong>최종 판정: <code>kill_v0_5_no_action_headroom</code></strong></p>
+<p>Structural gate는 <span class="status-inline status-pass">PASS</span>했다. Long-action gain은
+<code>+.0209 / +.0593 / +.0419</code>, raw oracle gain은 frozen rule상
+<code>+.0398 / +.0708 / +.0874</code>로 <span class="status-inline status-pass">PASS</span>했고, non-constant rank도
+<code>5/5 / 4/5 / 5/5</code>로 <span class="status-inline status-pass">PASS</span>했다. 그러나 가장 중요한 prompt-fold
+cross-fit headroom이 <code>+.0016 / -.0237 / +.0108</code>, 즉 기준 <code>+.02</code>를 넘긴
+pair가 <code>0/3</code>이어서 action gate는 <span class="status-inline status-fail">FAIL</span>했다. 따라서 score gate는
+<strong>NOT_EVALUATED</strong>이며 Spearman <code>+.225 / +.287 / +.110</code>은 기술통계일 뿐이다.</p>
+</blockquote>
+<p>Frozen contract는
+<span class="local-artifact" title="로컬 연구 workspace 산출물"><code>ASDS_V0_5_ACTION_HEADROOM_PROTOCOL_KO.md</code></span>와
+<span class="local-artifact" title="로컬 연구 workspace 산출물"><code>ASDS_V0_5_ACTION_HEADROOM_MANIFEST.json</code></span>이다.
+권위 결과는
+<span class="local-artifact" title="로컬 연구 workspace 산출물"><code>artifacts/asds_v0_5_action_headroom_analysis_v3/</code></span>에
+보존했다.</p>
+<div class="toc">
+<ul>
+<li><a href="#1">1. 한눈에 보는 결과</a></li>
+<li><a href="#2">2. 무엇을 시험했는가</a><ul>
+<li><a href="#21-ar-bidirectional-setting">2.1 독립 AR bidirectional setting</a></li>
+<li><a href="#22-block-action">2.2 비파괴 block-action 후보</a></li>
+<li><a href="#23-cross-fit">2.3 왜 cross-fit이 핵심인가</a></li>
+</ul>
+</li>
+<li><a href="#3-revision-3-provenance">3. 실행 무결성과 revision-3 provenance</a></li>
+<li><a href="#4-action-separation-portable-headroom">4. Action 결과: separation은 있고 portable headroom은 없다</a></li>
+<li><a href="#5-score">5. Score는 판정하지 않았다</a></li>
+<li><a href="#6-target">6. Target 보호에 대해 말할 수 있는 범위</a></li>
+<li><a href="#7">7. 결론과 다음 연구 방향</a></li>
+<li><a href="#8">8. 권위 산출물</a></li>
+</ul>
+</div>
+<div class="mermaid" role="img" aria-label="Optimizer-Horizon v0.5 shadow audit 흐름도">flowchart LR
+    S[&quot;동일한 draft + AdamW pre-state&quot;] --&gt; F[&quot;H=1 / 4 / 8 비파괴 fork&quot;]
+    F --&gt; E[&quot;32-token FP32 exact AAL&quot;]
+    E --&gt; A{&quot;Action gate&quot;}
+    A --&gt;|cross-fit 0/3| K[&quot;KILL: portable headroom 없음&quot;]
+    A -.-&gt;|PASS일 때만| Q[&quot;Score-validity gate&quot;]
+    K --&gt; N[&quot;Score: NOT_EVALUATED&quot;]
+</div>
+<h2 id="1">1. 한눈에 보는 결과<a class="headerlink" href="#1" title="이 절의 고정 링크">&para;</a></h2>
+<div class="table-shell"><table>
+<thead>
+<tr>
+<th>Gate</th>
+<th>Frozen 기준</th>
+<th style="text-align: right;">GPT-2 ← DistilGPT-2</th>
+<th style="text-align: right;">OPT-350M ← OPT-125M</th>
+<th style="text-align: right;">Pythia-410M ← Pythia-70M</th>
+<th>판정</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Structural</td>
+<td>identity·분리·eligibility 모두 성립</td>
+<td style="text-align: right;">PASS</td>
+<td style="text-align: right;">PASS</td>
+<td style="text-align: right;">PASS</td>
+<td><span class="status-inline status-pass">PASS</span></td>
+</tr>
+<tr>
+<td>Long action − best short</td>
+<td><code>&gt;=+.02</code>인 pair <code>&gt;=2/3</code>, 최악 <code>&gt;=-.02</code></td>
+<td style="text-align: right;">+.0209</td>
+<td style="text-align: right;">+.0593</td>
+<td style="text-align: right;">+.0419</td>
+<td><strong>PASS, 3/3</strong></td>
+</tr>
+<tr>
+<td>Raw oracle − live H1</td>
+<td><code>&gt;=+.04</code>인 pair <code>&gt;=2/3</code></td>
+<td style="text-align: right;">+.0398</td>
+<td style="text-align: right;">+.0708</td>
+<td style="text-align: right;">+.0874</td>
+<td><strong>PASS, 2/3</strong></td>
+</tr>
+<tr>
+<td>Non-constant rank</td>
+<td><code>&gt;=4/5</code> step인 pair <code>&gt;=2/3</code></td>
+<td style="text-align: right;">5/5</td>
+<td style="text-align: right;">4/5</td>
+<td style="text-align: right;">5/5</td>
+<td><strong>PASS, 3/3</strong></td>
+</tr>
+<tr>
+<td>Prompt-fold cross-fit</td>
+<td><code>&gt;=+.02</code>인 pair <code>&gt;=2/3</code></td>
+<td style="text-align: right;">+.0016</td>
+<td style="text-align: right;">−.0237</td>
+<td style="text-align: right;">+.0108</td>
+<td><strong>FAIL, 0/3</strong></td>
+</tr>
+<tr>
+<td>Score validity</td>
+<td>Action gate PASS가 선행조건</td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;">—</td>
+<td><strong>NOT_EVALUATED</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>Raw oracle의 GPT 값 <code>+.039838</code>은 개별 threshold <code>+.04</code>에 아주 조금 못 미치지만,
+OPT와 Pythia가 통과해 frozen <code>2/3</code> rule은 충족한다. 반면 cross-fit은 세 pair 모두
+threshold 아래다. 즉 <strong>긴 optimizer trajectory는 후보 간 AAL 차이를 만들었지만,
+그 state-wise 우열은 독립 prompt fold로 일반화되지 않았다.</strong></p>
+<p><img loading="lazy" decoding="async" alt="세 pair의 long, raw-oracle, cross-fit headroom. Cross-fit만 세 pair 모두 +.02 기준선 아래다." src="../artifacts/asds_v0_5_action_headroom_analysis_v3/asds_v0_5_action_headroom.png"></p>
+<h2 id="2">2. 무엇을 시험했는가<a class="headerlink" href="#2" title="이 절의 고정 링크">&para;</a></h2>
+<h3 id="21-ar-bidirectional-setting">2.1 독립 AR bidirectional setting<a class="headerlink" href="#21-ar-bidirectional-setting" title="이 절의 고정 링크">&para;</a></h3>
+<p>Target distribution을 <span class="math-inline">\(p_\theta\)</span>, 독립 drafter를 <span class="math-inline">\(q_\phi\)</span>라 했다. 둘은
+tokenizer-compatible token ID만 공유하며 backbone, embedding, hidden state,
+LM head, LoRA, gradient와 optimizer를 전혀 공유하지 않는다. MEDUSA, EAGLE,
+native MTP head는 범위 밖이다.</p>
+<p>실제 100-step carrier는 ASDS v0.4의 Coordinate-live와 동일하다.</p>
+<div class="math-block">\[
+\mathcal L_T
+=\mathcal L_{\mathrm{CE}}
++\beta\mathcal L_{\mathrm{coord}}^{\mathrm{weighted}},
+\qquad \beta=1,
+\]</div>
+<div class="math-block">\[
+\mathcal L_D
+=\operatorname{HybridLK}_{\eta=3}
+\left(\operatorname{sg}[p_{\theta_{t-1}}],q_{\phi_{t-1}}\right),
+\qquad K=3.
+\]</div>
+<p>Target는 drafter가 유도한 경로에 aware하지만, target-side 보조항은 exact
+speculative decoding의 필수조건이 아니라 이 연구의 bidirectional extension이다.
+<code>Hybrid LK</code>와 acceptance-oriented loss의 선행 근거는
+<a href="https://arxiv.org/abs/2602.23881">LK Losses</a>, exact acceptance와 shared mass
+<span class="math-inline">\(1-\mathrm{TV}\)</span>의 근거는
+<a href="https://proceedings.mlr.press/v202/leviathan23a.html">Leviathan et al.</a>이다.
+Coordinate target 보호 설계와 앞선 결과는
+<span class="local-artifact" title="로컬 연구 workspace 산출물"><code>REPORT_COORDINATE_ARR_STAGE01_KO.md</code></span>와
+<span class="local-artifact" title="로컬 연구 workspace 산출물"><code>REPORT_ASDS_V0_4_SHADOW_KO.md</code></span>에 정의돼 있다.</p>
+<h3 id="22-block-action">2.2 비파괴 block-action 후보<a class="headerlink" href="#22-block-action" title="이 절의 고정 링크">&para;</a></h3>
+<p>각 진단 step의 동일한 drafter parameter와 <strong>전체 AdamW pre-state</strong>에서 다음
+10개 action을 fork했다.</p>
+<div class="table-shell"><table>
+<thead>
+<tr>
+<th>Teacher source</th>
+<th style="text-align: right;">H=1</th>
+<th style="text-align: right;">H=4</th>
+<th style="text-align: right;">H=8</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>live target</td>
+<td style="text-align: right;">✓</td>
+<td style="text-align: right;">✓</td>
+<td style="text-align: right;">✓</td>
+</tr>
+<tr>
+<td>EMA(.9) target</td>
+<td style="text-align: right;">✓</td>
+<td style="text-align: right;">✓</td>
+<td style="text-align: right;">✓</td>
+</tr>
+<tr>
+<td>cumulative CE-only target shadow</td>
+<td style="text-align: right;">✓</td>
+<td style="text-align: right;">✓</td>
+<td style="text-align: right;">✓</td>
+</tr>
+<tr>
+<td>true no-update</td>
+<td style="text-align: right;">H=0 한 개</td>
+<td style="text-align: right;"></td>
+<td style="text-align: right;"></td>
+</tr>
+</tbody>
+</table></div>
+<p><code>H</code>는 speculative proposal 길이가 아니라 연속 draft optimizer update 수다.
+각 source는 하나의 H=8 trajectory에서 H=1·4·8 state를 snapshot해 parameter,
+Adam step, first/second moment를 함께 비교했다. Candidate는 한 번도 carrier에
+commit하지 않았다.</p>
+<p>Step 1은 zero-LR structural audit에만 사용했고, efficacy step은
+<code>{20,40,60,80,100}</code>이다. Fit, calibration, exact-audit stream은 겹치지 않게
+분리했다. Exact AAL은 fresh FP32 eager model에서
+<code>serial_full_prefix_per_target_position</code> evaluator로 32-token rollout을 수행했다.
+Teacher-forced overlap이나 rejected BF16 cache benchmark를 AAL로 대체하지 않았다.</p>
+<h3 id="23-cross-fit">2.3 왜 cross-fit이 핵심인가<a class="headerlink" href="#23-cross-fit" title="이 절의 고정 링크">&para;</a></h3>
+<p>Raw oracle은 같은 audit 상태를 본 뒤 매 step 최고 action을 고르는 상한이다.
+Cross-fit은 fold A에서 고른 state-wise action을 fold B에서 평가하고, fold A에서 고른
+best-fixed action의 fold-B 성능과 비교한다. 반대 방향도 대칭 계산한다.</p>
+<div class="math-block">\[
+H_{A\rightarrow B}
+=\mathbb E_t A^B_{t,\arg\max_c A^A_{t,c}}
+-\mathbb E_t A^B_{t,c^*_{\mathrm{fixed},A}},
+\qquad
+H_{\mathrm{CF}}=\frac{H_{A\rightarrow B}+H_{B\rightarrow A}}{2}.
+\]</div>
+<p>따라서 raw oracle은 “차이가 존재하는가”, cross-fit은 “그 차이가 새 prompt에서도
+action 선택에 쓸 수 있는가”를 묻는다. Frozen protocol은 두 조건을 모두 요구했다.</p>
+<h2 id="3-revision-3-provenance">3. 실행 무결성과 revision-3 provenance<a class="headerlink" href="#3-revision-3-provenance" title="이 절의 고정 링크">&para;</a></h2>
+<p>권위 분석의 완결성은 다음과 같다.</p>
+<div class="table-shell"><table>
+<thead>
+<tr>
+<th>항목</th>
+<th style="text-align: right;">권위 count</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Carrier training runs / history rows</td>
+<td style="text-align: right;">3 / 300</td>
+</tr>
+<tr>
+<td>Stage-0 runs / candidate rows</td>
+<td style="text-align: right;">3 / 30</td>
+</tr>
+<tr>
+<td>Shadow diagnostic candidate rows</td>
+<td style="text-align: right;">180</td>
+</tr>
+<tr>
+<td>Efficacy step summary rows</td>
+<td style="text-align: right;">15</td>
+</tr>
+<tr>
+<td>FP32 exact rollout rows</td>
+<td style="text-align: right;">5,400</td>
+</tr>
+<tr>
+<td>└ greedy / stochastic</td>
+<td style="text-align: right;">1,800 / 3,600</td>
+</tr>
+<tr>
+<td>Exact bridge checks</td>
+<td style="text-align: right;">120</td>
+</tr>
+<tr>
+<td>Figures</td>
+<td style="text-align: right;">3</td>
+</tr>
+</tbody>
+</table></div>
+<p>180개 diagnostic candidate가 모두 사전 eligibility를 통과했다. 120개 exact bridge도
+모두 성립했고, candidate enumeration order, nested H-state와 no-update full-state
+identity를 포함한 structural gate가 PASS했다.</p>
+<p>세 개의 선행 root는 권위 utility에 섞지 않았다.</p>
+<div class="table-shell"><table>
+<thead>
+<tr>
+<th>Revision/root</th>
+<th>처리 이유</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Stage-0 <code>v1</code></td>
+<td>Structural flag와 canonical ineligibility reason이 utility inspection 전에 materialize되지 않은 pre-contract root</td>
+</tr>
+<tr>
+<td>Shadow <code>v1</code></td>
+<td>Pythia step 20에서 batched-verifier greedy identity가 fail loud한 rejected measurement root</td>
+</tr>
+<tr>
+<td>Shadow <code>v2</code></td>
+<td>GPT는 완료했으나 OPT·Pythia가 step-80 audit 중 외부 <code>SIGTERM</code>을 받은 interrupted-execution root</td>
+</tr>
+<tr>
+<td>Stage-0 <code>v2</code>, shadow <code>v3</code>, analysis <code>v3</code></td>
+<td>세 pair fresh 실행으로 만든 유일한 권위 root</td>
+</tr>
+</tbody>
+</table></div>
+<p>Shadow v2에는 scientific assertion failure, candidate commit, analyzer gate 또는
+utility inspection이 없었다. Revision 3은 scientific setting이나 candidate를
+바꾼 post-hoc revision이 아니라 동일 frozen method의 fresh execution이다.</p>
+<p>Revision-3 fingerprints:</p>
+<ul>
+<li>Manifest:
+  <code>10ce15cab085ca7d6cea89e68232480ba1f2b4113a9faf40a14a3539b94549eb</code></li>
+<li>Protocol:
+  <code>f9f95e5d0165f36bc42c912733d1c7615c385bf8c537a01ca0dbcdfab72ea634</code></li>
+<li>Analyzer:
+  <code>8d3e9c70a19c85682a2cef3b05e7ae53c03cfa418cacbf55a29d7d472a3fa437</code></li>
+<li>Analysis revision: <code>3</code></li>
+<li>Analysis manifest:
+  <code>a93f61c70f63a6cb5afef056f736f2de521c69a7d7b931b86a7b900ace89bebf</code></li>
+</ul>
+<h2 id="4-action-separation-portable-headroom">4. Action 결과: separation은 있고 portable headroom은 없다<a class="headerlink" href="#4-action-separation-portable-headroom" title="이 절의 고정 링크">&para;</a></h2>
+<p>아래 heatmap은 같은 step의 <code>live_h1</code> 대비 exact AAL 차이다. H=4·8 action이 여러
+state에서 양의 차이를 만들고 winner도 변한다. 그러나 별표로 표시되는 winner가
+prompt fold를 바꿔도 안정적으로 우월하다는 뜻은 아니다.</p>
+<p><img loading="lazy" decoding="async" alt="동일 step live H1 대비 candidate exact-AAL 차이. 후보별 우열은 state와 pair에 따라 바뀐다." src="../artifacts/asds_v0_5_action_headroom_analysis_v3/asds_v0_5_state_candidate_heatmap.png"></p>
+<p>Cross-fit의 실제 결과는 다음과 같다.</p>
+<div class="table-shell"><table>
+<thead>
+<tr>
+<th>Pair</th>
+<th style="text-align: right;">A→B state-wise / fixed AAL</th>
+<th style="text-align: right;">B→A state-wise / fixed AAL</th>
+<th style="text-align: right;">평균 headroom</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPT-2 ← DistilGPT-2</td>
+<td style="text-align: right;">2.5363 / 2.5299</td>
+<td style="text-align: right;">2.4330 / 2.4362</td>
+<td style="text-align: right;">+.0016</td>
+</tr>
+<tr>
+<td>OPT-350M ← OPT-125M</td>
+<td style="text-align: right;">2.3715 / 2.3911</td>
+<td style="text-align: right;">2.2800 / 2.3078</td>
+<td style="text-align: right;">−.0237</td>
+</tr>
+<tr>
+<td>Pythia-410M ← Pythia-70M</td>
+<td style="text-align: right;">1.8310 / 1.8256</td>
+<td style="text-align: right;">1.9715 / 1.9553</td>
+<td style="text-align: right;">+.0108</td>
+</tr>
+</tbody>
+</table></div>
+<p>이 결과는 “H=4·8이 아무 효과도 없다”는 뜻이 아니다. Long gain과 raw oracle이
+양수이므로 block update는 실제 action separation을 만들었다. 다만 그 이득이
+prompt-fold 특이적인 ranking을 넘어 <strong>적응적 선택 가치</strong>로 남지 않았다. 특히
+OPT에서는 fold를 바꾸자 state-wise 선택이 best-fixed보다 오히려 나빴다.</p>
+<h2 id="5-score">5. Score는 판정하지 않았다<a class="headerlink" href="#5-score" title="이 절의 고정 링크">&para;</a></h2>
+<p>Action-headroom gate가 score gate의 선행조건이다. Cross-fit 실패 후 selector
+score를 튜닝하면 선택할 가치가 검증되지 않은 action space에 맞추는 post-hoc
+최적화가 된다. 따라서 다음 수치는 재현성을 위해 남긴 <strong>descriptive diagnostic</strong>이며
+score-validity evidence가 아니다.</p>
+<div class="table-shell"><table>
+<thead>
+<tr>
+<th>Pair</th>
+<th style="text-align: right;">Full-vocab Spearman</th>
+<th style="text-align: right;">Score-selected − live H1</th>
+<th style="text-align: right;">Oracle regret</th>
+<th>Best fixed / exact AAL</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPT-2 ← DistilGPT-2</td>
+<td style="text-align: right;">+.225</td>
+<td style="text-align: right;">+.0212</td>
+<td style="text-align: right;">.0186</td>
+<td><code>live_h4</code> / 2.4831</td>
+</tr>
+<tr>
+<td>OPT-350M ← OPT-125M</td>
+<td style="text-align: right;">+.287</td>
+<td style="text-align: right;">+.0503</td>
+<td style="text-align: right;">.0205</td>
+<td><code>live_h8</code> / 2.3495</td>
+</tr>
+<tr>
+<td>Pythia-410M ← Pythia-70M</td>
+<td style="text-align: right;">+.110</td>
+<td style="text-align: right;">+.0358</td>
+<td style="text-align: right;">.0517</td>
+<td><code>live_h8</code> / 1.9086</td>
+</tr>
+</tbody>
+</table></div>
+<p>Frozen Spearman threshold는 <code>+.50</code>이고 통과 pair는 <code>0/3</code>이다. “selected − live”가
+세 pair에서 양수이고 regret가 두 pair에서 낮더라도, action prerequisite가 실패했기
+때문에 이들을 부분 PASS나 selector 효능으로 승격할 수 없다.</p>
+<p><img loading="lazy" decoding="async" alt="Full-vocabulary shared-mass score와 exact AAL의 관계. 상관은 약하며 action gate 실패로 기술통계만 허용된다." src="../artifacts/asds_v0_5_action_headroom_analysis_v3/asds_v0_5_score_validity.png"></p>
+<p><code>live_h4 / live_h8 / live_h8</code>이 pair별 best fixed였다는 관찰도 효능 결과가 아니다.
+이 후보들은 exact audit를 본 뒤 고른 descriptive oracle이고, H=4·8은 H=1보다
+각각 추가 draft optimizer microstep과 학습 compute를 요구한다. Prospective fixed-H
+baseline, compute-matched control, 실제 commit과 누적 co-adaptation을 시험하지
+않았으므로 “H=4·8을 적용하면 시스템이 개선된다”고 결론낼 수 없다.</p>
+<h2 id="6-target">6. Target 보호에 대해 말할 수 있는 범위<a class="headerlink" href="#6-target" title="이 절의 고정 링크">&para;</a></h2>
+<p>Carrier는 archived Coordinate-live의 target/draft full-state와 exact했다. 따라서
+v0.4의 detach 대비 target-NLL margin도 그대로 재현됐다.</p>
+<div class="table-shell"><table>
+<thead>
+<tr>
+<th>Pair</th>
+<th style="text-align: right;">Carrier target NLL</th>
+<th style="text-align: right;">Δ target NLL vs detach</th>
+<th style="text-align: right;">Frozen <code>&lt;=+.005</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPT-2 ← DistilGPT-2</td>
+<td style="text-align: right;">3.927255</td>
+<td style="text-align: right;">+.001238</td>
+<td style="text-align: right;">PASS</td>
+</tr>
+<tr>
+<td>OPT-350M ← OPT-125M</td>
+<td style="text-align: right;">3.653461</td>
+<td style="text-align: right;">−.001003</td>
+<td style="text-align: right;">PASS</td>
+</tr>
+<tr>
+<td>Pythia-410M ← Pythia-70M</td>
+<td style="text-align: right;">3.317272</td>
+<td style="text-align: right;">−.005284</td>
+<td style="text-align: right;">PASS</td>
+</tr>
+</tbody>
+</table></div>
+<p>이는 <strong>실제로 실행된 Coordinate-live carrier</strong>의 target 보호 증거다. 반면 H=4·8
+candidate는 비파괴 shadow였고 commit되지 않았다. 따라서 candidate를 적용한 뒤
+drafter-aware target가 다시 co-adapt할 때의 누적 target NLL, downstream quality,
+applied AAL과 Adam carryover 안전성은 이 실험으로 확립되지 않았다.</p>
+<h2 id="7">7. 결론과 다음 연구 방향<a class="headerlink" href="#7" title="이 절의 고정 링크">&para;</a></h2>
+<p>v0.5의 결론은 다음 한 문장으로 정리된다.</p>
+<blockquote>
+<p><strong>Generic fit stream에서 optimizer horizon을 늘리면 raw exact-AAL separation은
+생기지만, 다른 prompt fold로 이동 가능한 adaptive action headroom은 생기지
+않았다. 그러므로 v0.5 action family와 selector는 종료한다.</strong></p>
+</blockquote>
+<p>다음 pivot은 selector를 더 복잡하게 만드는 것이 아니라 <strong>verification-error
+replay × loss</strong>의 2×2 원인 분해가 타당하다.</p>
+<div class="table-shell"><table>
+<thead>
+<tr>
+<th>축</th>
+<th>Control</th>
+<th>제안 treatment</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Fit data</td>
+<td>기존 generic disjoint fit batch</td>
+<td>실제 verifier의 accepted-prefix와 first-rejection 상태를 replay</td>
+</tr>
+<tr>
+<td>Draft loss</td>
+<td>현재 Hybrid LK</td>
+<td>rejection-exposed 위치를 강조한 acceptance-oriented loss</td>
+</tr>
+</tbody>
+</table></div>
+<p>근거는 세 가지다.</p>
+<ol>
+<li>Long/raw-oracle PASS는 추가 draft update가 exact AAL을 움직일 수 있음을 보였다.</li>
+<li>Cross-fit <code>0/3</code>은 generic fit에서 생긴 state-wise ranking이 prompt fold를 넘지
+   못했음을 보였다.</li>
+<li>약한 score 상관은 현재 우선순위가 score fitting이 아니라 action을 만드는
+   data/objective임을 시사한다.</li>
+</ol>
+<p>첫 실험은 target carrier와 bidirectional Coordinate objective를 그대로 두고,
+draft-side candidate 생성만 위 2×2로 바꾸는 non-mutating shadow여야 한다. H와
+token exposure, optimizer step, RNG, calibration/audit stream을 맞추고 <strong>cross-fit
+headroom을 다시 primary gate</strong>로 둔다. 이 gate가 통과하기 전에는 selector
+튜닝, applied commit 또는 sealed seed <code>6–8</code>을 열지 않는다. 통과한 뒤에만
+compute-matched fixed-H baseline, actual commit, target NLL/downstream non-inferiority,
+exact AAL과 latency를 함께 시험한다.</p>
+<p>Draft-induced error path를 학습 신호로 쓰는 방향에는
+<a href="https://arxiv.org/abs/2605.29343">Draft-OPD</a> 같은 관련 선례가 있지만, 위 2×2
+설계가 이 독립-AR·bidirectional·target-protected setting에서 작동한다는 것은
+<strong>아직 시험하지 않은 후속 가설</strong>이다.</p>
+<h2 id="8">8. 권위 산출물<a class="headerlink" href="#8" title="이 절의 고정 링크">&para;</a></h2>
+<ul>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물">Gate JSON</span> <code>artifacts/asds_v0_5_action_headroom_analysis_v3/asds_v0_5_action_headroom_gate.json</code></li>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물">Pair summary CSV</span> <code>artifacts/asds_v0_5_action_headroom_analysis_v3/asds_v0_5_pair_mechanism_summary.csv</code></li>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물">Step summary CSV</span> <code>artifacts/asds_v0_5_action_headroom_analysis_v3/asds_v0_5_step_mechanism_summary.csv</code></li>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물">Candidate diagnostics CSV</span> <code>artifacts/asds_v0_5_action_headroom_analysis_v3/asds_v0_5_candidate_diagnostics.csv</code></li>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물">Exact rollout rows</span> <code>artifacts/asds_v0_5_action_headroom_analysis_v3/asds_v0_5_exact_rows.csv</code></li>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물">Exact bridge checks</span> <code>artifacts/asds_v0_5_action_headroom_analysis_v3/asds_v0_5_exact_bridge_checks.csv</code></li>
+<li><span class="local-artifact" title="로컬 연구 workspace 산출물">Analysis manifest</span> <code>artifacts/asds_v0_5_action_headroom_analysis_v3/asds_v0_5_action_headroom_analysis_manifest.json</code></li>
+</ul>
+<p>해석 단위는 training seed이며 이 패널은 exposed engineering seed 99 하나뿐이다.
+Prompt, diagnostic step, corpus, sampling seed, token과 decoding round는 독립 replicate가
+아니다. Transparent benchmark latency도 production serving throughput이 아니다.</p></main>
+  <footer>Optimizer-Horizon Headroom v0.5 · ACTION-SPACE KILL · engineering seed 99 · 2026-07-17</footer>
+</body>
+</html>
