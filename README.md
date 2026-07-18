@@ -19,6 +19,8 @@ catastrophic gradient-failure law.
 Public pages:
 
 - Completed evidence report: <https://bluear7878.github.io/specdec-joint-report/>
+- CT-EPR v0.12 exact cross-swap evidence and prospective-method boundary:
+  <https://bluear7878.github.io/specdec-joint-report/ct-epr-v012/>
 - Optimizer-state controller validation:
   <https://bluear7878.github.io/specdec-joint-report/methods/>
 - SafeMove-SD v0.2 Stage 0/1 engineering result:
@@ -51,3 +53,9 @@ the frozen target-NLL non-inferiority, decomposition, bidirectional-path,
 cross-swap, identity, and cost checks. It was nevertheless killed at engineering
 seed 99 because exact AAL improved for only one of three pairs and component
 Pareto support also failed. Selection seeds 6–8 remain sealed.
+
+The v0.12 retrospective exact cross-swap screen isolates an especially useful
+continuation signal. Under single-domain UCR, the conditional target checkpoint
+leg was negative in 3/3 engineering pairs while the draft checkpoint leg was
+positive in 3/3; WCR was mixed. The CT-EPR page makes clear that this supports
+the motivation and next design, not CT-EPR efficacy.
