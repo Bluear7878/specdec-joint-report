@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="640" viewBox="0 0 1200 640" role="img" aria-labelledby="title desc">
+  <title id="title">MD-AF-UCR v0.11 domain and cross-swap effects</title>
+  <desc id="desc">A per-domain exact-AAL heatmap for the protected main arm and paired bars for target and induced-draft conditional checkpoint effects.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#36566f"/></marker>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="5" stdDeviation="7" flood-color="#143247" flood-opacity=".12"/></filter>
+  </defs>
+  <style>
+    .bg { fill:#f7f9fa; }
+    .panel { fill:#fff; stroke:#d7e0e5; stroke-width:1.5; }
+    .title { font:800 28px system-ui,sans-serif; fill:#142838; }
+    .subtitle { font:500 14px system-ui,sans-serif; fill:#617381; }
+    .head { font:750 17px system-ui,sans-serif; fill:#1b3548; }
+    .label { font:650 13px system-ui,sans-serif; fill:#304b5e; }
+    .small { font:500 11.5px system-ui,sans-serif; fill:#617381; }
+    .value { font:750 12.5px ui-monospace,monospace; fill:#173044; }
+    .grid { stroke:#dce4e8; stroke-width:1; }
+    .zero { stroke:#80909b; stroke-width:1.5; stroke-dasharray:5 4; }
+    .badge { font:800 12px system-ui,sans-serif; letter-spacing:.05em; }
+  </style>
+  <rect class="bg" width="1200" height="640"/>
+  
+  <text x="54" y="58" class="title">Domain robustness and checkpoint cross-swap</text>
+  <text x="54" y="84" class="subtitle">Main-arm exact AAL domain deltas + conditional target/draft checkpoint effects</text>
+  <rect x="42" y="112" width="540" height="480" rx="20" class="panel"/>
+  <rect x="602" y="112" width="556" height="480" rx="20" class="panel"/>
+  <text x="68" y="148" class="head">Protected main: per-domain exact AAL Δ</text>
+<text x="68" y="170" class="small">높을수록 좋음</text>
+<text x="259.3" y="200" text-anchor="middle" class="small">WikiText-2</text>
+<text x="378.0" y="200" text-anchor="middle" class="small">TinyStories</text>
+<text x="496.7" y="200" text-anchor="middle" class="small">GSM8K text</text>
+<text x="68" y="254.0" class="label">GPT-2</text>
+<rect x="203.0" y="224.0" width="112.7" height="58" rx="9" fill="#d9f0e8" stroke="#d4dde2"/>
+<text x="259.3" y="259.0" text-anchor="middle" class="value">+0.039</text>
+<rect x="321.7" y="224.0" width="112.7" height="58" rx="9" fill="#fde5e6" stroke="#d4dde2"/>
+<text x="378.0" y="259.0" text-anchor="middle" class="value">-0.000</text>
+<rect x="440.3" y="224.0" width="112.7" height="58" rx="9" fill="#fde5e6" stroke="#d4dde2"/>
+<text x="496.7" y="259.0" text-anchor="middle" class="value">-0.027</text>
+<text x="68" y="336.0" class="label">OPT-350M</text>
+<rect x="203.0" y="306.0" width="112.7" height="58" rx="9" fill="#fde5e6" stroke="#d4dde2"/>
+<text x="259.3" y="341.0" text-anchor="middle" class="value">-0.003</text>
+<rect x="321.7" y="306.0" width="112.7" height="58" rx="9" fill="#d9f0e8" stroke="#d4dde2"/>
+<text x="378.0" y="341.0" text-anchor="middle" class="value">+0.010</text>
+<rect x="440.3" y="306.0" width="112.7" height="58" rx="9" fill="#fde5e6" stroke="#d4dde2"/>
+<text x="496.7" y="341.0" text-anchor="middle" class="value">-0.025</text>
+<text x="68" y="418.0" class="label">Pythia-410M</text>
+<rect x="203.0" y="388.0" width="112.7" height="58" rx="9" fill="#a9dfcf" stroke="#d4dde2"/>
+<text x="259.3" y="423.0" text-anchor="middle" class="value">+0.073</text>
+<rect x="321.7" y="388.0" width="112.7" height="58" rx="9" fill="#fde5e6" stroke="#d4dde2"/>
+<text x="378.0" y="423.0" text-anchor="middle" class="value">-0.020</text>
+<rect x="440.3" y="388.0" width="112.7" height="58" rx="9" fill="#a9dfcf" stroke="#d4dde2"/>
+<text x="496.7" y="423.0" text-anchor="middle" class="value">+0.058</text>
+  <text x="628" y="148" class="head">Conditional cross-swap legs</text>
+<text x="628" y="169" class="small">checkpoint effects · not additive mediation</text>
+<line x1="932.3" y1="199" x2="932.3" y2="455" class="zero"/>
+<text x="628" y="246" class="label">GPT-2</text>
+<rect x="932.3" y="226.0" width="4.7" height="17" rx="4" fill="#168577"/>
+<text x="943.0" y="239" text-anchor="start" class="value">+0.001</text>
+<rect x="932.3" y="254.0" width="25.0" height="17" rx="4" fill="#c94b55"/>
+<text x="963.3" y="267" text-anchor="start" class="value">+0.003</text>
+<text x="628" y="328" class="label">OPT-350M</text>
+<rect x="783.1" y="308.0" width="149.2" height="17" rx="4" fill="#168577"/>
+<text x="777.1" y="321" text-anchor="end" class="value">-0.021</text>
+<rect x="932.3" y="336.0" width="105.5" height="17" rx="4" fill="#c94b55"/>
+<text x="1043.8" y="349" text-anchor="start" class="value">+0.015</text>
+<text x="628" y="410" class="label">Pythia-410M</text>
+<rect x="932.3" y="390.0" width="128.8" height="17" rx="4" fill="#168577"/>
+<text x="1067.2" y="403" text-anchor="start" class="value">+0.018</text>
+<rect x="932.3" y="418.0" width="136.5" height="17" rx="4" fill="#c94b55"/>
+<text x="1074.9" y="431" text-anchor="start" class="value">+0.019</text>
+<rect x="733" y="493" width="13" height="13" rx="3" fill="#168577"/>
+<text x="753" y="504" class="small">target leg: MM − CM</text>
+<rect x="928" y="493" width="13" height="13" rx="3" fill="#c94b55"/>
+<text x="948" y="504" class="small">induced draft leg: CM − CC</text>
+<text x="746" y="477" class="small">-0.026</text>
+<text x="1106" y="477" text-anchor="end" class="small">+0.024</text>
+
+  <text x="1170" y="622" text-anchor="end" class="small">seed 99 engineering · descriptive only</text>
+</svg>

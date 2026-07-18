@@ -250,6 +250,7 @@
       <a href="temporal-teacher-arr/">Temporal Teacher v0.3</a>
       <a href="verification-replay/">Verification Replay v0.6</a>
       <a href="bilevel-ce-guard/">Bilevel CE-Guard v0.7</a>
+      <a href="md-af-ucr/">MD-AF-UCR v0.11</a>
       <a href="ideas/">아이디어</a>
     </div>
   </nav>
@@ -257,6 +258,15 @@
 <div class="publication-note">외부 공개용 HTML · 원 실험 artifact와 checkpoint는 공개되지 않음</div>
 
 <blockquote>
+<p><strong>2026-07-19 MD-AF-UCR v0.11 update.</strong> Independent target와
+drafter의 optimizer를 완전히 분리하고 target Adam을 CE-only state로 보호한
+multi-domain response를 실제 FP32 exact rollout까지 검증했다. Treatment는
+작동했지만 Pythia target PPL과 OPT downstream macro가 non-inferiority를
+실패했고, main exact-AAL full gate는 0/3 pair였다. 판정은
+<strong><code>kill_v0_11_target_noninferiority</code></strong>이며 original
+strict-radius failure 37건도 그대로 FAIL이다.
+<a href="md-af-ucr/">6개 시각화와 ordered gate 보고서</a>에서 target-quality,
+Pareto, domain/cross-swap 결과를 볼 수 있다.</p>
 <p><strong>2026-07-18 Bilevel CE-Guard v0.7 update.</strong> Target Adam state를
 CE-only로 보호하면서 virtual draft Adam response를 미분하는 independent-AR
 bilevel method를 frozen panel로 검증했다. Stage 0은 3/3 pair 통과했지만,

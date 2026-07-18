@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="650" viewBox="0 0 1200 650" role="img" aria-labelledby="title desc">
+  <title id="title">MD-AF-UCR v0.11 target quality</title>
+  <desc id="desc">Heatmaps of protected-main target perplexity change and five-task target-only accuracy change relative to the CE carrier for three independent target-drafter pairs.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#36566f"/></marker>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="5" stdDeviation="7" flood-color="#143247" flood-opacity=".12"/></filter>
+  </defs>
+  <style>
+    .bg { fill:#f7f9fa; }
+    .panel { fill:#fff; stroke:#d7e0e5; stroke-width:1.5; }
+    .title { font:800 28px system-ui,sans-serif; fill:#142838; }
+    .subtitle { font:500 14px system-ui,sans-serif; fill:#617381; }
+    .head { font:750 17px system-ui,sans-serif; fill:#1b3548; }
+    .label { font:650 13px system-ui,sans-serif; fill:#304b5e; }
+    .small { font:500 11.5px system-ui,sans-serif; fill:#617381; }
+    .value { font:750 12.5px ui-monospace,monospace; fill:#173044; }
+    .grid { stroke:#dce4e8; stroke-width:1; }
+    .zero { stroke:#80909b; stroke-width:1.5; stroke-dasharray:5 4; }
+    .badge { font:800 12px system-ui,sans-serif; letter-spacing:.05em; }
+  </style>
+  <rect class="bg" width="1200" height="650"/>
+  
+  <text x="54" y="58" class="title">Target quality: carrier 대비 protected main endpoint</text>
+  <text x="54" y="84" class="subtitle">PPL은 비율 변화(%), 5-task는 accuracy percentage-point 변화 · 모두 seed-99 기술적 기술통계</text>
+  <rect x="42" y="112" width="540" height="492" rx="20" class="panel" filter="url(#shadow)"/>
+  <rect x="602" y="112" width="556" height="492" rx="20" class="panel" filter="url(#shadow)"/>
+  <text x="68" y="148" class="head">Fresh endpoint target PPL</text>
+<text x="68" y="170" class="small">낮을수록 좋음</text>
+<text x="244.5" y="200" text-anchor="middle" class="small">Pooled</text>
+<text x="333.5" y="200" text-anchor="middle" class="small">WikiText-2</text>
+<text x="422.5" y="200" text-anchor="middle" class="small">TinyStories</text>
+<text x="511.5" y="200" text-anchor="middle" class="small">GSM8K</text>
+<text x="68" y="254.0" class="label">GPT-2</text>
+<rect x="203.0" y="224.0" width="83.0" height="58" rx="9" fill="#d9f0e8" stroke="#d4dde2"/>
+<text x="244.5" y="259.0" text-anchor="middle" class="value">-0.243%</text>
+<rect x="292.0" y="224.0" width="83.0" height="58" rx="9" fill="#fde5e6" stroke="#d4dde2"/>
+<text x="333.5" y="259.0" text-anchor="middle" class="value">+0.006%</text>
+<rect x="381.0" y="224.0" width="83.0" height="58" rx="9" fill="#d9f0e8" stroke="#d4dde2"/>
+<text x="422.5" y="259.0" text-anchor="middle" class="value">-0.114%</text>
+<rect x="470.0" y="224.0" width="83.0" height="58" rx="9" fill="#a9dfcf" stroke="#d4dde2"/>
+<text x="511.5" y="259.0" text-anchor="middle" class="value">-0.620%</text>
+<text x="68" y="336.0" class="label">OPT-350M</text>
+<rect x="203.0" y="306.0" width="83.0" height="58" rx="9" fill="#d9f0e8" stroke="#d4dde2"/>
+<text x="244.5" y="341.0" text-anchor="middle" class="value">-0.355%</text>
+<rect x="292.0" y="306.0" width="83.0" height="58" rx="9" fill="#d9f0e8" stroke="#d4dde2"/>
+<text x="333.5" y="341.0" text-anchor="middle" class="value">-0.003%</text>
+<rect x="381.0" y="306.0" width="83.0" height="58" rx="9" fill="#a9dfcf" stroke="#d4dde2"/>
+<text x="422.5" y="341.0" text-anchor="middle" class="value">-0.751%</text>
+<rect x="470.0" y="306.0" width="83.0" height="58" rx="9" fill="#d9f0e8" stroke="#d4dde2"/>
+<text x="511.5" y="341.0" text-anchor="middle" class="value">-0.311%</text>
+<text x="68" y="418.0" class="label">Pythia-410M</text>
+<rect x="203.0" y="388.0" width="83.0" height="58" rx="9" fill="#fde5e6" stroke="#d4dde2"/>
+<text x="244.5" y="423.0" text-anchor="middle" class="value">+0.265%</text>
+<rect x="292.0" y="388.0" width="83.0" height="58" rx="9" fill="#f5bfc3" stroke="#d4dde2"/>
+<text x="333.5" y="423.0" text-anchor="middle" class="value">+0.489%</text>
+<rect x="381.0" y="388.0" width="83.0" height="58" rx="9" fill="#fde5e6" stroke="#d4dde2"/>
+<text x="422.5" y="423.0" text-anchor="middle" class="value">+0.059%</text>
+<rect x="470.0" y="388.0" width="83.0" height="58" rx="9" fill="#fde5e6" stroke="#d4dde2"/>
+<text x="511.5" y="423.0" text-anchor="middle" class="value">+0.247%</text>
+  <text x="628" y="148" class="head">Five-task target-only quality</text>
+<text x="628" y="170" class="small">높을수록 좋음</text>
+<text x="797.2" y="200" text-anchor="middle" class="small">Macro</text>
+<text x="871.6" y="200" text-anchor="middle" class="small">HellaSwag</text>
+<text x="946.0" y="200" text-anchor="middle" class="small">PIQA</text>
+<text x="1020.4" y="200" text-anchor="middle" class="small">ARC</text>
+<text x="1094.8" y="200" text-anchor="middle" class="small">WinoGrande</text>
+<text x="628" y="254.0" class="label">GPT-2</text>
+<rect x="763.0" y="224.0" width="68.4" height="58" rx="9" fill="#fde5e6" stroke="#d4dde2"/>
+<text x="797.2" y="259.0" text-anchor="middle" class="value">-0.000 pp</text>
+<rect x="837.4" y="224.0" width="68.4" height="58" rx="9" fill="#fde5e6" stroke="#d4dde2"/>
+<text x="871.6" y="259.0" text-anchor="middle" class="value">-0.010 pp</text>
+<rect x="911.8" y="224.0" width="68.4" height="58" rx="9" fill="#edf1f3" stroke="#d4dde2"/>
+<text x="946.0" y="259.0" text-anchor="middle" class="value">+0.000 pp</text>
+<rect x="986.2" y="224.0" width="68.4" height="58" rx="9" fill="#d9f0e8" stroke="#d4dde2"/>
+<text x="1020.4" y="259.0" text-anchor="middle" class="value">+0.088 pp</text>
+<rect x="1060.6" y="224.0" width="68.4" height="58" rx="9" fill="#fde5e6" stroke="#d4dde2"/>
+<text x="1094.8" y="259.0" text-anchor="middle" class="value">-0.079 pp</text>
+<text x="628" y="336.0" class="label">OPT-350M</text>
+<rect x="763.0" y="306.0" width="68.4" height="58" rx="9" fill="#f5bfc3" stroke="#d4dde2"/>
+<text x="797.2" y="341.0" text-anchor="middle" class="value">-0.148 pp</text>
+<rect x="837.4" y="306.0" width="68.4" height="58" rx="9" fill="#fde5e6" stroke="#d4dde2"/>
+<text x="871.6" y="341.0" text-anchor="middle" class="value">-0.040 pp</text>
+<rect x="911.8" y="306.0" width="68.4" height="58" rx="9" fill="#f5bfc3" stroke="#d4dde2"/>
+<text x="946.0" y="341.0" text-anchor="middle" class="value">-0.218 pp</text>
+<rect x="986.2" y="306.0" width="68.4" height="58" rx="9" fill="#f5bfc3" stroke="#d4dde2"/>
+<text x="1020.4" y="341.0" text-anchor="middle" class="value">-0.255 pp</text>
+<rect x="1060.6" y="306.0" width="68.4" height="58" rx="9" fill="#fde5e6" stroke="#d4dde2"/>
+<text x="1094.8" y="341.0" text-anchor="middle" class="value">-0.079 pp</text>
+<text x="628" y="418.0" class="label">Pythia-410M</text>
+<rect x="763.0" y="388.0" width="68.4" height="58" rx="9" fill="#d9f0e8" stroke="#d4dde2"/>
+<text x="797.2" y="423.0" text-anchor="middle" class="value">+0.034 pp</text>
+<rect x="837.4" y="388.0" width="68.4" height="58" rx="9" fill="#a9dfcf" stroke="#d4dde2"/>
+<text x="871.6" y="423.0" text-anchor="middle" class="value">+0.169 pp</text>
+<rect x="911.8" y="388.0" width="68.4" height="58" rx="9" fill="#f5bfc3" stroke="#d4dde2"/>
+<text x="946.0" y="423.0" text-anchor="middle" class="value">-0.218 pp</text>
+<rect x="986.2" y="388.0" width="68.4" height="58" rx="9" fill="#a9dfcf" stroke="#d4dde2"/>
+<text x="1020.4" y="423.0" text-anchor="middle" class="value">+0.263 pp</text>
+<rect x="1060.6" y="388.0" width="68.4" height="58" rx="9" fill="#fde5e6" stroke="#d4dde2"/>
+<text x="1094.8" y="423.0" text-anchor="middle" class="value">-0.079 pp</text>
+  <text x="68" y="575" class="small">Green = carrier보다 유리 · Red = carrier보다 불리 · 색은 각 panel 내부 상대 크기</text>
+
+  <text x="1170" y="632" text-anchor="end" class="small">seed 99 engineering · descriptive only</text>
+</svg>

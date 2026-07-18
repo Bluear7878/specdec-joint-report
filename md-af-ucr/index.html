@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="독립 pretrained AR target–drafter의 bidirectional joint training에서 target 보호 여부와 actual exact AAL 변화를 평가한 seed-99 engineering report. Strict radius failure는 보존하며 FP32 materiality는 descriptive qualification으로만 표시한다.">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="MD-AF-UCR v0.11 — Target-protected bidirectional joint training">
+  <meta property="og:description" content="Target quality와 actual exact AAL을 함께 보는 independent-AR engineering readout. Strict radius FAIL은 그대로 유지한다.">
+  <meta property="og:url" content="https://bluear7878.github.io/specdec-joint-report/md-af-ucr/">
+  <meta property="og:image" content="https://bluear7878.github.io/specdec-joint-report/md-af-ucr/assets/figure_04_target_speed_pareto.svg">
+  <meta property="og:image:alt" content="MD-AF-UCR v0.11 target protection versus exact speculative speed Pareto">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="canonical" href="https://bluear7878.github.io/specdec-joint-report/md-af-ucr/">
+  <title>MD-AF-UCR v0.11 — Target-protected independent-AR joint training</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #edf2f4;
+      --paper: #fbfcfb;
+      --paper-2: #f3f6f6;
+      --ink: #142736;
+      --muted: #62737e;
+      --line: #d7e0e4;
+      --navy: #15384d;
+      --navy-deep: #0d2738;
+      --blue: #3269c3;
+      --blue-soft: #e7eefb;
+      --teal: #147f71;
+      --teal-soft: #e1f2ed;
+      --green: #16765f;
+      --green-soft: #dff1ea;
+      --orange: #b96c20;
+      --orange-soft: #fff0dc;
+      --red: #b13e48;
+      --red-soft: #fbe3e5;
+      --shadow: 0 24px 70px rgba(20, 48, 66, .12);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0c1419;
+        --paper: #131d23;
+        --paper-2: #18252c;
+        --ink: #e8eff2;
+        --muted: #aab7be;
+        --line: #33434c;
+        --navy: #b6d3e5;
+        --navy-deep: #091923;
+        --blue: #91b3ef;
+        --blue-soft: #1c3048;
+        --teal: #6fd0bf;
+        --teal-soft: #193a34;
+        --green: #75d2ab;
+        --green-soft: #18372d;
+        --orange: #f2b46f;
+        --orange-soft: #3d2c1a;
+        --red: #ff9ba2;
+        --red-soft: #402328;
+        --shadow: none;
+      }
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 4% 2%, color-mix(in srgb, var(--blue) 10%, transparent), transparent 28rem),
+        var(--bg);
+      color: var(--ink);
+      font-family: Pretendard, "Noto Sans KR", -apple-system, BlinkMacSystemFont,
+        "Segoe UI", sans-serif;
+      font-size: 16px;
+      line-height: 1.67;
+      word-break: keep-all;
+    }
+    a { color: var(--blue); text-underline-offset: 3px; }
+    code {
+      padding: .12rem .34rem;
+      background: var(--paper-2);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: .85em;
+      word-break: break-all;
+    }
+    .site-nav {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      min-height: 58px;
+      padding: .45rem max(20px, calc((100vw - 1260px) / 2));
+      background: color-mix(in srgb, var(--bg) 89%, transparent);
+      border-bottom: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+      backdrop-filter: blur(16px);
+    }
+    .brand { color: var(--ink); font-weight: 900; text-decoration: none; letter-spacing: -.025em; }
+    .site-nav div { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .2rem; }
+    .site-nav div a {
+      padding: .34rem .6rem;
+      color: var(--muted);
+      border-radius: 999px;
+      text-decoration: none;
+      font-size: .78rem;
+      font-weight: 760;
+    }
+    .site-nav a:hover,
+    .site-nav a[aria-current="page"] { color: var(--blue); background: var(--blue-soft); }
+    main {
+      width: min(1260px, calc(100% - 30px));
+      margin: 28px auto 82px;
+      overflow: hidden;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 26px;
+      box-shadow: var(--shadow);
+    }
+    h1, h2, h3 { line-height: 1.2; letter-spacing: -.034em; }
+    h1 { margin: .6rem 0 1.1rem; font-size: clamp(2.55rem, 6.7vw, 5.8rem); }
+    h2 { margin: 0 0 .8rem; font-size: clamp(1.8rem, 3.7vw, 3rem); }
+    h3 { margin: 0 0 .5rem; font-size: 1.17rem; letter-spacing: -.02em; }
+    p { max-width: 900px; }
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.45fr) minmax(280px, .7fr);
+      gap: clamp(1.8rem, 4vw, 4rem);
+      padding: clamp(32px, 6vw, 82px);
+      color: #f4f8fa;
+      background:
+        radial-gradient(circle at 88% 16%, rgba(90, 176, 158, .28), transparent 21rem),
+        radial-gradient(circle at 48% 115%, rgba(72, 125, 203, .25), transparent 30rem),
+        linear-gradient(136deg, #0d2738 0%, #174158 60%, #103245 100%);
+    }
+    .eyebrow {
+      margin: 0;
+      color: #a9d9cf;
+      font-size: .78rem;
+      font-weight: 900;
+      letter-spacing: .105em;
+      text-transform: uppercase;
+    }
+    .hero .lead { color: #d4e3ea; font-size: 1.08rem; }
+    .scope {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .45rem;
+      margin-top: 1.35rem;
+    }
+    .scope span {
+      padding: .32rem .62rem;
+      color: #c9dbe4;
+      background: rgba(255,255,255,.07);
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: 999px;
+      font-size: .75rem;
+      font-weight: 730;
+    }
+    .verdict {
+      align-self: center;
+      padding: 1.45rem;
+      background: rgba(5, 18, 27, .4);
+      border: 1px solid rgba(255,255,255,.18);
+      border-radius: 20px;
+      backdrop-filter: blur(7px);
+    }
+    .verdict .label {
+      display: inline-block;
+      padding: .28rem .6rem;
+      border-radius: 999px;
+      font-size: .72rem;
+      font-weight: 900;
+      letter-spacing: .06em;
+    }
+    .verdict.kill .label { color: #ffb3b8; background: rgba(177,62,72,.28); }
+    .verdict.advance .label { color: #a9e4d0; background: rgba(20,127,113,.28); }
+    .verdict strong {
+      display: block;
+      margin: .55rem 0;
+      font-size: clamp(1.65rem, 3vw, 2.55rem);
+      line-height: 1.08;
+      letter-spacing: -.045em;
+    }
+    .verdict p { margin: .7rem 0 0; color: #d1e0e8; font-size: .88rem; line-height: 1.48; }
+    .kpis {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      background: var(--paper-2);
+      border-bottom: 1px solid var(--line);
+    }
+    .kpi { padding: 1.15rem 1.4rem; border-right: 1px solid var(--line); }
+    .kpi:last-child { border-right: 0; }
+    .kpi strong { display: block; font-size: 1.48rem; line-height: 1.1; letter-spacing: -.04em; }
+    .kpi span { display: block; margin-top: .3rem; color: var(--muted); font-size: .75rem; }
+    section { padding: clamp(42px, 6vw, 78px) clamp(22px, 6vw, 76px); }
+    section + section { border-top: 1px solid var(--line); }
+    .section-lead { color: var(--muted); font-size: 1.02rem; }
+    .audit-lanes {
+      display: grid;
+      grid-template-columns: .85fr 1.3fr;
+      gap: 1rem;
+      margin-top: 1.6rem;
+    }
+    .audit-card {
+      padding: 1.25rem;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--paper-2);
+    }
+    .audit-card.fail { background: linear-gradient(145deg, var(--red-soft), var(--paper)); border-color: color-mix(in srgb, var(--red) 40%, var(--line)); }
+    .audit-card.qual { background: linear-gradient(145deg, var(--orange-soft), var(--paper)); border-color: color-mix(in srgb, var(--orange) 40%, var(--line)); }
+    .audit-card .chip {
+      display: inline-flex;
+      padding: .25rem .55rem;
+      border-radius: 999px;
+      font-size: .73rem;
+      font-weight: 900;
+      letter-spacing: .045em;
+    }
+    .audit-card.fail .chip { color: var(--red); background: var(--red-soft); border: 1px solid var(--red); }
+    .audit-card.qual .chip { color: var(--orange); background: var(--orange-soft); border: 1px solid var(--orange); }
+    .audit-card strong { display: block; margin: .6rem 0 .3rem; font-size: 1.25rem; letter-spacing: -.025em; }
+    .audit-card p { margin: .25rem 0 0; color: var(--muted); font-size: .88rem; }
+    .figure-card {
+      margin: 1.7rem 0 2.7rem;
+      padding: clamp(12px, 2vw, 22px);
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: 0 12px 34px rgba(22, 48, 65, .07);
+    }
+    .figure-card img {
+      display: block;
+      width: 100%;
+      height: auto;
+      border-radius: 10px;
+    }
+    .figure-card figcaption {
+      padding: .85rem .25rem .15rem;
+      color: var(--muted);
+      font-size: .82rem;
+    }
+    .figure-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.2rem;
+      margin-top: 1.6rem;
+    }
+    .figure-grid .figure-card { margin: 0; }
+    .table-shell {
+      width: 100%;
+      margin: 1.4rem 0 2rem;
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+    }
+    table { width: 100%; border-collapse: collapse; min-width: 900px; background: var(--paper); }
+    caption {
+      padding: .85rem 1rem;
+      color: var(--muted);
+      background: var(--paper-2);
+      text-align: left;
+      font-size: .8rem;
+      font-weight: 760;
+    }
+    th, td {
+      padding: .72rem .78rem;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: middle;
+      white-space: nowrap;
+      font-size: .84rem;
+    }
+    thead th { color: var(--muted); background: var(--paper-2); font-size: .76rem; letter-spacing: .02em; }
+    tbody tr:last-child th, tbody tr:last-child td { border-bottom: 0; }
+    .status {
+      display: inline-flex;
+      padding: .18rem .42rem;
+      border-radius: 999px;
+      font-size: .67rem;
+      font-weight: 900;
+      letter-spacing: .035em;
+    }
+    .status.pass { color: var(--green); background: var(--green-soft); }
+    .status.fail { color: var(--red); background: var(--red-soft); }
+    .status.muted { color: var(--muted); background: var(--paper-2); border: 1px solid var(--line); }
+    .note { color: var(--orange); font-size: .7rem; font-weight: 800; }
+    .callout {
+      margin: 1.35rem 0;
+      padding: 1rem 1.2rem;
+      background: var(--blue-soft);
+      border-left: 4px solid var(--blue);
+      border-radius: 0 12px 12px 0;
+    }
+    .callout p { margin: .2rem 0; }
+    .footer {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 1rem;
+      align-items: end;
+      color: var(--muted);
+      background: var(--paper-2);
+      font-size: .78rem;
+    }
+    .hashes { text-align: right; }
+    @media (max-width: 900px) {
+      .hero { grid-template-columns: 1fr; }
+      .kpis { grid-template-columns: repeat(2, 1fr); }
+      .kpi:nth-child(2) { border-right: 0; }
+      .kpi:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+      .audit-lanes, .figure-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 600px) {
+      body { font-size: 15px; }
+      main { width: min(100% - 18px, 1260px); margin-top: 12px; border-radius: 17px; }
+      .site-nav { align-items: flex-start; }
+      .site-nav div a { display: none; }
+      .kpis { grid-template-columns: 1fr; }
+      .kpi { border-right: 0; border-bottom: 1px solid var(--line); }
+      .footer { grid-template-columns: 1fr; }
+      .hashes { text-align: left; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="site-nav" aria-label="Research report navigation">
+    <a class="brand" href="../">SpecDec Joint Research</a>
+    <div>
+      <a href="#question">질문</a>
+      <a href="#quality">Target quality</a>
+      <a href="#pareto">Pareto</a>
+      <a href="#gate">Gate</a>
+      <a href="./" aria-current="page">MD-AF-UCR v0.11</a>
+    </div>
+  </nav>
+
+  <main>
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Independent AR · bidirectional joint training · v0.11</p>
+        <h1>Target를 지키면서<br>drafter-aware하게</h1>
+        <p class="lead">두 pretrained autoregressive model은 tokenizer-compatible
+        token ID만 공유한다. Target Adam은 CE-only state로 방화벽을 세우고,
+        drafter-aware acceptance response는 multi-domain cone, radius, fresh
+        CE guard를 거쳐 parameter action으로만 들어간다.</p>
+        <div class="scope">
+          <span>separate backbones</span>
+          <span>separate LM heads</span>
+          <span>separate optimizers</span>
+          <span>actual FP32 eager exact rollout</span>
+          <span>seed 99 engineering</span>
+        </div>
+      </div>
+      <aside class="verdict kill" aria-label="Final ordered decision">
+        <span class="label">ENGINEERING KILL · Target PPL</span>
+        <strong>kill_v0_11_target_noninferiority</strong>
+        <p>Prospective order에서 Target PPL gate가 처음 실패했다. 뒤의 관측 결과는 이 결정을 rescue하지 않는다.</p>
+      </aside>
+    </header>
+
+    <div class="kpis" aria-label="Primary gate scorecard">
+      <div class="kpi"><strong>2 / 3</strong><span>protected-main target PPL pair gates</span></div>
+      <div class="kpi"><strong>2 / 3</strong><span>protected-main five-task quality pair gates</span></div>
+      <div class="kpi"><strong>0 / 3</strong><span>protected-main exact AAL pair gates</span></div>
+      <div class="kpi"><strong>2 / 3</strong><span>conditional cross-swap pair gates</span></div>
+    </div>
+
+    <section id="question">
+      <p class="eyebrow">Research question</p>
+      <h2>Bidirectional signal을 target damage 없이 쓸 수 있는가?</h2>
+      <p class="section-lead">이 실험은 MEDUSA/EAGLE shared-head setting이 아니다.
+      독립 target과 독립 drafter를 함께 학습하되 target optimizer state에
+      auxiliary gradient를 직접 축적하지 않는 방법을 raw joint-update
+      motivation bridge와 비교한다.</p>
+
+      <div class="audit-lanes">
+        <article class="audit-card fail">
+          <span class="chip">STRICT RADIUS · FAIL · PRESERVED</span>
+          <strong>37 frozen v1 failures</strong>
+          <p>원래 strict audit의 실패는 최종 보고서에서도 FAIL이다. 다른
+          utility 결과나 REV2 envelope이 이를 rescue하지 않는다.</p>
+        </article>
+        <article class="audit-card qual">
+          <span class="chip">FP32 MATERIALITY · DESCRIPTIVE QUALIFICATION</span>
+          <strong>NOT V1 PASS · ceiling 1.001</strong>
+          <p>관측 max displacement/radius ratio는 1.00034099다. 이 분류는
+          checkpoint, action, lambda, optimizer state를 바꾸지 않으며 strict
+          radius 판정을 다시 쓰지 않는다.</p>
+        </article>
+      </div>
+
+      <figure class="figure-card">
+        <img src="./assets/figure_01_firewall_design.svg" alt="Target CE-only Adam state와 drafter-aware guarded parameter correction을 분리한 firewall 설계">
+        <figcaption>Figure 1. Protected response는 target Adam moment 밖에 있다.
+        Raw arm은 auxiliary gradient를 target Adam에 노출하지만 isolated
+        Adam-state mediation estimand는 아니다.</figcaption>
+      </figure>
+    </section>
+
+    <section id="quality">
+      <p class="eyebrow">Target protection</p>
+      <h2>Target 성능은 별도 endpoint로 직접 본다</h2>
+      <p class="section-lead">Fresh endpoint PPL과 target-only five-task accuracy를
+      carrier checkpoint와 비교한다. Fixed pretrained base는 causal control이
+      아니다.</p>
+
+      <figure class="figure-card">
+        <img src="./assets/figure_02_target_quality.svg" alt="세 model pair의 protected-main target PPL과 five-task quality heatmap">
+        <figcaption>Figure 2. PPL은 낮을수록, benchmark accuracy delta는
+        높을수록 좋다. 색은 각 panel 내부의 상대 크기이며 유의성 표기가
+        아니다.</figcaption>
+      </figure>
+
+      <div class="table-shell">
+        <table>
+          <caption>ENGINEERING SEED 99 · UTILITY DESCRIPTIVE ONLY — training seed가 추론 단위이며 prompt-cluster LCB는 descriptive다.</caption>
+          <thead>
+            <tr>
+              <th>Pair</th>
+              <th>Pooled PPL Δ</th>
+              <th>5-task macro Δ</th>
+              <th>Exact AAL Δ</th>
+              <th>Prompt LCB</th>
+              <th>Target leg</th>
+              <th>Draft leg</th>
+              <th>AAL gate</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><th>GPT-2 ← DistilGPT-2</th><td>-0.2429% <span class="status pass">PASS</span></td><td>-0.000 pp <span class="status pass">PASS</span></td><td>+0.004</td><td>-0.028 <span class="note">descriptive</span></td><td>+0.001</td><td>+0.003</td><td><span class="status fail">FAIL</span></td></tr>
+<tr><th>OPT-350M ← OPT-125M</th><td>-0.3555% <span class="status pass">PASS</span></td><td>-0.148 pp <span class="status fail">FAIL</span></td><td>-0.006</td><td>-0.041 <span class="note">descriptive</span></td><td>-0.021</td><td>+0.015</td><td><span class="status fail">FAIL</span></td></tr>
+<tr><th>Pythia-410M ← Pythia-70M</th><td>+0.2649% <span class="status fail">FAIL</span></td><td>+0.034 pp <span class="status pass">PASS</span></td><td>+0.037</td><td>+0.003 <span class="note">descriptive</span></td><td>+0.018</td><td>+0.019</td><td><span class="status fail">FAIL</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="comparison">
+      <p class="eyebrow">Motivation bridge</p>
+      <h2>Raw contamination과 protected response를 같은 carrier에 놓는다</h2>
+      <p class="section-lead">Raw와 protected main은 같은 seed의 endpoint total
+      effect다. 학습 trajectory가 유도한 target–draft co-adaptation을 포함하며,
+      raw 차이를 Adam-state 단독 원인으로 분해하지 않는다.</p>
+
+      <figure class="figure-card">
+        <img src="./assets/figure_03_raw_vs_protected.svg" alt="Raw joint update와 protected main의 target PPL, target quality, exact AAL paired comparison">
+        <figcaption>Figure 3. 빨간 원은 raw joint update, 청록 사각형은
+        target-protected main이다. 세 지표는 각자 단위를 유지한다.</figcaption>
+      </figure>
+
+      <div class="table-shell">
+        <table>
+          <caption>DESCRIPTIVE ONLY — raw arm은 same-seed 100-step total-effect motivation bridge이며 isolated carryover가 아니다.</caption>
+          <thead>
+            <tr><th>Pair</th><th>Arm</th><th>PPL Δ</th><th>Macro Δ</th><th>AAL Δ</th><th>Interpretation</th></tr>
+          </thead>
+          <tbody>
+            <tr><th>GPT-2 ← DistilGPT-2</th><td>Raw joint</td><td>-0.0720%</td><td>+0.071 pp</td><td>+0.013</td><td>total-effect bridge · Adam exposed</td></tr>
+<tr><th>GPT-2 ← DistilGPT-2</th><td>MD-AF-UCR</td><td>-0.2429%</td><td>-0.000 pp</td><td>+0.004</td><td>protected main · CE-only Adam state</td></tr>
+<tr><th>OPT-350M ← OPT-125M</th><td>Raw joint</td><td>-1.3674%</td><td>+0.107 pp</td><td>+0.013</td><td>total-effect bridge · Adam exposed</td></tr>
+<tr><th>OPT-350M ← OPT-125M</th><td>MD-AF-UCR</td><td>-0.3555%</td><td>-0.148 pp</td><td>-0.006</td><td>protected main · CE-only Adam state</td></tr>
+<tr><th>Pythia-410M ← Pythia-70M</th><td>Raw joint</td><td>-1.6772%</td><td>+0.341 pp</td><td>+0.009</td><td>total-effect bridge · Adam exposed</td></tr>
+<tr><th>Pythia-410M ← Pythia-70M</th><td>MD-AF-UCR</td><td>+0.2649%</td><td>+0.034 pp</td><td>+0.037</td><td>protected main · CE-only Adam state</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="pareto">
+      <p class="eyebrow">Joint objective</p>
+      <h2>Target protection과 speculative 변화량을 한 평면에서 본다</h2>
+      <p class="section-lead">x축은 carrier 대비 pooled target PPL change, y축은
+      actual FP32 eager exact AAL change다. Teacher-forced overlap은 실제
+      acceptance length를 대신하지 않는다.</p>
+
+      <figure class="figure-card">
+        <img src="./assets/figure_04_target_speed_pareto.svg" alt="Pooled target PPL change와 actual exact AAL change의 Pareto scatter">
+        <figcaption>Figure 4. 초록 영역은 prospectively frozen target-PPL과
+        AAL mean threshold를 동시에 만족하는 방향을 표시한다. 점 하나를
+        independent replicate로 해석하지 않는다.</figcaption>
+      </figure>
+    </section>
+
+    <section id="domain">
+      <p class="eyebrow">Robustness and attribution boundary</p>
+      <h2>Domain floor와 cross-swap은 다른 질문이다</h2>
+      <p class="section-lead">왼쪽은 protected-main의 domain별 actual exact AAL
+      delta다. 오른쪽은 <strong>conditional checkpoint effect</strong>인 target
+      leg와 induced draft leg다. 이는 <strong>not additive mediation</strong>이며
+      고유한 인과 분해가 아니다.</p>
+
+      <figure class="figure-card">
+        <img src="./assets/figure_05_domain_crossswap.svg" alt="Domain별 exact AAL delta와 conditional checkpoint cross-swap legs">
+        <figcaption>Figure 5. Cross-swap target leg는 MM−CM, induced draft leg는
+        CM−CC다. 각 값은 checkpoint에 조건부인 효과다.</figcaption>
+      </figure>
+    </section>
+
+    <section id="gate">
+      <p class="eyebrow">Prospective decision</p>
+      <h2>먼저 실패한 gate가 결정을 고정한다</h2>
+      <p class="section-lead">Radius audit lane은 six-gate scientific order와
+      분리된다. Ordered status와 observed pass도 분리해, 뒤 관측치가 앞
+      failure를 rescue하는 표현을 차단한다.</p>
+
+      <figure class="figure-card">
+        <img src="./assets/figure_06_gate_waterfall.svg" alt="Strict radius fail, descriptive FP32 qualification, six ordered scientific gates의 waterfall">
+        <figcaption>Figure 6. Strict radius failure는 보존되고 materiality는
+        non-rescuing descriptive qualifier다. `ADVANCE`도 selection seed를
+        자동으로 열지 않는다.</figcaption>
+      </figure>
+
+      <div class="table-shell">
+        <table>
+          <caption>Prospectively ordered gate ledger — later observations do not rescue an earlier failure.</caption>
+          <thead>
+            <tr><th>#</th><th>Gate</th><th>Ordered status</th><th>Observed pass</th><th>Failure decision</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>1</td><th>Structural</th><td><span class="status pass">PASS</span></td><td>true</td><td><code>kill_v0_11_structural</code></td></tr>
+<tr><td>2</td><th>Treatment</th><td><span class="status pass">PASS</span></td><td>true</td><td><code>kill_v0_11_no_treatment</code></td></tr>
+<tr><td>3</td><th>Target PPL</th><td><span class="status fail">FAIL</span></td><td>false</td><td><code>kill_v0_11_target_noninferiority</code></td></tr>
+<tr><td>4</td><th>5-task quality</th><td><span class="status muted">NOT EVALUATED</span></td><td>false</td><td><code>kill_v0_11_target_noninferiority</code></td></tr>
+<tr><td>5</td><th>Exact AAL</th><td><span class="status muted">NOT EVALUATED</span></td><td>false</td><td><code>kill_v0_11_no_exact_aal_gain</code></td></tr>
+<tr><td>6</td><th>Cross-swap</th><td><span class="status muted">NOT EVALUATED</span></td><td>false</td><td><code>kill_v0_11_crossswap</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout">
+        <p><strong>최종 ordered decision:</strong> <code>kill_v0_11_target_noninferiority</code></p>
+        <p>이 페이지의 모든 utility 표와 figure는 engineering seed 99의
+        기술통계다. 독립 training-seed replication 없이 일반화나 확증적
+        우월성을 주장하지 않는다.</p>
+      </div>
+    </section>
+
+    <section class="footer">
+      <div>
+        <strong>MD-AF-UCR v0.11 public evidence bundle</strong><br>
+        Completed REV2 analyzer output에서만 생성 · 새 utility 실행 없음 ·
+        target/drafter parameters and optimizers fully separate
+      </div>
+      <div class="hashes">
+        analysis <code>d32183095c45</code><br>
+        report assets <code>22bb4aa5dc42</code>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

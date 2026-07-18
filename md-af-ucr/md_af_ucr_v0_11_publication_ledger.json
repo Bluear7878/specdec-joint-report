@@ -1,0 +1,39 @@
+{
+  "analysis_schema": "md-af-ucr-v0.11-analysis-rev2-v1",
+  "analysis_sha256": "d32183095c454278ef62e209e6b06e8d58c471f9ba2a7c8c0951d6b0614b70f3",
+  "asset_layout": [
+    ".completed",
+    "md_af_ucr_v0_11_report_assets_manifest.json",
+    "figure_01_firewall_design.svg",
+    "figure_02_target_quality.svg",
+    "figure_03_raw_vs_protected.svg",
+    "figure_04_target_speed_pareto.svg",
+    "figure_05_domain_crossswap.svg",
+    "figure_06_gate_waterfall.svg"
+  ],
+  "canonical_url": "https://bluear7878.github.io/specdec-joint-report/md-af-ucr/",
+  "destination_files": {
+    "md-af-ucr/assets/.completed": "979696481680e85c75f8a3341af77c60a4bbc41fd18d859de789eed72f023652",
+    "md-af-ucr/assets/figure_01_firewall_design.svg": "631e8a9a36839a6ab633bdb7f7fb7883edbe22d75259dc39fc4ff196854d10de",
+    "md-af-ucr/assets/figure_02_target_quality.svg": "f838092845c12ff480f1b96c7becd4a73cfa481e5b517845c69e495488083773",
+    "md-af-ucr/assets/figure_03_raw_vs_protected.svg": "d8577edc01453b44dfc1ed27694535704815c6bc0003d3d5ca6170d14ad4236b",
+    "md-af-ucr/assets/figure_04_target_speed_pareto.svg": "30efd0173957ecc97a7fff822ea79d05c18800d4ac4d03ac383f444736c002ec",
+    "md-af-ucr/assets/figure_05_domain_crossswap.svg": "d45408faa7109ee16d7d5bed7bdeda234592a20520f34027e64155e175807915",
+    "md-af-ucr/assets/figure_06_gate_waterfall.svg": "af908dd66b047da3e55eb9eb99225677278fc8f7839299eede2d66cb326dd89c",
+    "md-af-ucr/assets/md_af_ucr_v0_11_report_assets_manifest.json": "a170f8e0031506620f15f5901e70135af5ec1d81980dd5c6f21b122b71a34aa4",
+    "md-af-ucr/index.html": "8bdc583d14b00ce784ef54fee01bb4e99f213252a78fc5d9d85fcdecf9a7a92f"
+  },
+  "final_decision": "kill_v0_11_target_noninferiority",
+  "method": "multi_domain_adam_firewalled_unweighted_coordinate_response_v0_11",
+  "page_layout": [
+    ".completed",
+    "assets",
+    "index.html",
+    "md_af_ucr_v0_11_publication_ledger.json"
+  ],
+  "publication_ledger_sha256": "0b635ab8ec1a99f6ad1b64ebf41b89ec9bd4205f000a52bfeae29f86d42a7461",
+  "report_assets_sha256": "22bb4aa5dc4227959765bb0243b25bd0256fe017a92ad665c85e97ec19650edd",
+  "schema": "md-af-ucr-v0.11-publication-v1",
+  "strict_radius_status": "fail_preserved",
+  "utility_interpretation": "seed99_engineering_descriptive_only"
+}

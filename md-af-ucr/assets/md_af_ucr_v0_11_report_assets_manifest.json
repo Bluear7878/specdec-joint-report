@@ -1,0 +1,21 @@
+{
+  "analysis_artifact_id": "md_af_ucr_v0_11_analysis_rev2_v1",
+  "analysis_schema": "md-af-ucr-v0.11-analysis-rev2-v1",
+  "analysis_sha256": "d32183095c454278ef62e209e6b06e8d58c471f9ba2a7c8c0951d6b0614b70f3",
+  "figure_files": {
+    "figure_01_firewall_design.svg": "631e8a9a36839a6ab633bdb7f7fb7883edbe22d75259dc39fc4ff196854d10de",
+    "figure_02_target_quality.svg": "f838092845c12ff480f1b96c7becd4a73cfa481e5b517845c69e495488083773",
+    "figure_03_raw_vs_protected.svg": "d8577edc01453b44dfc1ed27694535704815c6bc0003d3d5ca6170d14ad4236b",
+    "figure_04_target_speed_pareto.svg": "30efd0173957ecc97a7fff822ea79d05c18800d4ac4d03ac383f444736c002ec",
+    "figure_05_domain_crossswap.svg": "d45408faa7109ee16d7d5bed7bdeda234592a20520f34027e64155e175807915",
+    "figure_06_gate_waterfall.svg": "af908dd66b047da3e55eb9eb99225677278fc8f7839299eede2d66cb326dd89c"
+  },
+  "fp32_materiality_qualification": "descriptive_only_not_a_strict_radius_pass",
+  "method": "multi_domain_adam_firewalled_unweighted_coordinate_response_v0_11",
+  "original_v1_strict_radius_status": "fail_preserved",
+  "report_assets_sha256": "22bb4aa5dc4227959765bb0243b25bd0256fe017a92ad665c85e97ec19650edd",
+  "schema": "md-af-ucr-v0.11-report-assets-v1",
+  "training_seed": 99,
+  "training_seed_is_inferential_unit": true,
+  "utility_interpretation": "seed99_engineering_descriptive_only"
+}

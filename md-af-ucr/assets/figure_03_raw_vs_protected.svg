@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Raw versus protected MD-AF-UCR v0.11 comparison</title>
+  <desc id="desc">Three paired panels compare raw unweighted joint training with the target-protected main arm on target perplexity, target benchmark quality, and exact speculative acceptance length.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#36566f"/></marker>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="5" stdDeviation="7" flood-color="#143247" flood-opacity=".12"/></filter>
+  </defs>
+  <style>
+    .bg { fill:#f7f9fa; }
+    .panel { fill:#fff; stroke:#d7e0e5; stroke-width:1.5; }
+    .title { font:800 28px system-ui,sans-serif; fill:#142838; }
+    .subtitle { font:500 14px system-ui,sans-serif; fill:#617381; }
+    .head { font:750 17px system-ui,sans-serif; fill:#1b3548; }
+    .label { font:650 13px system-ui,sans-serif; fill:#304b5e; }
+    .small { font:500 11.5px system-ui,sans-serif; fill:#617381; }
+    .value { font:750 12.5px ui-monospace,monospace; fill:#173044; }
+    .grid { stroke:#dce4e8; stroke-width:1; }
+    .zero { stroke:#80909b; stroke-width:1.5; stroke-dasharray:5 4; }
+    .badge { font:800 12px system-ui,sans-serif; letter-spacing:.05em; }
+  </style>
+  <rect class="bg" width="1200" height="630"/>
+  
+  <text x="54" y="58" class="title">Raw joint update vs target-protected main</text>
+  <text x="54" y="84" class="subtitle">같은 carrier 기준의 endpoint total effects · raw arm은 Adam-state 단독 매개효과가 아님</text>
+  <rect x="42" y="112" width="356" height="430" rx="20" class="panel"/>
+  <rect x="422" y="112" width="356" height="430" rx="20" class="panel"/>
+  <rect x="802" y="112" width="356" height="430" rx="20" class="panel"/>
+  <text x="64" y="148" class="head">Target PPL Δ</text>
+<text x="64" y="169" class="small">% · lower is better</text>
+<line x1="310.2" y1="195" x2="310.2" y2="372" class="zero"/>
+<text x="169" y="392" class="small">-1.930</text>
+<text x="348" y="392" text-anchor="end" class="small">+0.517</text>
+<text x="64" y="230" class="label">GPT-2</text>
+<line x1="304.9" y1="226" x2="292.4" y2="226" stroke="#a9b6be" stroke-width="2"/>
+<circle cx="304.9" cy="226" r="7" fill="#c94b55" stroke="#fff" stroke-width="2"/>
+<rect x="285.4" y="219.0" width="14" height="14" rx="3" fill="#168577" stroke="#fff" stroke-width="2"/>
+<text x="64" y="285" class="label">OPT-350M</text>
+<line x1="210.1" y1="281" x2="284.2" y2="281" stroke="#a9b6be" stroke-width="2"/>
+<circle cx="210.1" cy="281" r="7" fill="#c94b55" stroke="#fff" stroke-width="2"/>
+<rect x="277.2" y="274.0" width="14" height="14" rx="3" fill="#168577" stroke="#fff" stroke-width="2"/>
+<text x="64" y="340" class="label">Pythia-410M</text>
+<line x1="187.5" y1="336" x2="329.5" y2="336" stroke="#a9b6be" stroke-width="2"/>
+<circle cx="187.5" cy="336" r="7" fill="#c94b55" stroke="#fff" stroke-width="2"/>
+<rect x="322.5" y="329.0" width="14" height="14" rx="3" fill="#168577" stroke="#fff" stroke-width="2"/>
+  <text x="444" y="148" class="head">5-task macro Δ</text>
+<text x="444" y="169" class="small">percentage points · higher is better</text>
+<line x1="610.4" y1="195" x2="610.4" y2="372" class="zero"/>
+<text x="549" y="392" class="small">-0.211</text>
+<text x="728" y="392" text-anchor="end" class="small">+0.405</text>
+<text x="444" y="230" class="label">GPT-2</text>
+<line x1="631.1" y1="226" x2="610.3" y2="226" stroke="#a9b6be" stroke-width="2"/>
+<circle cx="631.1" cy="226" r="7" fill="#c94b55" stroke="#fff" stroke-width="2"/>
+<rect x="603.3" y="219.0" width="14" height="14" rx="3" fill="#168577" stroke="#fff" stroke-width="2"/>
+<text x="444" y="285" class="label">OPT-350M</text>
+<line x1="641.6" y1="281" x2="567.5" y2="281" stroke="#a9b6be" stroke-width="2"/>
+<circle cx="641.6" cy="281" r="7" fill="#c94b55" stroke="#fff" stroke-width="2"/>
+<rect x="560.5" y="274.0" width="14" height="14" rx="3" fill="#168577" stroke="#fff" stroke-width="2"/>
+<text x="444" y="340" class="label">Pythia-410M</text>
+<line x1="709.5" y1="336" x2="620.3" y2="336" stroke="#a9b6be" stroke-width="2"/>
+<circle cx="709.5" cy="336" r="7" fill="#c94b55" stroke="#fff" stroke-width="2"/>
+<rect x="613.3" y="329.0" width="14" height="14" rx="3" fill="#168577" stroke="#fff" stroke-width="2"/>
+  <text x="824" y="148" class="head">Exact AAL Δ</text>
+<text x="824" y="169" class="small">tokens / verification round · higher is better</text>
+<line x1="967.6" y1="195" x2="967.6" y2="372" class="zero"/>
+<text x="929" y="392" class="small">-0.012</text>
+<text x="1108" y="392" text-anchor="end" class="small">+0.042</text>
+<text x="824" y="230" class="label">GPT-2</text>
+<line x1="1011.9" y1="226" x2="981.2" y2="226" stroke="#a9b6be" stroke-width="2"/>
+<circle cx="1011.9" cy="226" r="7" fill="#c94b55" stroke="#fff" stroke-width="2"/>
+<rect x="974.2" y="219.0" width="14" height="14" rx="3" fill="#168577" stroke="#fff" stroke-width="2"/>
+<text x="824" y="285" class="label">OPT-350M</text>
+<line x1="1010.4" y1="281" x2="947.5" y2="281" stroke="#a9b6be" stroke-width="2"/>
+<circle cx="1010.4" cy="281" r="7" fill="#c94b55" stroke="#fff" stroke-width="2"/>
+<rect x="940.5" y="274.0" width="14" height="14" rx="3" fill="#168577" stroke="#fff" stroke-width="2"/>
+<text x="824" y="340" class="label">Pythia-410M</text>
+<line x1="995.9" y1="336" x2="1089.5" y2="336" stroke="#a9b6be" stroke-width="2"/>
+<circle cx="995.9" cy="336" r="7" fill="#c94b55" stroke="#fff" stroke-width="2"/>
+<rect x="1082.5" y="329.0" width="14" height="14" rx="3" fill="#168577" stroke="#fff" stroke-width="2"/>
+  <circle cx="410" cy="587" r="7" fill="#c94b55"/><text x="426" y="592" class="label">Raw unweighted β=1 + target Adam exposure</text>
+  <rect x="730" y="580" width="14" height="14" rx="3" fill="#168577"/><text x="752" y="592" class="label">MD-AF-UCR protected main</text>
+
+  <text x="1170" y="612" text-anchor="end" class="small">seed 99 engineering · descriptive only</text>
+</svg>

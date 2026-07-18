@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="640" viewBox="0 0 1200 640" role="img" aria-labelledby="title desc">
+  <title id="title">MD-AF-UCR v0.11 target-Adam firewall design</title>
+  <desc id="desc">A schematic of two independent autoregressive models. The target Adam state receives CE only; a guarded drafter-aware correction is applied outside optimizer state. The raw comparison exposes target Adam to auxiliary gradients.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#36566f"/></marker>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="5" stdDeviation="7" flood-color="#143247" flood-opacity=".12"/></filter>
+  </defs>
+  <style>
+    .bg { fill:#f7f9fa; }
+    .panel { fill:#fff; stroke:#d7e0e5; stroke-width:1.5; }
+    .title { font:800 28px system-ui,sans-serif; fill:#142838; }
+    .subtitle { font:500 14px system-ui,sans-serif; fill:#617381; }
+    .head { font:750 17px system-ui,sans-serif; fill:#1b3548; }
+    .label { font:650 13px system-ui,sans-serif; fill:#304b5e; }
+    .small { font:500 11.5px system-ui,sans-serif; fill:#617381; }
+    .value { font:750 12.5px ui-monospace,monospace; fill:#173044; }
+    .grid { stroke:#dce4e8; stroke-width:1; }
+    .zero { stroke:#80909b; stroke-width:1.5; stroke-dasharray:5 4; }
+    .badge { font:800 12px system-ui,sans-serif; letter-spacing:.05em; }
+  </style>
+  <rect class="bg" width="1200" height="640"/>
+  
+  <text x="54" y="58" class="title">Target-Adam firewall: 무엇을 보호하고 무엇을 허용하는가</text>
+  <text x="54" y="84" class="subtitle">독립 pretrained AR target/drafter · tokenizer-compatible token ID만 공유</text>
+  <rect x="52" y="118" width="1096" height="480" rx="24" class="panel" filter="url(#shadow)"/>
+  <rect x="82" y="160" width="240" height="92" rx="16" fill="#e8eef9" stroke="#7c9cd0"/>
+  <text x="202" y="191" text-anchor="middle" class="head">Target CE gradient</text>
+  <text x="202" y="217" text-anchor="middle" class="label">same-step CE candidate θ̄</text>
+  <text x="202" y="237" text-anchor="middle" class="small">target Adam moments: CE-only</text>
+  <path d="M322 205 H420" stroke="#36566f" stroke-width="2.4" marker-end="url(#arrow)"/>
+  <rect x="420" y="149" width="260" height="114" rx="16" fill="#e4f3ef" stroke="#4a9d90"/>
+  <text x="550" y="181" text-anchor="middle" class="head">Protected response</text>
+  <text x="550" y="207" text-anchor="middle" class="label">multi-domain cone → radius</text>
+  <text x="550" y="230" text-anchor="middle" class="label">fresh CE guard → commit/fallback</text>
+  <text x="550" y="250" text-anchor="middle" class="small">auxiliary correction stays outside Adam state</text>
+  <path d="M680 205 H782" stroke="#36566f" stroke-width="2.4" marker-end="url(#arrow)"/>
+  <rect x="782" y="160" width="326" height="92" rx="16" fill="#edf6f2" stroke="#4a9d90"/>
+  <text x="945" y="191" text-anchor="middle" class="head">Committed target checkpoint</text>
+  <text x="945" y="217" text-anchor="middle" class="label">drafter-aware, CE-guarded target action</text>
+  <text x="945" y="237" text-anchor="middle" class="small">optimizer state remains the CE-only candidate state</text>
+  <rect x="82" y="337" width="240" height="92" rx="16" fill="#eef2f4" stroke="#8fa0aa"/>
+  <text x="202" y="368" text-anchor="middle" class="head">Independent drafter</text>
+  <text x="202" y="394" text-anchor="middle" class="label">live H1 draft update</text>
+  <text x="202" y="414" text-anchor="middle" class="small">separate backbone · head · optimizer</text>
+  <path d="M322 382 H420" stroke="#36566f" stroke-width="2.4" marker-end="url(#arrow)"/>
+  <rect x="420" y="326" width="260" height="114" rx="16" fill="#fff2df" stroke="#d69a45"/>
+  <text x="550" y="357" text-anchor="middle" class="head">Drafter-aware signal</text>
+  <text x="550" y="383" text-anchor="middle" class="label">acceptance-coordinate response</text>
+  <text x="550" y="407" text-anchor="middle" class="label">across three guard domains</text>
+  <text x="550" y="428" text-anchor="middle" class="small">bidirectional treatment without shared parameters</text>
+  <path d="M550 326 V275" stroke="#36566f" stroke-width="2.4" marker-end="url(#arrow)"/>
+  <rect x="782" y="326" width="326" height="114" rx="16" fill="#fde8ea" stroke="#c85a62"/>
+  <text x="945" y="357" text-anchor="middle" class="head">Raw comparison arm</text>
+  <text x="945" y="383" text-anchor="middle" class="label">unweighted auxiliary enters target Adam</text>
+  <text x="945" y="407" text-anchor="middle" class="label">100-step total-effect motivation bridge</text>
+  <text x="945" y="428" text-anchor="middle" class="small">not isolated Adam-state mediation</text>
+  <path d="M680 382 H782" stroke="#c85a62" stroke-width="2.4" marker-end="url(#arrow)"/>
+  <rect x="82" y="486" width="1026" height="72" rx="14" fill="#fff7e8" stroke="#d99b3d"/>
+  <text x="106" y="515" class="head">Interpretation firewall</text>
+  <text x="106" y="540" class="label">Original frozen v1 strict radius audit = FAIL · REV2 FP32 materiality qualification = descriptive only, never a rescue or rewritten PASS</text>
+
+  <text x="1170" y="622" text-anchor="end" class="small">seed 99 engineering · descriptive only</text>
+</svg>
