@@ -19,6 +19,8 @@ catastrophic gradient-failure law.
 Public pages:
 
 - Completed evidence report: <https://bluear7878.github.io/specdec-joint-report/>
+- Draft-Aware QAT quantization-shock report:
+  <https://bluear7878.github.io/specdec-joint-report/draft-aware-qat/>
 - CT-EPR v0.12 exact cross-swap evidence and prospective-method boundary:
   <https://bluear7878.github.io/specdec-joint-report/ct-epr-v012/>
 - Optimizer-state controller validation:

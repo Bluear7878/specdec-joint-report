@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Target projection-W4 quantization이 같은 speculative pair의 target NLL, exact acceptance와 AAL을 함께 낮추고 target-only QAT가 두 shock를 다르게 회복한 seed-99 motivation panel.">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Draft-Aware QAT — Target만 QAT하면 pair도 복구되는가?">
+  <meta property="og:description" content="NLL shock recovery 73.2%, exact acceptance recovery 9.8%. FP32 eager serial exact rollout로 확인한 quantized-target compatibility gap.">
+  <meta property="og:url" content="https://bluear7878.github.io/specdec-joint-report/draft-aware-qat/">
+  <meta property="og:image" content="https://bluear7878.github.io/specdec-joint-report/draft-aware-qat/assets/quantization_shock.png">
+  <meta property="og:image:alt" content="Target NLL, exact acceptance, AAL과 QAT shock recovery 비교">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="canonical" href="https://bluear7878.github.io/specdec-joint-report/draft-aware-qat/">
+  <title>Draft-Aware QAT — Target만 QAT하면 pair도 복구되는가?</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f2f1ec;
+      --paper: #fffefb;
+      --soft: #f7f5ef;
+      --ink: #172127;
+      --muted: #667177;
+      --line: #dddcd5;
+      --blue: #2563eb;
+      --blue-soft: #e8efff;
+      --red: #d53b42;
+      --red-soft: #fde8e8;
+      --orange: #d87906;
+      --orange-soft: #fff0d6;
+      --green: #05826d;
+      --green-soft: #def5ed;
+      --shadow: 0 28px 90px rgba(28, 38, 43, .13);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0d1417; --paper: #151e22; --soft: #1b272c; --ink: #edf2f3;
+        --muted: #aab5ba; --line: #354349; --blue: #8db2ff;
+        --blue-soft: #1b3154; --red: #ff9da5; --red-soft: #432329;
+        --orange: #f2b563; --orange-soft: #402c16; --green: #6ed2bd;
+        --green-soft: #173b33; --shadow: none;
+      }
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0; color: var(--ink); background:
+        radial-gradient(circle at 9% 3%, color-mix(in srgb, var(--blue) 10%, transparent), transparent 27rem),
+        radial-gradient(circle at 92% 35%, color-mix(in srgb, var(--orange) 8%, transparent), transparent 30rem),
+        var(--bg);
+      font-family: Pretendard, "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.68; word-break: keep-all;
+    }
+    a { color: var(--blue); text-underline-offset: 3px; }
+    code { padding: .1rem .34rem; border: 1px solid var(--line); border-radius: 6px; background: var(--soft); font-size: .86em; }
+    nav {
+      position: sticky; top: 0; z-index: 20; display: flex; justify-content: space-between;
+      align-items: center; min-height: 58px; padding: .45rem max(20px, calc((100vw - 1180px) / 2));
+      border-bottom: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+      background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(16px);
+    }
+    nav .brand { color: var(--ink); font-weight: 900; text-decoration: none; }
+    nav div { display: flex; flex-wrap: wrap; gap: .2rem; }
+    nav div a { padding: .32rem .6rem; color: var(--muted); border-radius: 99px; font-size: .78rem; font-weight: 760; text-decoration: none; }
+    nav div a:hover, nav div a[aria-current="page"] { color: var(--blue); background: var(--blue-soft); }
+    main { width: min(1180px, calc(100% - 28px)); margin: 28px auto 80px; overflow: hidden; border: 1px solid var(--line); border-radius: 28px; background: var(--paper); box-shadow: var(--shadow); }
+    h1, h2, h3 { line-height: 1.15; letter-spacing: -.04em; }
+    h1 { margin: .65rem 0 1rem; font-size: clamp(2.65rem, 6.4vw, 5.5rem); }
+    h2 { margin: 0 0 .8rem; font-size: clamp(1.85rem, 3.8vw, 3rem); }
+    h3 { margin: 0 0 .5rem; font-size: 1.13rem; letter-spacing: -.02em; }
+    p { max-width: 880px; }
+    .hero { display: grid; grid-template-columns: 1.45fr .7fr; gap: clamp(2rem, 5vw, 4rem); padding: clamp(36px, 6vw, 76px); color: #f7fafb; background: radial-gradient(circle at 92% 12%, rgba(255, 171, 55, .27), transparent 22rem), linear-gradient(135deg, #102738, #173d51 64%, #12313e); }
+    .eyebrow { margin: 0; color: #a7ddff; font-size: .76rem; font-weight: 900; letter-spacing: .11em; text-transform: uppercase; }
+    .lead { color: #d5e4e9; font-size: 1.08rem; }
+    .chips { display: flex; flex-wrap: wrap; gap: .42rem; margin-top: 1.3rem; }
+    .chips span { padding: .32rem .62rem; border: 1px solid rgba(255,255,255,.18); border-radius: 999px; background: rgba(255,255,255,.06); color: #d5e5ea; font-size: .74rem; font-weight: 750; }
+    .verdict { align-self: center; padding: 1.45rem; border: 1px solid rgba(255,255,255,.2); border-radius: 22px; background: rgba(4, 16, 23, .4); }
+    .verdict .tag { display: inline-flex; padding: .28rem .58rem; color: #ffdda8; border-radius: 999px; background: rgba(211, 126, 16, .3); font-size: .7rem; font-weight: 900; }
+    .verdict strong { display: block; margin: .65rem 0 .45rem; font-size: clamp(1.75rem, 3.2vw, 2.7rem); line-height: 1.05; letter-spacing: -.05em; }
+    .verdict p { margin: 0; color: #d0dfe4; font-size: .87rem; line-height: 1.5; }
+    .kpis { display: grid; grid-template-columns: repeat(4, 1fr); border-bottom: 1px solid var(--line); background: var(--soft); }
+    .kpi { min-height: 118px; padding: 1.35rem 1.5rem; border-right: 1px solid var(--line); }
+    .kpi:last-child { border-right: 0; }
+    .kpi strong { display: block; font-size: 1.72rem; line-height: 1; letter-spacing: -.05em; }
+    .kpi span { display: block; margin-top: .48rem; color: var(--muted); font-size: .78rem; }
+    .bad { color: var(--red); } .warn { color: var(--orange); } .good { color: var(--green); }
+    section { padding: clamp(44px, 6vw, 74px) clamp(22px, 6vw, 72px); }
+    section + section { border-top: 1px solid var(--line); }
+    .section-lead { color: var(--muted); font-size: 1.02rem; }
+    .pipeline { display: grid; grid-template-columns: repeat(4, 1fr); gap: .75rem; margin: 1.7rem 0; }
+    .node { min-height: 146px; padding: 1.15rem; border: 1px solid var(--line); border-radius: 18px; background: var(--soft); box-shadow: inset 0 4px 0 var(--blue); }
+    .node.ptq { box-shadow: inset 0 4px 0 var(--red); }
+    .node.qat { box-shadow: inset 0 4px 0 var(--orange); }
+    .node small { color: var(--muted); font-size: .7rem; font-weight: 900; letter-spacing: .08em; }
+    .node strong { display: block; margin: .35rem 0; font-size: 1.22rem; }
+    .node p { margin: 0; color: var(--muted); font-size: .82rem; }
+    .fixed { padding: .85rem 1rem; border: 1px dashed color-mix(in srgb, var(--green) 55%, var(--line)); border-radius: 14px; color: var(--green); background: var(--green-soft); text-align: center; font-size: .86rem; font-weight: 820; }
+    figure { margin: 2rem 0 0; }
+    figure img { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 18px; background: white; }
+    figcaption { margin: .7rem auto 0; max-width: 920px; color: var(--muted); font-size: .82rem; text-align: center; }
+    .table-wrap { overflow-x: auto; margin: 1.6rem 0; border: 1px solid var(--line); border-radius: 16px; }
+    table { width: 100%; min-width: 760px; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+    th, td { padding: .78rem .85rem; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+    th:first-child, td:first-child { text-align: left; }
+    th { color: var(--muted); background: var(--soft); font-size: .72rem; letter-spacing: .04em; text-transform: uppercase; }
+    tr:last-child td { border-bottom: 0; }
+    .recovery { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1.5rem 0; }
+    .recovery article { padding: 1.35rem; border: 1px solid var(--line); border-radius: 18px; background: var(--soft); }
+    .bar { height: 12px; margin: .9rem 0 .45rem; overflow: hidden; border-radius: 999px; background: var(--line); }
+    .bar i { display: block; height: 100%; border-radius: inherit; }
+    .bar .quality { width: 73.2%; background: var(--blue); }
+    .bar .accept { width: 9.8%; background: var(--orange); }
+    .recovery strong { font-size: 2rem; letter-spacing: -.04em; }
+    .gate-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .8rem; margin-top: 1.5rem; }
+    .gate { padding: 1.1rem; border: 1px solid var(--line); border-radius: 17px; background: var(--soft); }
+    .gate b { display: inline-flex; padding: .2rem .48rem; border-radius: 999px; font-size: .68rem; letter-spacing: .06em; }
+    .gate.pass b { color: var(--green); background: var(--green-soft); }
+    .gate.fail b { color: var(--red); background: var(--red-soft); }
+    .gate p { margin: .55rem 0 0; color: var(--muted); font-size: .83rem; }
+    .callout { margin-top: 1.5rem; padding: 1.2rem 1.3rem; border-left: 5px solid var(--orange); border-radius: 0 15px 15px 0; background: var(--orange-soft); }
+    .callout strong { color: var(--orange); }
+    .limits { display: grid; grid-template-columns: repeat(2, 1fr); gap: .8rem; }
+    .limits div { padding: 1rem; border: 1px solid var(--line); border-radius: 15px; color: var(--muted); background: var(--soft); font-size: .84rem; }
+    footer { padding: 2rem; color: var(--muted); border-top: 1px solid var(--line); background: var(--soft); text-align: center; font-size: .78rem; }
+    @media (max-width: 840px) { .hero { grid-template-columns: 1fr; } .kpis, .pipeline { grid-template-columns: repeat(2, 1fr); } .recovery, .limits { grid-template-columns: 1fr; } .gate-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 520px) { nav div a:nth-child(-n+2) { display: none; } .kpis, .pipeline { grid-template-columns: 1fr; } .kpi { border-right: 0; border-bottom: 1px solid var(--line); } h1 { font-size: 2.55rem; } }
+  </style>
+</head>
+<body>
+  <nav aria-label="보고서 탐색">
+    <a class="brand" href="../">SpecDec Joint Research</a>
+    <div>
+      <a href="../">Motivation</a><a href="../methods/">Methods</a><a href="../ideas/">Ideas</a>
+      <a href="./" aria-current="page">Draft-Aware QAT</a>
+    </div>
+  </nav>
+  <main>
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Quantized-target compatibility audit · seed 99</p>
+        <h1>Target만 QAT하면<br>pair도 복구되는가?</h1>
+        <p class="lead">같은 drafter를 고정하고 FP target, W4 PTQ target, target-only QAT target을 교차했다. Target 품질 회복과 actual exact speculative acceptance 회복은 같은 문제가 아니었다.</p>
+        <div class="chips"><span>GPT-2 / DistilGPT2</span><span>Projection W4 fake quant</span><span>Hybrid LK η=3</span><span>FP32 eager exact</span></div>
+      </div>
+      <aside class="verdict">
+        <span class="tag">NARROW MOTIVATION OBSERVED</span>
+        <strong>73.2% vs 9.8%</strong>
+        <p>Target-only QAT의 NLL shock 회복률과 exact acceptance shock 회복률. 사전 80% quality gate는 실패했으므로 stronger ordered claim은 미확립이다.</p>
+      </aside>
+    </header>
+
+    <div class="kpis" aria-label="핵심 지표">
+      <div class="kpi"><strong class="bad">+0.3112</strong><span>PTQ − FP macro target NLL</span></div>
+      <div class="kpi"><strong class="bad">−0.0758</strong><span>PTQ − FP exact acceptance</span></div>
+      <div class="kpi"><strong class="bad">−0.2275</strong><span>PTQ − FP AAL</span></div>
+      <div class="kpi"><strong class="good">120 / 120</strong><span>greedy target identity checks</span></div>
+    </div>
+
+    <section id="design">
+      <p class="eyebrow">Causal panel</p>
+      <h2>한 drafter, 네 target</h2>
+      <p class="section-lead">FP target에 40 step 적응한 drafter checkpoint 하나를 첫 네 condition에 그대로 재사용했다. Target change와 drafter co-adaptation을 먼저 분리한 설계다.</p>
+      <div class="fixed">동일 FP-target-aware drafter checkpoint · parameter / optimizer / token exposure 고정</div>
+      <div class="pipeline">
+        <article class="node"><small>REFERENCE</small><strong>FP base</strong><p>Pinned pretrained target. 원래 speculative pair.</p></article>
+        <article class="node ptq"><small>SHOCK</small><strong>PTQ W4</strong><p>동일 latent weight를 즉시 projection-W4 fake quantize.</p></article>
+        <article class="node"><small>MATCHED CONTROL</small><strong>FP target-FT</strong><p>CE + frozen FP-teacher KL, 40 steps.</p></article>
+        <article class="node qat"><small>BASELINE</small><strong>QAT target-FT</strong><p>같은 batch/loss/schedule의 target-only W4 QAT.</p></article>
+      </div>
+      <p>마지막으로 QAT target을 고정한 채 drafter만 40 step 추가 적응해 post-hoc recovery ceiling을 측정했다. Target-side draft loss는 이 motivation panel에 적용하지 않았다.</p>
+    </section>
+
+    <section id="result">
+      <p class="eyebrow">Primary result</p>
+      <h2>Quality는 상당히, acceptance는 거의 못 돌아왔다</h2>
+      <div class="recovery">
+        <article><h3>Target NLL shock recovery</h3><strong class="good">73.2%</strong><div class="bar"><i class="quality"></i></div><small>PTQ 4.1597 → QAT 3.9319 · FP base 3.8485</small></article>
+        <article><h3>Exact acceptance shock recovery</h3><strong class="warn">9.8%</strong><div class="bar"><i class="accept"></i></div><small>PTQ 0.4532 → QAT 0.4606 · FP base 0.5291</small></article>
+      </div>
+      <figure><img src="assets/quantization_shock.png" alt="다섯 condition의 target NLL, exact acceptance, AAL과 PTQ shock 회복률 비교" loading="lazy"><figcaption>Target-only QAT가 NLL을 회복하는 정도와 speculative pair compatibility를 회복하는 정도가 크게 달랐다. Green은 drafter-only recovery ceiling이다.</figcaption></figure>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Condition</th><th>Macro NLL ↓</th><th>Teacher KL ↓</th><th>Top-1 ↑</th><th>Acceptance ↑</th><th>AAL ↑</th></tr></thead>
+        <tbody>
+          <tr><td>FP base</td><td><strong>3.8485</strong></td><td>0.0000</td><td>1.0000</td><td><strong>0.5291</strong></td><td><strong>2.5872</strong></td></tr>
+          <tr><td>PTQ W4</td><td>4.1597</td><td>0.3021</td><td>0.6672</td><td>0.4532</td><td>2.3597</td></tr>
+          <tr><td>FP target-FT</td><td><strong>3.7384</strong></td><td>0.0276</td><td>0.9043</td><td><strong>0.5436</strong></td><td><strong>2.6307</strong></td></tr>
+          <tr><td>QAT target-FT</td><td>3.9319</td><td>0.2432</td><td>0.6911</td><td>0.4606</td><td>2.3819</td></tr>
+          <tr><td>QAT + draft recovery</td><td>3.9319</td><td>0.2432</td><td>0.6911</td><td>0.4739</td><td>2.4217</td></tr>
+        </tbody>
+      </table></div>
+      <div class="callout"><strong>Paired exact evidence.</strong> QAT target의 FP-base acceptance residual은 <code>−0.0684</code>, prompt-cluster descriptive interval은 <code>[−0.1141, −0.0209]</code>였다. Prompt는 training-seed replicate가 아니지만 관찰 window의 잔여 gap은 일관된 방향이었다.</div>
+    </section>
+
+    <section id="domain">
+      <p class="eyebrow">Domain stratification</p>
+      <h2>Shock는 공통, 간단한 recovery는 이질적</h2>
+      <p class="section-lead">PTQ는 세 domain 모두 NLL과 exact acceptance를 악화시켰다. WikiText-2에서는 QAT NLL이 FP보다 좋아졌는데도 acceptance는 거의 복구되지 않았다.</p>
+      <figure><img src="assets/domain_breakdown.png" alt="GSM8K-text, TinyStories, WikiText-2의 target NLL과 exact acceptance 변화 및 drafter recovery" loading="lazy"><figcaption>WikiText-2 QAT−FP: NLL <strong>−0.0280</strong>이지만 acceptance <strong>−0.1199</strong>. Post-hoc drafter recovery는 TinyStories에서 오히려 −0.0299였다.</figcaption></figure>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Corpus</th><th>PTQ−FP NLL</th><th>QAT−FP NLL</th><th>PTQ−FP accept</th><th>QAT−FP accept</th><th>Draft recovery</th></tr></thead>
+        <tbody>
+          <tr><td>GSM8K-text</td><td>+0.2734</td><td>+0.1188</td><td>−0.0361</td><td>−0.0363</td><td class="good">+0.0185</td></tr>
+          <tr><td>TinyStories</td><td>+0.2506</td><td>+0.1592</td><td>−0.0680</td><td>−0.0490</td><td class="bad">−0.0299</td></tr>
+          <tr><td>WikiText-2</td><td>+0.4095</td><td class="good">−0.0280</td><td>−0.1234</td><td class="bad">−0.1199</td><td class="good">+0.0511</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section id="gate">
+      <p class="eyebrow">Prospective decision</p>
+      <h2>무엇이 통과했고, 무엇이 실패했는가</h2>
+      <div class="gate-grid">
+        <article class="gate pass"><b>PASS</b><h3>Quantization shock</h3><p>NLL +0.3112와 exact acceptance −0.0758. 같은 latent target과 같은 drafter.</p></article>
+        <article class="gate fail"><b>FAIL</b><h3>≥80% quality recovery</h3><p>Target-only QAT NLL recovery 73.2%. 사전 threshold를 사후 변경하지 않는다.</p></article>
+        <article class="gate pass"><b>PASS</b><h3>Spec recovery lag</h3><p>Quality와 acceptance recovery 차이 63.4 percentage points.</p></article>
+      </div>
+      <div class="callout"><strong>Ordered decision:</strong> <code>motivation_not_established_seed99_single_pair</code>. 이는 quantized-target mismatch가 없다는 뜻이 아니다. “target 품질이 80% 이상 복구된 뒤에도 acceptance만 남는다”는 더 강한 문장의 prerequisite가 실패했다는 뜻이다.</div>
+    </section>
+
+    <section id="next">
+      <p class="eyebrow">Research framing</p>
+      <h2>다음 방법은 target을 보호하며 pair를 함께 봐야 한다</h2>
+      <p>이번 결과가 여는 질문은 “target quality constraint를 지키면서 QAT 중 proposal–target compatibility를 직접 최적화할 수 있는가?”다. Draft-aware는 raw auxiliary gradient를 target Adam에 반드시 더한다는 뜻이 아니다. Quantization scale/code update, distillation target, calibration data, constrained response, alternating 또는 bilevel step이 drafter-aware해도 된다.</p>
+      <p>Proposal family는 더 이상 categorical out-of-scope가 아니다. Independent drafter, native multi-token head, feature-prediction head 모두 같은 umbrella hypothesis 아래 다룰 수 있다. 다만 이번 수치는 independent GPT-2/DistilGPT2 pair 하나이므로 family label을 유지하고 별도 stratum으로 재현해야 한다.</p>
+      <div class="limits">
+        <div><strong>Exact endpoint</strong><br>Temperature 1 · full tokenizer support · K=3 · FP32 eager serial full-prefix per target position.</div>
+        <div><strong>Not a serving result</strong><br>Projection-only fixed-grid W4 fake quant. Packed INT4, activation/KV quantization, throughput claim 없음.</div>
+        <div><strong>Inference unit</strong><br>Training seed n=1. Prompt-cluster interval은 descriptive이며 selection seeds 6–8은 sealed.</div>
+        <div><strong>Loss reference</strong><br><a href="https://arxiv.org/abs/2602.23881">LK Losses</a> adaptive Hybrid LK η=3; target-only QAT loss는 CE + frozen FP-teacher forward KL.</div>
+      </div>
+      <p style="margin-top:1.5rem"><a href="https://github.com/Bluear7878/specdec-joint-training-research/pull/15">코드·protocol·raw rows가 포함된 PR #15</a> · <a href="https://github.com/Bluear7878/specdec-joint-training-research/issues/14">연구 이슈 #14</a></p>
+    </section>
+    <footer>Draft-Aware QAT v0.2 · engineering seed 99 · generated from frozen repository evidence · 2026-07-22</footer>
+  </main>
+</body>
+</html>
