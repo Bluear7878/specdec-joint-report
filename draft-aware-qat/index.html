@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Target projection-W4 quantization이 같은 speculative pair의 target NLL, exact acceptance와 AAL을 함께 낮추고 target-only QAT가 두 shock를 다르게 회복한 seed-99 motivation panel.">
+  <meta name="description" content="Target projection-W4 quantization이 speculative compatibility를 깨뜨리고, target-only QAT 뒤 post-hoc drafter 학습도 acceptance 잔여 gap의 19.4%만 닫은 seed-99 motivation panel.">
   <meta property="og:type" content="article">
   <meta property="og:title" content="Draft-Aware QAT — Target만 QAT하면 pair도 복구되는가?">
-  <meta property="og:description" content="NLL shock recovery 73.2%, exact acceptance recovery 9.8%. FP32 eager serial exact rollout로 확인한 quantized-target compatibility gap.">
+  <meta property="og:description" content="NLL shock recovery 73.2%, exact acceptance recovery 9.8%, post-hoc draft가 잔여 gap 중 닫은 비율 19.4%. 왜 QAT 중 proposal-aware co-design을 시험해야 하는지 수치화했다.">
   <meta property="og:url" content="https://bluear7878.github.io/specdec-joint-report/draft-aware-qat/">
   <meta property="og:image" content="https://bluear7878.github.io/specdec-joint-report/draft-aware-qat/assets/quantization_shock.png">
   <meta property="og:image:alt" content="Target NLL, exact acceptance, AAL과 QAT shock recovery 비교">
@@ -104,12 +104,13 @@
     th:first-child, td:first-child { text-align: left; }
     th { color: var(--muted); background: var(--soft); font-size: .72rem; letter-spacing: .04em; text-transform: uppercase; }
     tr:last-child td { border-bottom: 0; }
-    .recovery { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1.5rem 0; }
+    .recovery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 1.5rem 0; }
     .recovery article { padding: 1.35rem; border: 1px solid var(--line); border-radius: 18px; background: var(--soft); }
     .bar { height: 12px; margin: .9rem 0 .45rem; overflow: hidden; border-radius: 999px; background: var(--line); }
     .bar i { display: block; height: 100%; border-radius: inherit; }
     .bar .quality { width: 73.2%; background: var(--blue); }
     .bar .accept { width: 9.8%; background: var(--orange); }
+    .bar .posthoc { width: 19.4%; background: var(--green); }
     .recovery strong { font-size: 2rem; letter-spacing: -.04em; }
     .gate-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .8rem; margin-top: 1.5rem; }
     .gate { padding: 1.1rem; border: 1px solid var(--line); border-radius: 17px; background: var(--soft); }
@@ -139,13 +140,13 @@
       <div>
         <p class="eyebrow">Quantized-target compatibility audit · seed 99</p>
         <h1>Target만 QAT하면<br>pair도 복구되는가?</h1>
-        <p class="lead">같은 drafter를 고정하고 FP target, W4 PTQ target, target-only QAT target을 교차했다. Target 품질 회복과 actual exact speculative acceptance 회복은 같은 문제가 아니었다.</p>
+        <p class="lead">같은 drafter를 고정하고 FP, W4 PTQ, target-only QAT target을 교차한 뒤, target을 고정한 post-hoc draft 학습까지 시험했다. Target 품질, pair compatibility, sequential recovery는 서로 다른 문제였다.</p>
         <div class="chips"><span>GPT-2 / DistilGPT2</span><span>Projection W4 fake quant</span><span>Hybrid LK η=3</span><span>FP32 eager exact</span></div>
       </div>
       <aside class="verdict">
         <span class="tag">NARROW MOTIVATION OBSERVED</span>
         <strong>73.2% vs 9.8%</strong>
-        <p>Target-only QAT의 NLL shock 회복률과 exact acceptance shock 회복률. 사전 80% quality gate는 실패했으므로 stronger ordered claim은 미확립이다.</p>
+        <p>Target-only QAT의 NLL shock 회복률과 exact acceptance shock 회복률. 이후 post-hoc drafter도 잔여 gap의 19.4%만 닫았다. 사전 80% quality gate는 실패했다.</p>
       </aside>
     </header>
 
@@ -153,7 +154,7 @@
       <div class="kpi"><strong class="bad">+0.3112</strong><span>PTQ − FP macro target NLL</span></div>
       <div class="kpi"><strong class="bad">−0.0758</strong><span>PTQ − FP exact acceptance</span></div>
       <div class="kpi"><strong class="bad">−0.2275</strong><span>PTQ − FP AAL</span></div>
-      <div class="kpi"><strong class="good">120 / 120</strong><span>greedy target identity checks</span></div>
+      <div class="kpi"><strong class="warn">19.4%</strong><span>post-hoc draft가 닫은 QAT 잔여 acceptance gap</span></div>
     </div>
 
     <section id="design">
@@ -176,6 +177,7 @@
       <div class="recovery">
         <article><h3>Target NLL shock recovery</h3><strong class="good">73.2%</strong><div class="bar"><i class="quality"></i></div><small>PTQ 4.1597 → QAT 3.9319 · FP base 3.8485</small></article>
         <article><h3>Exact acceptance shock recovery</h3><strong class="warn">9.8%</strong><div class="bar"><i class="accept"></i></div><small>PTQ 0.4532 → QAT 0.4606 · FP base 0.5291</small></article>
+        <article><h3>Post-hoc residual closure</h3><strong class="warn">19.4%</strong><div class="bar"><i class="posthoc"></i></div><small>QAT 0.4606 → draft 재학습 0.4739 · FP base 0.5291</small></article>
       </div>
       <figure><img src="assets/quantization_shock.png" alt="다섯 condition의 target NLL, exact acceptance, AAL과 PTQ shock 회복률 비교" loading="lazy"><figcaption>Target-only QAT가 NLL을 회복하는 정도와 speculative pair compatibility를 회복하는 정도가 크게 달랐다. Green은 drafter-only recovery ceiling이다.</figcaption></figure>
       <div class="table-wrap"><table>
@@ -189,6 +191,22 @@
         </tbody>
       </table></div>
       <div class="callout"><strong>Paired exact evidence.</strong> QAT target의 FP-base acceptance residual은 <code>−0.0684</code>, prompt-cluster descriptive interval은 <code>[−0.1141, −0.0209]</code>였다. Prompt는 training-seed replicate가 아니지만 관찰 window의 잔여 gap은 일관된 방향이었다.</div>
+    </section>
+
+    <section id="sequential">
+      <p class="eyebrow">Sequential baseline audit</p>
+      <h2>QAT하고 drafter를 따로 학습해도 80.6%가 남았다</h2>
+      <p class="section-lead">Target-only QAT를 끝낸 뒤 target을 완전히 고정하고 동일 drafter만 Hybrid LK로 40 step 더 학습했다. Target NLL·PPL·teacher KL·top-1은 그대로였지만, exact acceptance와 AAL의 FP 잔여 gap은 각각 19.4%만 닫혔다.</p>
+      <figure><img src="assets/sequential_gap.png" alt="Target-only QAT 뒤 post-hoc drafter 학습 전후의 FP 대비 exact acceptance와 AAL 잔여 gap, 그리고 세 corpus의 acceptance 잔여 gap" loading="lazy"><figcaption>Acceptance <strong>−0.0684 → −0.0552</strong>, AAL <strong>−0.2052 → −0.1655</strong>. 세 domain 모두 FP reference 아래에 남았고 TinyStories는 post-hoc adaptation 뒤 더 악화됐다.</figcaption></figure>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Actual endpoint</th><th>FP reference</th><th>QAT + fixed draft</th><th>Then post-hoc draft</th><th>Gain</th><th>Residual closed</th><th>Still below FP</th></tr></thead>
+        <tbody>
+          <tr><td>Exact acceptance ↑</td><td>0.5291</td><td>0.4606</td><td>0.4739</td><td class="good">+0.0133</td><td><strong>19.4%</strong></td><td class="bad">−0.0552</td></tr>
+          <tr><td>AAL ↑</td><td>2.5872</td><td>2.3819</td><td>2.4217</td><td class="good">+0.0398</td><td><strong>19.4%</strong></td><td class="bad">−0.1655</td></tr>
+        </tbody>
+      </table></div>
+      <div class="callout"><strong>왜 QAT 중 aware한가?</strong> Sequential 방식은 완성된 <code>p<sub>Q</sub></code>를 잠근 채 <code>q</code>만 움직인다. 시험할 가설은 target-only QAT와 품질이 동등한 quantized-target feasible set 안에서 proposal compatibility를 함께 tie-break하면 이 sequential 기준선보다 더 큰 exact utility를 얻을 수 있다는 것이다.</div>
+      <p><strong>아직 증명된 것은 아니다.</strong> 이 panel에는 protected joint와 sequential의 matched head-to-head arm이 없다. 따라서 19.4%는 joint의 예상 gain이나 sequential 방식의 상한이 아니라, 시험한 40-step post-hoc 기준선의 제한을 나타내는 descriptive 수치다. 더 긴 수렴 학습과 tuned distillation baseline은 다음 비교에 포함해야 한다.</p>
     </section>
 
     <section id="domain">
@@ -219,13 +237,15 @@
 
     <section id="next">
       <p class="eyebrow">Research framing</p>
-      <h2>다음 방법은 target을 보호하며 pair를 함께 봐야 한다</h2>
-      <p>이번 결과가 여는 질문은 “target quality constraint를 지키면서 QAT 중 proposal–target compatibility를 직접 최적화할 수 있는가?”다. Draft-aware는 raw auxiliary gradient를 target Adam에 반드시 더한다는 뜻이 아니다. Quantization scale/code update, distillation target, calibration data, constrained response, alternating 또는 bilevel step이 drafter-aware해도 된다.</p>
+      <h2>다음 방법은 strong sequential baseline을 직접 이겨야 한다</h2>
+      <p>다음 primary contrast는 같은 initialization, QAT recipe, bit width, data, target/draft exposure와 update/compute budget의 <strong>protected draft-aware − (target-only QAT + post-hoc adapted draft)</strong>다. Protected arm은 target NLL/downstream non-inferiority를 먼저 지키고 exact acceptance/AAL과 per-domain robustness에서 우위여야 한다.</p>
+      <p>Draft-aware는 raw auxiliary gradient를 target Adam에 반드시 더한다는 뜻이 아니다. Quantization scale/code update, distillation target, calibration data, constrained response, alternating 또는 bilevel step이 proposal-aware해도 된다.</p>
       <p>Proposal family는 더 이상 categorical out-of-scope가 아니다. Independent drafter, native multi-token head, feature-prediction head 모두 같은 umbrella hypothesis 아래 다룰 수 있다. 다만 이번 수치는 independent GPT-2/DistilGPT2 pair 하나이므로 family label을 유지하고 별도 stratum으로 재현해야 한다.</p>
       <div class="limits">
         <div><strong>Exact endpoint</strong><br>Temperature 1 · full tokenizer support · K=3 · FP32 eager serial full-prefix per target position.</div>
         <div><strong>Not a serving result</strong><br>Projection-only fixed-grid W4 fake quant. Packed INT4, activation/KV quantization, throughput claim 없음.</div>
         <div><strong>Inference unit</strong><br>Training seed n=1. Prompt-cluster interval은 descriptive이며 selection seeds 6–8은 sealed.</div>
+        <div><strong>Not joint efficacy</strong><br>40-step post-hoc audit는 tuned sequential ceiling이 아니다. Protected joint가 이를 이긴다는 head-to-head 결과도 아직 없다.</div>
         <div><strong>Loss reference</strong><br><a href="https://arxiv.org/abs/2602.23881">LK Losses</a> adaptive Hybrid LK η=3; target-only QAT loss는 CE + frozen FP-teacher forward KL.</div>
       </div>
       <p style="margin-top:1.5rem"><a href="https://github.com/Bluear7878/specdec-joint-training-research/pull/15">코드·protocol·raw rows가 포함된 PR #15</a> · <a href="https://github.com/Bluear7878/specdec-joint-training-research/issues/14">연구 이슈 #14</a></p>
