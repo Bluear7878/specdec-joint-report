@@ -122,16 +122,32 @@
     .callout strong { color: var(--orange); }
     .limits { display: grid; grid-template-columns: repeat(2, 1fr); gap: .8rem; }
     .limits div { padding: 1rem; border: 1px solid var(--line); border-radius: 15px; color: var(--muted); background: var(--soft); font-size: .84rem; }
+    .lit-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: .85rem; margin: 1.55rem 0; }
+    .lit-card { padding: 1.2rem; border: 1px solid var(--line); border-radius: 18px; background: var(--soft); }
+    .lit-card:nth-child(1) { box-shadow: inset 0 4px 0 var(--blue); }
+    .lit-card:nth-child(2) { box-shadow: inset 0 4px 0 var(--orange); }
+    .lit-card:nth-child(3) { box-shadow: inset 0 4px 0 var(--green); }
+    .lit-card small { color: var(--muted); font-size: .68rem; font-weight: 900; letter-spacing: .08em; }
+    .lit-card p { margin: .5rem 0 0; color: var(--muted); font-size: .82rem; }
+    .lit-table th:not(:first-child), .lit-table td:not(:first-child) { text-align: center; }
+    .lit-table td:last-child { max-width: 280px; text-align: left; white-space: normal; }
+    .status { display: inline-flex; min-width: 3.25rem; justify-content: center; padding: .18rem .42rem; border-radius: 999px; font-size: .65rem; font-weight: 900; letter-spacing: .04em; }
+    .status.yes { color: var(--green); background: var(--green-soft); }
+    .status.part { color: var(--orange); background: var(--orange-soft); }
+    .status.no { color: var(--muted); background: color-mix(in srgb, var(--line) 52%, transparent); }
+    .gap-card { display: grid; grid-template-columns: auto 1fr; gap: 1rem; align-items: center; margin-top: 1.4rem; padding: 1.2rem 1.35rem; border: 2px dashed var(--green); border-radius: 18px; background: var(--green-soft); }
+    .gap-card b { display: grid; place-items: center; width: 4.2rem; height: 4.2rem; border-radius: 50%; color: #fff; background: var(--green); font-size: .78rem; letter-spacing: .04em; }
+    .gap-card p { margin: 0; font-weight: 760; }
     footer { padding: 2rem; color: var(--muted); border-top: 1px solid var(--line); background: var(--soft); text-align: center; font-size: .78rem; }
-    @media (max-width: 840px) { .hero { grid-template-columns: 1fr; } .kpis, .pipeline { grid-template-columns: repeat(2, 1fr); } .recovery, .limits { grid-template-columns: 1fr; } .gate-grid { grid-template-columns: 1fr; } }
-    @media (max-width: 520px) { nav div a:nth-child(-n+2) { display: none; } .kpis, .pipeline { grid-template-columns: 1fr; } .kpi { border-right: 0; border-bottom: 1px solid var(--line); } h1 { font-size: 2.55rem; } }
+    @media (max-width: 840px) { .hero { grid-template-columns: 1fr; } .kpis, .pipeline { grid-template-columns: repeat(2, 1fr); } .recovery, .limits, .lit-cards { grid-template-columns: 1fr; } .gate-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 520px) { nav div a:nth-child(-n+2) { display: none; } .kpis, .pipeline { grid-template-columns: 1fr; } .kpi { border-right: 0; border-bottom: 1px solid var(--line); } .gap-card { grid-template-columns: 1fr; } h1 { font-size: 2.55rem; } }
   </style>
 </head>
 <body>
   <nav aria-label="보고서 탐색">
     <a class="brand" href="../">SpecDec Joint Research</a>
     <div>
-      <a href="../">Motivation</a><a href="../methods/">Methods</a><a href="../ideas/">Ideas</a>
+      <a href="../">Motivation</a><a href="../methods/">Methods</a><a href="../ideas/">Ideas</a><a href="#literature">Literature</a>
       <a href="./" aria-current="page">Draft-Aware QAT</a>
     </div>
   </nav>
@@ -224,6 +240,38 @@
       </table></div>
     </section>
 
+    <section id="literature">
+      <p class="eyebrow">Primary-source landscape · 28 works</p>
+      <h2>Joint 학습은 이미 있다.<br>QAT 교집합이 비어 있다</h2>
+      <p class="section-lead">“Joint”를 하나로 세지 않고 target update, proposal update, acceptance-aware signal, QAT 여부로 분해했다. 결론은 categorical novelty가 아니라 비교 가능한 좁은 gap이다.</p>
+
+      <div class="lit-cards">
+        <article class="lit-card"><small>CLOSEST DIRECT JOINT</small><h3><a href="https://sergiu-nistor.com/assets/publications/Halfway_Speculative_Decoding.pdf">Halfway SD</a></h3><p>Hybrid LK를 target LoRA와 EAGLE-3식 head 양쪽에 적용하고 target CE로 보호한다. Acceptance-aware이지만 QAT·독립 AR pair는 아니다.</p></article>
+        <article class="lit-card"><small>STRONG SAFETY BASELINE</small><h3>Frozen target → proposal</h3><p><a href="https://proceedings.iclr.cc/paper_files/paper/2024/hash/8766fbc68e1ed1cdef712ce273e0a363-Abstract-Conference.html">DistillSpec</a>, <a href="https://proceedings.mlr.press/v235/liu24y.html">Online SD</a>, <a href="https://arxiv.org/abs/2403.00858">TVD++</a>, <a href="https://arxiv.org/abs/2602.23881">LK</a>는 target을 잠그고 proposal을 맞춘다.</p></article>
+        <article class="lit-card"><small>CLOSEST QUANTIZED SYSTEM</small><h3><a href="https://arxiv.org/abs/2607.04244">Quantize Target &amp; Drafter</a></h3><p>Target QAD를 먼저 끝낸 뒤 quantized target에 drafter를 적응한다. QAT/QAD와 proposal을 연결하지만 순차 방식이다.</p></article>
+      </div>
+
+      <div class="table-wrap"><table class="lit-table">
+        <thead><tr><th>Work / recipe</th><th>Target</th><th>Proposal</th><th>Accept signal</th><th>QAT</th><th>분류와 경계</th></tr></thead>
+        <tbody>
+          <tr><td><a href="https://sergiu-nistor.com/assets/publications/Halfway_Speculative_Decoding.pdf">Halfway SD</a></td><td><span class="status yes">YES</span></td><td><span class="status yes">YES</span></td><td><span class="status yes">YES</span></td><td><span class="status no">NO</span></td><td>가장 가까운 J3 · CE guard · head 기반 저자 원고</td></tr>
+          <tr><td><a href="https://proceedings.mlr.press/v235/cai24b.html">Medusa-2</a></td><td><span class="status yes">YES</span></td><td><span class="status yes">YES</span></td><td><span class="status no">NO</span></td><td><span class="status no">NO</span></td><td>Backbone + native head shared-path joint</td></tr>
+          <tr><td><a href="https://aclanthology.org/2025.emnlp-main.986/">Spec. Streaming</a> · <a href="https://aclanthology.org/2024.acl-long.681/">LayerSkip</a> · <a href="https://proceedings.mlr.press/v235/gloeckle24a.html">MTP</a></td><td><span class="status yes">YES</span></td><td><span class="status yes">YES</span></td><td><span class="status no">NO</span></td><td><span class="status no">NO</span></td><td>Shared/self future-token co-training</td></tr>
+          <tr><td><a href="https://proceedings.iclr.cc/paper_files/paper/2024/hash/8766fbc68e1ed1cdef712ce273e0a363-Abstract-Conference.html">DistillSpec</a> · <a href="https://proceedings.mlr.press/v235/liu24y.html">Online SD</a> · <a href="https://arxiv.org/abs/2403.00858">TVD++</a></td><td><span class="status no">NO</span></td><td><span class="status yes">YES</span></td><td><span class="status part">PART</span></td><td><span class="status no">NO</span></td><td>독립 drafter의 frozen-target alignment</td></tr>
+          <tr><td><a href="https://proceedings.mlr.press/v235/li24bt.html">EAGLE</a> · <a href="https://proceedings.neurips.cc/paper_files/paper/2025/hash/c7b5a35ea98b62512a869c19ea7b03cb-Abstract-Conference.html">EAGLE-3</a> · <a href="https://arxiv.org/abs/2403.09919">ReDrafter</a></td><td><span class="status no">NO</span></td><td><span class="status yes">YES</span></td><td><span class="status no">NO</span></td><td><span class="status no">NO</span></td><td>Frozen-target feature proposal</td></tr>
+          <tr><td><a href="https://arxiv.org/abs/2602.23881">LK Losses</a> · <a href="https://arxiv.org/abs/2510.05421">DVI</a></td><td><span class="status no">NO</span></td><td><span class="status yes">YES</span></td><td><span class="status yes">YES</span></td><td><span class="status no">NO</span></td><td>Acceptance/verifier-aware, target 고정</td></tr>
+          <tr><td><a href="https://arxiv.org/abs/2305.17888">LLM-QAT</a> · <a href="https://arxiv.org/abs/2407.11062">EfficientQAT</a> · <a href="https://arxiv.org/abs/2402.04902">L4Q</a> · <a href="https://arxiv.org/abs/2601.20088">QAD</a></td><td><span class="status yes">YES</span></td><td><span class="status no">NO</span></td><td><span class="status no">NO</span></td><td><span class="status yes">YES</span></td><td>Target-only quantization anchor</td></tr>
+          <tr><td><a href="https://aclanthology.org/2025.emnlp-main.240/">QSpec</a></td><td><span class="status no">NO</span></td><td><span class="status no">NO</span></td><td><span class="status part">INFER</span></td><td><span class="status no">NO</span></td><td>Retraining 없는 quantized inference coupling</td></tr>
+          <tr><td><a href="https://arxiv.org/abs/2607.04244">Quantize Target &amp; Drafter</a></td><td><span class="status part">FIRST</span></td><td><span class="status yes">YES</span></td><td><span class="status no">NO</span></td><td><span class="status yes">YES</span></td><td>Target QAD → frozen target → draft의 순차 recipe</td></tr>
+          <tr><td><strong>Draft-Aware QAT gap</strong></td><td><span class="status yes">YES</span></td><td><span class="status yes">YES</span></td><td><span class="status yes">YES</span></td><td><span class="status yes">YES</span></td><td><strong>Prospective intersection · 아직 efficacy evidence 아님</strong></td></tr>
+        </tbody>
+      </table></div>
+
+      <div class="gap-card"><b>GAP</b><p>Proposal-aware target QAT/QAD가 <u>target-only QAT 대비 target non-inferiority</u>와 <u>tuned sequential 대비 actual exact acceptance/AAL 우위</u>를 동시에 보일 수 있는가?</p></div>
+      <p>일반 보호 comparator로는 <a href="https://proceedings.neurips.cc/paper/2020/hash/3fe78a8acf5fda99de95303940a2420c-Abstract.html">PCGrad</a>, <a href="https://proceedings.neurips.cc/paper/2021/hash/9d27fdf2477ffbff837d73ef7ae23db9-Abstract.html">CAGrad</a>, <a href="https://proceedings.mlr.press/v162/navon22a.html">Nash-MTL</a>, <a href="https://arxiv.org/abs/2402.02998">Bloop</a>가 있다. 이들은 직접 speculative 선행이 아니며 target-only Adam trajectory나 QAT code transition을 자동으로 보호하지 않는다.</p>
+      <p><a href="https://github.com/Bluear7878/specdec-joint-training-research/blob/research/draft-aware-qat-v0.1-pilot/DRAFT_AWARE_QAT_JOINT_TRAINING_LITERATURE_KO.md"><strong>28편 전체 분류·claim locator 보기 →</strong></a> · <a href="https://github.com/Bluear7878/specdec-joint-training-research/blob/research/draft-aware-qat-v0.1-pilot/artifacts/draft_aware_qat_joint_training_literature_audit_v1/source_manifest.json">기계 판독 citation manifest</a></p>
+    </section>
+
     <section id="gate">
       <p class="eyebrow">Prospective decision</p>
       <h2>무엇이 통과했고, 무엇이 실패했는가</h2>
@@ -250,7 +298,7 @@
       </div>
       <p style="margin-top:1.5rem"><a href="https://github.com/Bluear7878/specdec-joint-training-research/pull/15">코드·protocol·raw rows가 포함된 PR #15</a> · <a href="https://github.com/Bluear7878/specdec-joint-training-research/issues/14">연구 이슈 #14</a></p>
     </section>
-    <footer>Draft-Aware QAT v0.2 · engineering seed 99 · generated from frozen repository evidence · 2026-07-22</footer>
+    <footer>Draft-Aware QAT v0.2 · engineering seed 99 · 28-source literature audit · generated from frozen repository evidence · 2026-07-22</footer>
   </main>
 </body>
 </html>
