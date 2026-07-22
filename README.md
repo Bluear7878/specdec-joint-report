@@ -19,7 +19,7 @@ catastrophic gradient-failure law.
 Public pages:
 
 - Completed evidence report: <https://bluear7878.github.io/specdec-joint-report/>
-- Draft-Aware QAT quantization-shock report:
+- Draft-Aware QAT v0.3 target-live and v0.2 quantization report:
   <https://bluear7878.github.io/specdec-joint-report/draft-aware-qat/>
 - CT-EPR v0.12 exact cross-swap evidence and prospective-method boundary:
   <https://bluear7878.github.io/specdec-joint-report/ct-epr-v012/>
@@ -38,6 +38,16 @@ The ideas page clearly separates completed observations from untested proposals.
 Its central visual maps the observed optimizer-state and endpoint evidence to
 design requirements, ranked method candidates, falsifiable hypotheses, and
 stage-gated experiments.
+
+The Draft-Aware QAT page now leads with the completed v0.3 target-live β-dose
+audit. Its frozen decision is `motivation_not_established_no_exact_gain`:
+teacher-forced Hybrid-LK overlap increased at β 0.1/0.3/1.0, but FP32-eager
+exact acceptance and AAL point estimates decreased at every dose. Macro target
+NLL stayed inside the frozen margin while β=1 harmed WikiText-2 NLL by 0.0157,
+showing domain redistribution. A post-hoc non-mutating six-way cross-swap found
+positive conditional target and draft acceptance legs in 0/3 doses each. Those
+legs are descriptive checkpoint effects, not causal mediation. The earlier v0.2
+quantization-shock and sequential-recovery evidence remains on the same page.
 
 SafeMove-SD v0.2 passed its implementation identities but was killed at the
 frozen engineering gate: its emergency radius bound was active on 92–99% of

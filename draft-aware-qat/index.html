@@ -3,16 +3,16 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Target projection-W4 quantization이 speculative compatibility를 깨뜨리고, target-only QAT 뒤 post-hoc drafter 학습도 acceptance 잔여 gap의 19.4%만 닫은 seed-99 motivation panel.">
+  <meta name="description" content="Naive target-live Hybrid-LK QAT의 teacher-forced overlap은 좋아졌지만 actual exact acceptance/AAL은 세 β dose 모두 낮아졌다. Domain quality와 exact cross-swap까지 포함한 seed-99 audit.">
   <meta property="og:type" content="article">
-  <meta property="og:title" content="Draft-Aware QAT — Target만 QAT하면 pair도 복구되는가?">
-  <meta property="og:description" content="NLL shock recovery 73.2%, exact acceptance recovery 9.8%, post-hoc draft가 잔여 gap 중 닫은 비율 19.4%. 왜 QAT 중 proposal-aware co-design을 시험해야 하는지 수치화했다.">
+  <meta property="og:title" content="Draft-Aware QAT — Surrogate가 좋아지면 exact도 좋아지는가?">
+  <meta property="og:description" content="β 0.1/0.3/1.0에서 Hybrid-LK overlap은 모두 상승했지만 exact acceptance는 모두 하락했다. Intended trade-off FAIL과 다음 exact-aligned QAT 조건을 정리한다.">
   <meta property="og:url" content="https://bluear7878.github.io/specdec-joint-report/draft-aware-qat/">
-  <meta property="og:image" content="https://bluear7878.github.io/specdec-joint-report/draft-aware-qat/assets/quantization_shock.png">
-  <meta property="og:image:alt" content="Target NLL, exact acceptance, AAL과 QAT shock recovery 비교">
+  <meta property="og:image" content="https://bluear7878.github.io/specdec-joint-report/draft-aware-qat/v03-assets/naive_da_qat_result_synthesis.png">
+  <meta property="og:image:alt" content="Naive Draft-Aware QAT의 surrogate와 exact utility 역전, domain 변화, checkpoint cross-swap">
   <meta name="twitter:card" content="summary_large_image">
   <link rel="canonical" href="https://bluear7878.github.io/specdec-joint-report/draft-aware-qat/">
-  <title>Draft-Aware QAT — Target만 QAT하면 pair도 복구되는가?</title>
+  <title>Draft-Aware QAT — Surrogate가 좋아지면 exact도 좋아지는가?</title>
   <style>
     :root {
       color-scheme: light dark;
@@ -147,35 +147,63 @@
   <nav aria-label="보고서 탐색">
     <a class="brand" href="../">SpecDec Joint Research</a>
     <div>
-      <a href="../">Motivation</a><a href="../methods/">Methods</a><a href="../ideas/">Ideas</a><a href="#literature">Literature</a>
+      <a href="#v03">v0.3 Result</a><a href="#result">v0.2 Shock</a><a href="#literature">Literature</a><a href="#next">Next</a>
       <a href="./" aria-current="page">Draft-Aware QAT</a>
     </div>
   </nav>
   <main>
     <header class="hero">
       <div>
-        <p class="eyebrow">Quantized-target compatibility audit · seed 99</p>
-        <h1>Target만 QAT하면<br>pair도 복구되는가?</h1>
-        <p class="lead">같은 drafter를 고정하고 FP, W4 PTQ, target-only QAT target을 교차한 뒤, target을 고정한 post-hoc draft 학습까지 시험했다. Target 품질, pair compatibility, sequential recovery는 서로 다른 문제였다.</p>
-        <div class="chips"><span>GPT-2 / DistilGPT2</span><span>Projection W4 fake quant</span><span>Hybrid LK η=3</span><span>FP32 eager exact</span></div>
+        <p class="eyebrow">Target-live loss audit · engineering seed 99</p>
+        <h1>Surrogate가 좋아지면<br>exact도 좋아지는가?</h1>
+        <p class="lead">Independent GPT-2 target을 projection-W4 QAT하면서 DistilGPT2-aware Hybrid-LK를 target에도 적용했다. Teacher-forced proxy는 좋아졌지만 actual exact speculative utility는 세 dose 모두 반대로 움직였다.</p>
+        <div class="chips"><span>Independent target / drafter</span><span>Projection W4 fake QAT</span><span>Hybrid LK η=3</span><span>FP32 eager exact</span></div>
       </div>
       <aside class="verdict">
-        <span class="tag">NARROW MOTIVATION OBSERVED</span>
-        <strong>73.2% vs 9.8%</strong>
-        <p>Target-only QAT의 NLL shock 회복률과 exact acceptance shock 회복률. 이후 post-hoc drafter도 잔여 gap의 19.4%만 닫았다. 사전 80% quality gate는 실패했다.</p>
+        <span class="tag">PROSPECTIVE GATE FAILED</span>
+        <strong>0 / 3 exact gains</strong>
+        <p>의도한 useful-but-unsafe trade-off는 없었다. 대신 surrogate/exact mismatch와 domain별 target-quality redistribution이 드러났다.</p>
       </aside>
     </header>
 
     <div class="kpis" aria-label="핵심 지표">
-      <div class="kpi"><strong class="bad">+0.3112</strong><span>PTQ − FP macro target NLL</span></div>
-      <div class="kpi"><strong class="bad">−0.0758</strong><span>PTQ − FP exact acceptance</span></div>
-      <div class="kpi"><strong class="bad">−0.2275</strong><span>PTQ − FP AAL</span></div>
-      <div class="kpi"><strong class="warn">19.4%</strong><span>post-hoc draft가 닫은 QAT 잔여 acceptance gap</span></div>
+      <div class="kpi"><strong class="good">+0.0077</strong><span>β=1 teacher-forced overlap Δ</span></div>
+      <div class="kpi"><strong class="bad">−0.0158</strong><span>β=1 actual exact acceptance Δ</span></div>
+      <div class="kpi"><strong class="bad">−0.0474</strong><span>β=1 actual AAL Δ</span></div>
+      <div class="kpi"><strong class="bad">+0.0157</strong><span>β=1 WikiText-2 target NLL Δ</span></div>
     </div>
 
+    <section id="v03">
+      <p class="eyebrow">Latest matched β-dose result</p>
+      <h2>의도한 trade-off는 없었다.<br>Naive loss 자체가 exact에 실패했다</h2>
+      <p class="section-lead">QAT-detach와 β 0.1/0.3/1.0은 initialization, 40 minibatches, target/draft exposure, optimizer, schedule, clipping, QAT grid와 draft update를 맞췄다. Detach도 target auxiliary gradient를 계산하되 적용하지 않았다.</p>
+      <figure><img src="v03-assets/naive_da_qat_result_synthesis.png" alt="Teacher-forced Hybrid-LK overlap과 actual exact acceptance의 반대 방향, corpus별 exact acceptance와 target NLL, target/draft cross-swap conditional leg" loading="eager"><figcaption>Green proxy는 모든 dose에서 증가했지만 red exact acceptance는 모두 감소했다. Macro NLL은 안전해 보였으나 β=1 WikiText-2는 +0.0157 악화됐다. Cross-swap leg는 사후 conditional effect이며 causal mediation이 아니다.</figcaption></figure>
+      <div class="table-wrap"><table>
+        <thead><tr><th>β</th><th>Macro NLL Δ</th><th>TF overlap Δ</th><th>Exact accept Δ</th><th>AAL Δ</th><th>Prospective gate</th></tr></thead>
+        <tbody>
+          <tr><td>0.1</td><td class="good">−0.000297</td><td class="good">+0.000543</td><td class="bad">−0.002971</td><td class="bad">−0.008913</td><td class="bad">FAIL</td></tr>
+          <tr><td>0.3</td><td>+0.000111</td><td class="good">+0.002637</td><td class="bad">−0.007115</td><td class="bad">−0.021345</td><td class="bad">FAIL</td></tr>
+          <tr><td>1.0</td><td>+0.000904</td><td class="good">+0.007717</td><td class="bad">−0.015791</td><td class="bad">−0.047372</td><td class="bad">FAIL</td></tr>
+        </tbody>
+      </table></div>
+      <div class="callout"><strong>Frozen decision.</strong> <code>motivation_not_established_no_exact_gain</code>. Useful dose도 useful-but-unsafe dose도 0/3이다. Exact prompt-cluster interval은 세 dose 모두 0을 포함하며 training seed는 하나다.</div>
+
+      <h3 style="margin-top:2.3rem">저장 checkpoint를 바꿔 끼워도 target·draft leg 모두 음수였다</h3>
+      <p>Diagonal을 본 뒤 여섯 off-diagonal을 추가했다. 144/144 cross-swap greedy checks와 96/96 diagonal checks가 target-only output identity를 통과했다.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>β</th><th>Conditional target leg</th><th>Conditional draft leg</th><th>Diagonal total</th><th>Non-additive residual</th></tr></thead>
+        <tbody>
+          <tr><td>0.1</td><td class="bad">−0.004336</td><td class="bad">−0.005338</td><td class="bad">−0.002971</td><td>+0.006703</td></tr>
+          <tr><td>0.3</td><td class="bad">−0.017587</td><td class="bad">−0.004667</td><td class="bad">−0.007115</td><td>+0.015139</td></tr>
+          <tr><td>1.0</td><td class="bad">−0.003070</td><td class="bad">−0.005018</td><td class="bad">−0.015791</td><td>−0.007703</td></tr>
+        </tbody>
+      </table></div>
+      <p><strong>정확한 해석:</strong> raw Hybrid-LK를 target QAT에 더하는 것은 이 pair에서 안전한 exact lever가 아니었다. 그렇다고 proposal-aware QAT 전체가 무의미한 것은 아니다. 아래 v0.2가 보인 quantization compatibility gap은 남아 있고, 이제 필요한 방법이 <em>exact-aligned + target-constrained</em>임이 더 명확해졌다.</p>
+    </section>
+
     <section id="design">
-      <p class="eyebrow">Causal panel</p>
-      <h2>한 drafter, 네 target</h2>
+      <p class="eyebrow">Earlier v0.2 quantization-shock panel</p>
+      <h2>왜 proposal-aware QAT를 연구하는가</h2>
       <p class="section-lead">FP target에 40 step 적응한 drafter checkpoint 하나를 첫 네 condition에 그대로 재사용했다. Target change와 drafter co-adaptation을 먼저 분리한 설계다.</p>
       <div class="fixed">동일 FP-target-aware drafter checkpoint · parameter / optimizer / token exposure 고정</div>
       <div class="pipeline">
@@ -285,20 +313,20 @@
 
     <section id="next">
       <p class="eyebrow">Research framing</p>
-      <h2>다음 방법은 strong sequential baseline을 직접 이겨야 한다</h2>
-      <p>다음 primary contrast는 같은 initialization, QAT recipe, bit width, data, target/draft exposure와 update/compute budget의 <strong>protected draft-aware − (target-only QAT + post-hoc adapted draft)</strong>다. Protected arm은 target NLL/downstream non-inferiority를 먼저 지키고 exact acceptance/AAL과 per-domain robustness에서 우위여야 한다.</p>
-      <p>Draft-aware는 raw auxiliary gradient를 target Adam에 반드시 더한다는 뜻이 아니다. Quantization scale/code update, distillation target, calibration data, constrained response, alternating 또는 bilevel step이 proposal-aware해도 된다.</p>
+      <h2>다음 방법은 exact-aligned이면서 target-constrained여야 한다</h2>
+      <p>v0.3 때문에 “Hybrid-LK를 target에도 미분하면 된다”는 단순 해법은 제외됐다. 다음 primary contrast는 같은 initialization, QAT recipe, bit width, data, target/draft exposure와 update/compute budget의 <strong>protected exact-aligned draft-aware − (target-only QAT + tuned post-hoc adapted draft)</strong>다. Protected arm은 target NLL/downstream/domain-floor non-inferiority를 먼저 지키고 exact acceptance/AAL에서 우위여야 한다.</p>
+      <p>Draft-aware는 raw auxiliary gradient를 target Adam에 반드시 더한다는 뜻이 아니다. Verified acceptance mass, rejection-aware replay, short exact rollout, quantization scale/code selection, constrained response, alternating 또는 bilevel step이 proposal-aware해도 된다. v0.3은 teacher-forced overlap 단독 최적화가 actual exact transfer를 보장하지 않음을 보여줬다.</p>
       <p>Proposal family는 더 이상 categorical out-of-scope가 아니다. Independent drafter, native multi-token head, feature-prediction head 모두 같은 umbrella hypothesis 아래 다룰 수 있다. 다만 이번 수치는 independent GPT-2/DistilGPT2 pair 하나이므로 family label을 유지하고 별도 stratum으로 재현해야 한다.</p>
       <div class="limits">
         <div><strong>Exact endpoint</strong><br>Temperature 1 · full tokenizer support · K=3 · FP32 eager serial full-prefix per target position.</div>
         <div><strong>Not a serving result</strong><br>Projection-only fixed-grid W4 fake quant. Packed INT4, activation/KV quantization, throughput claim 없음.</div>
         <div><strong>Inference unit</strong><br>Training seed n=1. Prompt-cluster interval은 descriptive이며 selection seeds 6–8은 sealed.</div>
-        <div><strong>Not joint efficacy</strong><br>40-step post-hoc audit는 tuned sequential ceiling이 아니다. Protected joint가 이를 이긴다는 head-to-head 결과도 아직 없다.</div>
+        <div><strong>Not joint efficacy</strong><br>v0.3 naive joint는 exact gain 0/3으로 실패했다. Protected joint가 tuned sequential을 이긴다는 결과는 아직 없다.</div>
         <div><strong>Loss reference</strong><br><a href="https://arxiv.org/abs/2602.23881">LK Losses</a> adaptive Hybrid LK η=3; target-only QAT loss는 CE + frozen FP-teacher forward KL.</div>
       </div>
       <p style="margin-top:1.5rem"><a href="https://github.com/Bluear7878/specdec-joint-training-research/pull/15">코드·protocol·raw rows가 포함된 PR #15</a> · <a href="https://github.com/Bluear7878/specdec-joint-training-research/issues/14">연구 이슈 #14</a></p>
     </section>
-    <footer>Draft-Aware QAT v0.2 · engineering seed 99 · 28-source literature audit · generated from frozen repository evidence · 2026-07-22</footer>
+    <footer>Draft-Aware QAT v0.3 target-live audit + v0.2 quantization motivation · engineering seed 99 · generated from frozen repository evidence · 2026-07-22</footer>
   </main>
 </body>
 </html>

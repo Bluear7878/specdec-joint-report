@@ -1,0 +1,12 @@
+{
+  "cross_effects_sha256": "057fa1968cd90ad8a03da837a4ca431f8e0686088d8692f53f2d6bad47e035b7",
+  "cross_summary_sha256": "631339e6864ae20369bc75b25c198c04762f5ca2a1fd746db6862a97b87fdce5",
+  "crossswap_status": "posthoc_crossswap_readout_materialized",
+  "decision": "motivation_not_established_no_exact_gain",
+  "figure_png_sha256": "32ffc789500d8f115e7aefaa7f25a4c8fc07a0fea2354ba797218f2907752ed6",
+  "figure_svg_sha256": "1733fe2fb51baea912fecef863b40de865c771ff902609e9d0ae9203fba21f0c",
+  "source_contrasts_sha256": "e323773c1755bf93dfd8a013b117ea30f9c9d8902d8e5d5ea96c205f639cedf6",
+  "source_domains_sha256": "5bb2aca0793d3ba32941505aeb990ceddefadc3e4a71e317f2dcff6176b14489",
+  "source_summary_sha256": "48b8c30988649dcc820d00257ea0536397bd1c298be7885019bca7fc8283f314",
+  "visualization_revision": 1
+}
